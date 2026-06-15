@@ -17,6 +17,13 @@ add_subdirectory(external/raylib)
 set(BUILD_RAYLIB_CPP_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/raylib-cpp)
 
+# ---- EnTT (ECS, git submodule) ----
+# Header-only. We don't add_subdirectory (it would pull in tests / sanitizers);
+# just expose the single-header include dir as an INTERFACE target.
+add_library(entt INTERFACE)
+target_include_directories(entt INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/entt/single_include")
+
 # ---- Dear ImGui (git submodule) ----
 # No CMakeLists shipped; compile core sources into a static lib. Everything is
 # static, so there is a single ImGui context linked into the exe.
@@ -56,7 +63,7 @@ file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS
 # ---- App ----
 add_executable(long ${APP_SOURCES})
 target_include_directories(long PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(long PRIVATE raylib raylib_cpp imgui rlimgui)
+target_link_libraries(long PRIVATE raylib raylib_cpp imgui rlimgui entt)
 
 # Show the src/ folder tree (core/engine/editor/game) as filters in Visual
 # Studio instead of a flat "Source Files" list.
