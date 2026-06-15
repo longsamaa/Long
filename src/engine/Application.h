@@ -31,9 +31,7 @@ namespace Long {
 		//style
 		void SetEditorStyle(const EditorStyle& style);
 		void SetState(std::unique_ptr<AppState> state);
-		// Blocks until the window is closed or Quit() is called.
 		void Run();
-		// Request the loop to stop after the current frame.
 		void Quit() { m_running = false; }
 		raylib::Window& GetWindow() { return m_window; }
 
