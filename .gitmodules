@@ -1,0 +1,13 @@
+[submodule "external/raylib-cpp"]
+	path = external/raylib-cpp
+	url = https://github.com/RobLoach/raylib-cpp.git
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+[submodule "external/rlImGui"]
+	path = external/rlImGui
+	url = https://github.com/raylib-extras/rlImGui.git
+[submodule "external/raylib"]
+	path = external/raylib
+	url = https://github.com/raysan5/raylib.git
