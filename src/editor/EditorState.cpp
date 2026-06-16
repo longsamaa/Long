@@ -1,23 +1,50 @@
-#include "editor/EditorState.h"
-#include "engine/Application.h"
+#include "editor/EditorState.hpp"
+#include "engine/Application.hpp"
 #include "editor/panels/GpuInfoPanel.hpp"
+#include "editor/panels/ProfilerPanel.hpp"
+#include "core/Components.hpp"
+#include "system/RenderSystem.hpp"
+#include "system/TransformSystem.hpp"
 #include "imgui.h"
+#include "raylib-cpp.hpp"
 
 
 namespace Long {
     void EditorState::OnEnter() {
         m_panels.push_back(std::make_unique<GpuInfoPanel>());
+        m_panels.push_back(std::make_unique<ProfilerPanel>(m_renderStats));
+        testCreateDefaultCube();
     }
 
     void EditorState::Update(float dt) {
         (void)dt;
+        // Recompute world transforms from the hierarchy before rendering.
+        TransformSystem(m_scene.Registry());
     }
 
     void EditorState::RenderWorld() {
-        // Placeholder so we can see the loop works. Will become the 3D grid view.
-        auto& w = m_app.GetWindow();
-        raylib::Vector2 center(w.GetWidth() / 2.0f, w.GetHeight() / 2.0f);
-        center.DrawCircle(w.GetHeight() * 0.4f, DARKGREEN);
+        m_camera.Begin3D();
+        DrawGrid(20, 1.0f); // ground reference grid
+        RenderSystem(m_scene.Registry(), m_app.GetAssets(), m_renderStats);
+        m_camera.End3D();
+    }
+
+    void EditorState::testCreateDefaultCube()
+    {
+        auto& assets = m_app.GetAssets();
+        raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
+        uint32_t meshId = assets.AddMesh(std::move(cube));
+        uint32_t matId  = assets.CreateDefaultMaterial(raylib::Color::Maroon());
+        auto& reg = m_scene.Registry();
+        for (int i = 0; i < 3; ++i) {
+            entt::entity e = m_scene.CreateEntity("cube");
+            Transform t;
+            t.position = { i * 2.0f - 2.0f, 0.5f, 0.0f };
+            t.scale = { 1.0f, 1.0f, 1.0f };
+            reg.emplace<Transform>(e, t);
+            reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
+            reg.emplace<MeshRenderer>(e, MeshRenderer{ matId, raylib::Color::Maroon(), true });
+        }
     }
 
     void EditorState::RenderMenuBar()

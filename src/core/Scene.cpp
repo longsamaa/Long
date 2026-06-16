@@ -1,5 +1,5 @@
-#include "core/Scene.h"
-#include "core/Components.h"
+#include "core/Scene.hpp"
+#include "core/Components.hpp"
 
 namespace Long {
 

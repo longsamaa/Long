@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include "raylib-cpp.hpp"
+#include "engine/AssetManager.hpp"
 namespace Long {
 	class AppState;
 	//Application manages main loop, active state
@@ -34,10 +35,12 @@ namespace Long {
 		void Run();
 		void Quit() { m_running = false; }
 		raylib::Window& GetWindow() { return m_window; }
+		AssetManager& GetAssets() { return m_assets; }
 
 	private:
 		Config m_config;
 		raylib::Window m_window;
+		AssetManager m_assets;
 		std::unique_ptr<AppState> m_state;
 		bool m_running = true;
 	};

@@ -1,0 +1,54 @@
+#pragma once
+#include <raylib-cpp.hpp>  // Vector3 — plain POD, fine to use in components.
+#include <entt/entt.hpp>
+#include <string>
+#include <vector>
+namespace Long {
+// LOCAL transform: position/rotation/scale RELATIVE TO THE PARENT (or to the
+// world if the entity has no parent). This is what you edit.
+struct Transform {
+    raylib::Vector3 position = {0, 0, 0};
+    raylib::Quaternion quaternion = {0, 0, 0, 1}; // identity rotation
+    raylib::Vector3 scale = {1, 1, 1};
+};
+
+// WORLD transform: the absolute model matrix, computed each frame by the
+// TransformSystem as  parent.world * local.  RenderSystem draws with THIS.
+// Do not edit by hand.
+struct WorldTransform {
+    raylib::Matrix matrix = MatrixIdentity();
+};
+
+// Scene-graph link. A model with many parts = one parent entity with one child
+// entity per (mesh, material). Children inherit the parent's world transform.
+struct Hierarchy {
+    entt::entity parent = entt::null;
+    std::vector<entt::entity> children;
+};
+// Which grid cell this entity occupies (for tile-based placement).
+//struct GridPosition {
+//    int x = 0;
+//    int z = 0;
+//};
+// Which mesh (geometry) this entity uses. Mesh lives in the AssetManager;
+// the component only references it by id. (Like Unity's MeshFilter.)
+struct MeshFilter {
+    uint32_t meshId = UINT32_MAX; // invalid by default
+};
+
+// How this entity is shaded. Material (shader + params) lives in the
+// AssetManager; referenced by id so several entities can share/override it.
+// (Like Unity's MeshRenderer.)
+struct MeshRenderer {
+    uint32_t materialId = UINT32_MAX; // invalid -> use default material
+    raylib::Color tint = raylib::Color::White();
+    bool visible = true;
+};
+// Human-readable name (handy in the editor's entity list / inspector).
+struct Name {
+    std::string value;
+};
+//// Tag components (empty) -- used to mark entities for systems/queries.
+//struct StaticTile {};   // part of the level geometry
+//struct Selected {};     // currently selected in the editor
+} // namespace Long

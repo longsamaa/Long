@@ -1,5 +1,5 @@
-#include "engine/Application.h"
-#include "engine/AppState.h"
+#include "engine/Application.hpp"
+#include "engine/AppState.hpp"
 
 #include "rlImGui.h"
 #include "imgui.h"

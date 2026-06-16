@@ -1,4 +1,4 @@
-#include "engine/GpuInfo.h"
+#include "engine/GpuInfo.hpp"
 
 #include "rlgl.h"
 

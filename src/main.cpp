@@ -1,5 +1,5 @@
-#include "engine/Application.h"
-#include "editor/EditorState.h"
+#include "engine/Application.hpp"
+#include "editor/EditorState.hpp"
 #include <memory>
 
 int main() {

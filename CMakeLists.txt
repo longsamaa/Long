@@ -71,3 +71,16 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${APP_SOU
 
 set_target_properties(long PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+# ---- learn_ecs: standalone playground for learning EnTT (links only entt) ----
+# Separate executable so you can experiment with the ECS without touching the
+# engine. Sources live under learn/ecs/.
+file(GLOB_RECURSE LEARN_ECS_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/learn/ecs/*.cpp"
+)
+if(LEARN_ECS_SOURCES)
+    add_executable(learn_ecs ${LEARN_ECS_SOURCES})
+    target_link_libraries(learn_ecs PRIVATE entt)
+    set_target_properties(learn_ecs PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+endif()
