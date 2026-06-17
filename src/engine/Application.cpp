@@ -3,6 +3,7 @@
 
 #include "rlImGui.h"
 #include "imgui.h"
+#include <filesystem>
 
 // Member init list constructs m_window, which opens the window (InitWindow).
 // Native resolution, resizable window (good for an editor). Do NOT use
@@ -23,6 +24,13 @@ namespace Long {
 #endif
 		// Set up style
 		SetEditorStyle(m_config.editorMode);
+
+		// GL context exists now -> load core shaders (copied next to the exe).
+		// Resolve relative to the EXE, not the working directory (which can be
+		// anything depending on how the app was launched).
+		std::filesystem::path shaderDir =
+			std::filesystem::path(GetApplicationDirectory()) / "shaders";
+		m_assets.LoadAllShaders(shaderDir);
 	}
 
 	Application::~Application() {

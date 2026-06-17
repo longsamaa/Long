@@ -10,6 +10,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # GLFW event-loop hang we hit with the prebuilt vcpkg DLL.
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+# Use OpenGL 4.3 -- the newest version raylib supports (enables compute shaders
+# / SSBOs). GLSL shaders then target #version 430.
+set(OPENGL_VERSION "4.3" CACHE STRING "" FORCE)
 add_subdirectory(external/raylib)
 
 # ---- raylib-cpp (C++ wrapper, git submodule) ----
@@ -58,6 +61,8 @@ file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.vert"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.frag"
 )
 
 # ---- App ----
@@ -71,6 +76,17 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${APP_SOU
 
 set_target_properties(long PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+# ---- Copy shaders next to the executable after each build ----
+# Shaders are loaded at runtime by relative path, so they must sit beside the
+# exe. $<TARGET_FILE_DIR:long> resolves to the real output dir (handles the
+# Debug/Release subfolder that Visual Studio adds). copy_directory_if_different
+# only copies changed files, so it's cheap to run every build.
+set(SHADER_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders")
+add_custom_command(TARGET long POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            "${SHADER_SRC_DIR}" "$<TARGET_FILE_DIR:long>/shaders"
+    COMMENT "Copying shaders -> $<TARGET_FILE_DIR:long>/shaders")
 
 # ---- learn_ecs: standalone playground for learning EnTT (links only entt) ----
 # Separate executable so you can experiment with the ECS without touching the

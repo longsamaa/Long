@@ -1,6 +1,7 @@
 #include "RenderSystem.hpp"
 #include "core/Components.hpp"
 #include "engine/AssetManager.hpp"
+#include "engine/Material.hpp"
 #include "raylib-cpp.hpp"
 
 namespace Long {
@@ -18,10 +19,18 @@ namespace Long {
 				stats.culledEntities++;
 				continue;
 			}
-			// Color is owned by the material -- draw the mesh with it as-is.
 			raylib::Mesh& mesh = assets.GetMesh(mf.meshId);
-			raylib::Material& mat = assets.GetMaterial(mr.materialId);
-			mesh.Draw(mat, wt.matrix);
+			BaseMaterial& material = assets.GetMaterial(mr.materialId);
+
+			// Material binds its shader + pushes uniforms, returns the
+			// raylib::Material (carrying that shader) for raylib to draw with.
+			if (!assets.IsValidShader(material.GetShaderId())) {
+				stats.culledEntities++;
+				continue;
+			}
+			raylib::Shader& shader = assets.GetShader(material.GetShaderId());
+			raylib::Material& rlMat = material.Apply(shader);
+			mesh.Draw(rlMat, wt.matrix);
 
 			// Each DrawMesh is one draw call; tally its geometry.
 			stats.drawCalls++;

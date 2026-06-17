@@ -2,6 +2,7 @@
 #include "engine/Application.hpp"
 #include "editor/panels/GpuInfoPanel.hpp"
 #include "editor/panels/ProfilerPanel.hpp"
+#include "editor/panels/ConsolePanel.hpp"
 #include "core/Components.hpp"
 #include "system/RenderSystem.hpp"
 #include "system/TransformSystem.hpp"
@@ -13,6 +14,7 @@ namespace Long {
     void EditorState::OnEnter() {
         m_panels.push_back(std::make_unique<GpuInfoPanel>());
         m_panels.push_back(std::make_unique<ProfilerPanel>(m_renderStats));
+        m_panels.push_back(std::make_unique<ConsolePanel>());
         testCreateDefaultCube();
     }
 
@@ -34,7 +36,11 @@ namespace Long {
         auto& assets = m_app.GetAssets();
         raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
         uint32_t meshId = assets.AddMesh(std::move(cube));
-        uint32_t matId  = assets.CreateDefaultMaterial(raylib::Color::Maroon());
+
+        // Use the "default" shader loaded by Application; build a flat-color
+        // material on top of it.
+        uint32_t shaderId = assets.GetShaderId("default");
+        uint32_t matId = assets.CreateDefaultMaterial(shaderId, raylib::Color::Maroon());
         auto& reg = m_scene.Registry();
         for (int i = 0; i < 3; ++i) {
             entt::entity e = m_scene.CreateEntity("cube");
