@@ -8,10 +8,6 @@ namespace Long {
 	void RenderSystem(entt::registry& registry, AssetManager& assets, RenderStats& stats)
 	{
 		stats.Reset();
-
-		// Generic: each entity supplies a mesh (MeshFilter) and a material
-		// (MeshRenderer). We draw the mesh at its WORLD transform, which the
-		// TransformSystem computes (and must run before this).
 		auto view = registry.view<WorldTransform, MeshFilter, MeshRenderer>();
 		for (auto e : view) {
 			const auto& [wt, mf, mr] = view.get<WorldTransform, MeshFilter, MeshRenderer>(e);
@@ -21,9 +17,6 @@ namespace Long {
 			}
 			raylib::Mesh& mesh = assets.GetMesh(mf.meshId);
 			BaseMaterial& material = assets.GetMaterial(mr.materialId);
-
-			// Material binds its shader + pushes uniforms, returns the
-			// raylib::Material (carrying that shader) for raylib to draw with.
 			if (!assets.IsValidShader(material.GetShaderId())) {
 				stats.culledEntities++;
 				continue;

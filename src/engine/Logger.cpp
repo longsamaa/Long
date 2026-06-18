@@ -1,6 +1,6 @@
 #include "engine/Logger.hpp"
 #include "raylib.h"
-
+#include <source_location>
 #include <cstdio>
 
 namespace Long {
@@ -11,15 +11,15 @@ namespace Long {
 		SetTraceLogCallback(&Logger::Callback);
 	}
 
+	void Logger::TraceLog(const TraceLogLevel level, const std::string& log, const std::source_location location)
+	{
+		::TraceLog(level, "%s:%d: %s", location.file_name(), (int)location.line(), log.c_str());
+	}
+
 	void Logger::Callback(int logLevel, const char* text, va_list args) {
-		// Format the message (raylib passes printf-style text + args).
 		char buffer[1024];
 		std::vsnprintf(buffer, sizeof(buffer), text, args);
-
-		// Still echo to stdout so the normal console keeps working.
 		std::printf("%s\n", buffer);
-
-		// Drop the oldest entry if we hit the cap (cheap ring behaviour).
 		if (s_entries.size() >= kMaxEntries) {
 			s_entries.erase(s_entries.begin());
 		}

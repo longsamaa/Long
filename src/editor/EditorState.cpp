@@ -19,7 +19,12 @@ namespace Long {
     }
 
     void EditorState::Update(float dt) {
-        (void)dt;
+        // Only drive the camera when the mouse isn't over an ImGui panel,
+        // so dragging panels doesn't also orbit/pan the view.
+        if (!ImGui::GetIO().WantCaptureMouse) {
+            m_camera.Update(dt);
+        }
+
         // Recompute world transforms from the hierarchy before rendering.
         TransformSystem(m_scene.Registry());
     }
