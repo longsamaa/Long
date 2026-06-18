@@ -10,8 +10,6 @@
 #include <vector>
 namespace Long {
     class Application;
-    // The level editor mode. Owns the camera, the level being edited and the
-    // editor panels. For now it's a skeleton that draws a placeholder scene + UI.
     class EditorState : public AppState {
     public:
         explicit EditorState(Application& app) : m_app(app) {}

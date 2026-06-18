@@ -39,7 +39,7 @@ private:
 
     // Tunables.
     float m_orbitSpeed = 0.3f;   // deg per pixel
-    float m_panSpeed = 0.01f;    // world units per pixel (scaled by distance)
+    float m_panSpeed = 0.001f;    // world units per pixel (scaled by distance)
     float m_zoomSpeed = 1.5f;    // distance per wheel notch
     float m_minDistance = 2.0f;
     float m_maxDistance = 100.0f;

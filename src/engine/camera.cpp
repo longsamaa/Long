@@ -21,16 +21,16 @@ void EditorCamera::UpdateCameraVectors() {
     };
 
     m_camera.target   = m_target;
-    m_camera.position = Vector3Add(m_target, Vector3Scale(offset, m_distance));
+    m_camera.position = ::Vector3Add(m_target, Vector3Scale(offset, m_distance));
 }
 
 void EditorCamera::Update(float dt) {
     (void)dt;
 
-    raylib::Vector2 delta = GetMouseDelta();
+    raylib::Vector2 delta = ::GetMouseDelta();
 
     // --- Orbit: right mouse drag ---
-    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+    if (::IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
         m_yaw   += delta.x * m_orbitSpeed;
         m_pitch += delta.y * m_orbitSpeed; // drag down -> look from below
         if (m_pitch > m_maxPitch) m_pitch = m_maxPitch;
@@ -38,7 +38,7 @@ void EditorCamera::Update(float dt) {
     }
 
     // --- Pan: middle mouse drag -> move target along camera's right/up ---
-    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+    if (::IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
         // Camera basis vectors.
         Vector3 forward = Vector3Normalize(Vector3Subtract(m_camera.target, m_camera.position));
         Vector3 right   = Vector3Normalize(Vector3CrossProduct(forward, m_camera.up));
@@ -53,7 +53,7 @@ void EditorCamera::Update(float dt) {
     }
 
     // --- Zoom: mouse wheel ---
-    float wheel = GetMouseWheelMove();
+    float wheel = ::GetMouseWheelMove();
     if (wheel != 0.0f) {
         m_distance -= wheel * m_zoomSpeed;
         if (m_distance < m_minDistance) m_distance = m_minDistance;
