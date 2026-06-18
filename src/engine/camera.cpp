@@ -5,7 +5,7 @@ namespace Long {
 EditorCamera::EditorCamera() {
     m_camera.up         = {0.0f, 1.0f, 0.0f};
     m_camera.fovy       = 45.0f;
-    m_camera.projection = CAMERA_PERSPECTIVE;
+    m_camera.projection = ::CAMERA_PERSPECTIVE;
     UpdateCameraVectors();
 }
 
@@ -15,13 +15,13 @@ void EditorCamera::UpdateCameraVectors() {
     float pitchRad = m_pitch * DEG2RAD;
 
     raylib::Vector3 offset{
-        cosf(pitchRad) * cosf(yawRad),
-        sinf(pitchRad),
-        cosf(pitchRad) * sinf(yawRad)
+        ::cosf(pitchRad) * ::cosf(yawRad),
+        ::sinf(pitchRad),
+        ::cosf(pitchRad) * ::sinf(yawRad)
     };
 
     m_camera.target   = m_target;
-    m_camera.position = ::Vector3Add(m_target, Vector3Scale(offset, m_distance));
+    m_camera.position = ::Vector3Add(m_target, ::Vector3Scale(offset, m_distance));
 }
 
 void EditorCamera::Update(float dt) {
@@ -40,16 +40,16 @@ void EditorCamera::Update(float dt) {
     // --- Pan: middle mouse drag -> move target along camera's right/up ---
     if (::IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
         // Camera basis vectors.
-        Vector3 forward = Vector3Normalize(Vector3Subtract(m_camera.target, m_camera.position));
-        Vector3 right   = Vector3Normalize(Vector3CrossProduct(forward, m_camera.up));
-        Vector3 up      = Vector3CrossProduct(right, forward);
+        Vector3 forward = ::Vector3Normalize(::Vector3Subtract(m_camera.target, m_camera.position));
+        Vector3 right   = ::Vector3Normalize(::Vector3CrossProduct(forward, m_camera.up));
+        Vector3 up      = ::Vector3CrossProduct(right, forward);
 
         // Scale pan by distance so it feels consistent at any zoom.
         float scale = m_panSpeed * m_distance;
-        Vector3 move = Vector3Add(
-            Vector3Scale(right, -delta.x * scale),
-            Vector3Scale(up,     delta.y * scale));
-        m_target = Vector3Add(m_target, move);
+        Vector3 move = ::Vector3Add(
+            ::Vector3Scale(right, -delta.x * scale),
+            ::Vector3Scale(up,     delta.y * scale));
+        m_target = ::Vector3Add(m_target, move);
     }
 
     // --- Zoom: mouse wheel ---
