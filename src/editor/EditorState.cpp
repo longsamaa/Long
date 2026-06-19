@@ -3,6 +3,7 @@
 #include "editor/panels/GpuInfoPanel.hpp"
 #include "editor/panels/ProfilerPanel.hpp"
 #include "editor/panels/ConsolePanel.hpp"
+#include "editor/panels/HierarchyPanel.hpp"
 #include "core/Components.hpp"
 #include "system/RenderSystem.hpp"
 #include "system/TransformSystem.hpp"
@@ -15,6 +16,7 @@ namespace Long {
         m_panels.push_back(std::make_unique<GpuInfoPanel>());
         m_panels.push_back(std::make_unique<ProfilerPanel>(m_renderStats));
         m_panels.push_back(std::make_unique<ConsolePanel>());
+        m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene));
         testCreateDefaultCube();
     }
 
