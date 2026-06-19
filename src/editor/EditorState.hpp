@@ -7,6 +7,8 @@
 #include "editor/IPanel.hpp"
 #include "system/RenderStats.hpp"
 #include "system/RayCastSystem.hpp"
+#include "engine/render/Renderer.hpp"
+#include "engine/render/RenderContext.hpp"
 #include <memory>
 #include <vector>
 namespace Long {
@@ -28,6 +30,7 @@ namespace Long {
 		std::vector<std::unique_ptr<IPanel>> m_panels;
 		Scene m_scene;
 		EditorCamera m_camera;
+		Renderer m_renderer;
 		RenderStats m_renderStats;
 		RaycastHit m_hoverHit;   // entity under the cursor this frame
 	};

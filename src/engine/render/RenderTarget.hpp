@@ -24,8 +24,12 @@ namespace Long {
 		void Bind() { m_texture.BeginMode(); }
 		void Unbind() { m_texture.EndMode(); }
 
-		// Color texture -- sample it in a post-process pass or blit to screen.
+		// Color texture (the image) -- sample it in a post-process pass or blit
+		// to screen. Returned by value: a Texture is just ids/ints, cheap to copy.
 		raylib::TextureUnmanaged GetTexture() { return m_texture.GetTexture(); }
+
+		// The whole framebuffer (color + depth), e.g. if a pass needs the depth.
+		raylib::RenderTexture2D& GetRenderTexture() { return m_texture; }
 
 		uint32_t Width() const { return width; }
 		uint32_t Height() const { return height; }
@@ -38,7 +42,7 @@ namespace Long {
 		}
 
 	private:
-		raylib::RenderTexture m_texture;
+		raylib::RenderTexture2D m_texture;
 		uint32_t width{ 0 };
 		uint32_t height{ 0 };
 	};

@@ -8,6 +8,8 @@
 #include "system/RenderSystem.hpp"
 #include "system/TransformSystem.hpp"
 #include "system/RayCastSystem.hpp"
+#include "engine/render/passes/ScenePass.hpp"
+#include "engine/render/passes/CompositePass.hpp"
 #include "imgui.h"
 #include "raylib-cpp.hpp"
 
@@ -17,6 +19,12 @@ namespace Long {
 		m_panels.push_back(std::make_unique<ProfilerPanel>(m_renderStats));
 		m_panels.push_back(std::make_unique<ConsolePanel>());
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene));
+
+		// Build the render pipeline: scene -> screen. (Outline pass slots in
+		// between these later.)
+		m_renderer.AddPass(std::make_unique<ScenePass>());
+		m_renderer.AddPass(std::make_unique<CompositePass>());
+
 		testCreateDefaultCube();
 	}
 
@@ -56,16 +64,17 @@ namespace Long {
 	}
 
 	void EditorState::RenderWorld() {
-		m_camera.Begin3D();
-		DrawGrid(20, 1.0f); // ground reference grid
-		RenderSystem(m_scene.Registry(), m_app.GetAssets(), m_renderStats);
-
-		// Highlight the entity under the cursor (proves raycast works).
+		RenderContext ctx;
+		ctx.registry = &m_scene.Registry();
+		ctx.assets   = &m_app.GetAssets();
+		ctx.camera   = &m_camera.Raw();
+		ctx.width    = (uint32_t)GetRenderWidth();
+		ctx.height   = (uint32_t)GetRenderHeight();
 		if (m_hoverHit.hit) {
-			DrawSphere(m_hoverHit.point, 0.1f, raylib::Color::Yellow());
+			ctx.selectedEntities = { m_hoverHit.entity };
 		}
-
-		m_camera.End3D();
+		m_renderer.Render(ctx);
+		m_renderStats = ctx.renderStats; // surface stats to the Profiler panel
 	}
 
 	void EditorState::testCreateDefaultCube()
