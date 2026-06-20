@@ -10,6 +10,7 @@ namespace Long {
 		// Hand the renderer-owned targets to the passes via the context.
 		ctx.sceneTarget = &m_sceneTarget;
 		ctx.maskTarget  = &m_maskTarget;
+		ctx.finalTarget = &m_finalTarget;
 		ctx.renderStats.Reset();
 		for (auto& pass : m_passes) {
 			if (pass->isEnabled()) {

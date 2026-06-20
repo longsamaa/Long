@@ -40,6 +40,7 @@ namespace Long {
 			return Invalid; 
 		}
 	}
+
 	uint32_t AssetManager::AddMesh(raylib::Mesh&& mesh) {
 		uint32_t id = (uint32_t)m_meshes.size();
 		m_meshes.push_back(std::move(mesh));

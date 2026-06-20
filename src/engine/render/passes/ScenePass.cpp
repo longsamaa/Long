@@ -30,6 +30,7 @@ namespace Long {
 
 			ctx.camera->EndMode();
 		}
+		ctx.renderStats.renderPassCalls++;
 		ctx.sceneTarget->Unbind();
 	}
 }

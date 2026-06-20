@@ -29,6 +29,7 @@ namespace Long {
 		// Targets persist across frames (passes resize them as needed).
 		RenderTarget m_sceneTarget;
 		RenderTarget m_maskTarget;
+		RenderTarget m_finalTarget;
 	};
 
 } // namespace Long

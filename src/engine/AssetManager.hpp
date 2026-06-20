@@ -35,8 +35,8 @@ namespace Long {
 		BaseMaterial& GetMaterial(uint32_t id) { return *m_materials[id]; }
 		bool IsValidMaterial(uint32_t id) const { return id < m_materials.size(); }
 		uint32_t CreateDefaultMaterial(uint32_t shaderId,
-									   raylib::Color color = raylib::Color::White());
-
+			raylib::Color color = raylib::Color::White());
+		size_t materialCount() { return m_materials.size(); };
 	private:
 		std::vector<raylib::Shader> m_shaders;
 		std::unordered_map<std::string, uint32_t> m_shaderNameToId;

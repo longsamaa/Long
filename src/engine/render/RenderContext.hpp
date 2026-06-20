@@ -19,7 +19,9 @@ namespace Long {
 		uint32_t height{ 0 };
 		RenderTarget* sceneTarget{ nullptr };  // 3D scene color
 		RenderTarget* maskTarget{ nullptr };   // selected-only mask (outline)
+		RenderTarget* finalTarget{ nullptr };  // composited image (FXAA reads this)
 		RenderStats renderStats;
+		std::vector<entt::entity> selectedEntities{}; 
 	};
 }
 #endif // !_RENDER_CONTEXT_HPP_

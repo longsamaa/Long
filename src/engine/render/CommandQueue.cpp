@@ -31,9 +31,10 @@ namespace Long {
 	{
 		BaseMaterial* lastMaterial = nullptr;
 		raylib::Material* rlMat = nullptr; // the applied raylib material to draw with
-
+		stats.materialCount = assets.materialCount();
 		for (const Command& cmd : m_commands) {
 			if (cmd.isCulled || !cmd.mesh || !cmd.material) {
+				stats.culledEntities++;
 				continue;
 			}
 			if (!assets.IsValidShader(cmd.material->GetShaderId())) {
@@ -41,13 +42,14 @@ namespace Long {
 			}
 			if (cmd.material != lastMaterial) {
 				raylib::Shader& shader = assets.GetShader(cmd.material->GetShaderId());
-				rlMat = &cmd.material->Apply(shader); 
+				rlMat = &cmd.material->Apply(shader);
 				lastMaterial = cmd.material;
+				stats.stageCount++;
 			}
 			cmd.mesh->Draw(*rlMat, cmd.worldMatrix);
 			stats.drawCalls++;
 			stats.triangles += (uint32_t)cmd.mesh->GetTriangleCount();
-			stats.vertices  += (uint32_t)cmd.mesh->GetVertexCount();
+			stats.vertices += (uint32_t)cmd.mesh->GetVertexCount();
 		}
 	}
 }

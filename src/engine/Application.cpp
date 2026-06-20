@@ -13,9 +13,7 @@ namespace Long {
 		: m_config(config),
 		m_window(config.width, config.height, config.title,
 			FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE) {
-		if (config.high_dpi) {
-			SetConfigFlags(FLAG_WINDOW_HIGHDPI);
-		}
+		SetConfigFlags(FLAG_WINDOW_HIGHDPI);
 		m_window.SetTargetFPS(m_config.targetFps);
 		rlImGuiSetup(true);
 		// Enable docking if the linked ImGui is the docking branch.

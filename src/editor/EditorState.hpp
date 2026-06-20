@@ -34,7 +34,8 @@ namespace Long {
 		EditorCamera m_camera;
 		Renderer m_renderer;
 		RenderStats m_renderStats;
-		RaycastHit m_hoverHit;   // entity under the cursor this frame
+		RaycastHit m_hoverHit;                       // entity under the cursor this frame
+		entt::entity m_selectedEntity = entt::null;  // entity clicked/selected (persists)
 	};
 }
 #endif // !_EDITOR_STATE_HPP_
