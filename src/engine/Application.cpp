@@ -13,7 +13,9 @@ namespace Long {
 		: m_config(config),
 		m_window(config.width, config.height, config.title,
 			FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE) {
-		SetConfigFlags(FLAG_WINDOW_HIGHDPI);
+		// No HIGHDPI: it makes GetMousePosition (screen coords) and
+		// GetRenderWidth (pixel coords) use different scales, which breaks the
+		// gizmo's ray picking. Without it, screen == render -> picking matches.
 		m_window.SetTargetFPS(m_config.targetFps);
 		rlImGuiSetup(true);
 		// Enable docking if the linked ImGui is the docking branch.

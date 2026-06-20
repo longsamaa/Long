@@ -9,6 +9,7 @@
 #include "RenderTarget.hpp"
 #include "CommandQueue.hpp"
 #include "CommandDebugQueue.hpp"
+#include "core/Components.hpp"   // Long::Transform
 namespace Long {
 	class AssetManager;
 	class Environment;
@@ -26,6 +27,10 @@ namespace Long {
 		RenderTarget* finalTarget{ nullptr };  // composited image (FXAA reads this)
 		RenderStats renderStats;
 		std::vector<entt::entity> selectedEntities{};
+
+		// Gizmo overlay: the gizmo and the selected entity's transform (or null).
+		class EditorGizmo* gizmo{ nullptr };
+		Transform* gizmoTarget{ nullptr };
 	};
 }
 #endif // !_RENDER_CONTEXT_HPP_

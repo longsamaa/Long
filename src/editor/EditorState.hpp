@@ -12,6 +12,7 @@
 #include "engine/render/CommandQueue.hpp"
 #include "engine/render/CommandDebugQueue.hpp"
 #include "engine/Environment.hpp"
+#include "engine/EditorGizmo.hpp"
 #include <memory>
 #include <vector>
 namespace Long {
@@ -36,6 +37,7 @@ namespace Long {
 		CommandQueue m_commandQueue;
 		CommandDebugQueue m_commandDebugQueue;
 		EditorCamera m_camera;
+		EditorGizmo m_gizmo;
 		Renderer m_renderer;
 		RenderStats m_renderStats;
 		RaycastHit m_hoverHit;                       // entity under the cursor this frame

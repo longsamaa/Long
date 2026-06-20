@@ -1,5 +1,6 @@
 #include "CommandDebugQueue.hpp"
 #include <raylib-cpp.hpp>
+#include "rlgl.h"
 namespace Long {
 	void CommandDebugQueue::Submit(const DebugCommand& cmd)
 	{

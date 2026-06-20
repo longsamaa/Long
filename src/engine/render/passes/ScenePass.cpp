@@ -28,6 +28,8 @@ namespace Long {
 			if (ctx.environment) {
 				ctx.environment->DrawSkybox(*ctx.camera);
 			}
+			// Gizmo is drawn later by GizmoPass (overlay on the screen), not here
+			// in the render texture -- that keeps its mouse picking aligned.
 			ctx.camera->EndMode();
 		}
 		ctx.renderStats.renderPassCalls++;

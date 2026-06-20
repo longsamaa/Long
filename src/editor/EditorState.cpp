@@ -14,6 +14,7 @@
 #include "engine/render/passes/CompositePass.hpp"
 #include "engine/render/passes/OutlinePass.hpp"
 #include "engine/render/passes/FXAAPass.hpp"
+#include "engine/render/passes/GizmoPass.hpp"
 #include "imgui.h"
 #include "raylib-cpp.hpp"
 
@@ -24,16 +25,13 @@ namespace Long {
 		m_panels.push_back(std::make_unique<ConsolePanel>());
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene));
 
-		// Render pipeline order matters:
-		//   Scene     -> sceneTarget (3D scene)
-		//   Mask      -> maskTarget  (selected entities, flat white)
-		//   Composite -> blit scene to screen
-		//   Outline   -> edge-detect mask, draw outline over the screen
+		
 		m_renderer.AddPass(std::make_unique<ScenePass>());
 		m_renderer.AddPass(std::make_unique<MaskPass>());
 		m_renderer.AddPass(std::make_unique<CompositePass>());  // scene -> finalTarget
 		m_renderer.AddPass(std::make_unique<OutlinePass>());    // outline -> finalTarget
 		m_renderer.AddPass(std::make_unique<FXAAPass>());       // finalTarget -> screen (AA)
+		m_renderer.AddPass(std::make_unique<GizmoPass>());      // gizmo overlay on screen
 
 		m_environment.Init(m_app.GetAssets());
 		m_panels.push_back(std::make_unique<EnvironmentPanel>(m_environment));
@@ -46,7 +44,21 @@ namespace Long {
 			m_camera.Update(dt);
 		}
 		TransformSystem(m_scene.Registry());
-		UpdatePicking();
+
+		// Run the gizmo's input FIRST: it does GPU picking to know if the cursor
+		// is over a handle. If the gizmo is hot (hovered) or active (dragging),
+		// skip entity picking so clicking a handle doesn't deselect / orbit.
+		bool gizmoHasInput = false;
+		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
+			&& m_scene.Registry().all_of<Transform>(m_selectedEntity)
+			&& !ImGui::GetIO().WantCaptureMouse) {
+			m_gizmo.Update(m_camera.Raw(), m_scene.Registry().get<Transform>(m_selectedEntity));
+			gizmoHasInput = m_gizmo.IsActive() || m_gizmo.IsHot();
+		}
+
+		if (!gizmoHasInput) {
+			UpdatePicking();
+		}
 	}
 
 	void EditorState::UpdatePicking() {
@@ -60,10 +72,10 @@ namespace Long {
 		if (::IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 			if (m_hoverHit.hit) {
 				m_selectedEntity = m_hoverHit.entity;
-				auto& reg = m_scene.Registry();
-				if (reg.all_of<Transform>(m_selectedEntity)) {
-					m_camera.FocusOn(reg.get<Transform>(m_selectedEntity).position);
-				}
+				//auto& reg = m_scene.Registry();
+				//if (reg.all_of<Transform>(m_selectedEntity)) {
+				//	m_camera.FocusOn(reg.get<Transform>(m_selectedEntity).position);
+				//}
 			}
 			else {
 				m_selectedEntity = entt::null;
@@ -98,6 +110,11 @@ namespace Long {
 		ctx.height = (uint32_t)GetRenderHeight();
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
 			ctx.selectedEntities = { m_selectedEntity };
+			auto& reg = m_scene.Registry();
+			if (reg.all_of<Transform>(m_selectedEntity)) {
+				ctx.gizmo = &m_gizmo;
+				ctx.gizmoTarget = &reg.get<Transform>(m_selectedEntity);
+			}
 		}
 		m_renderer.Render(ctx);
 		m_renderStats = ctx.renderStats;

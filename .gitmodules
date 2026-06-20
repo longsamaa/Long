@@ -14,3 +14,9 @@
 [submodule "external/entt"]
 	path = external/entt
 	url = https://github.com/skypjack/entt.git
+[submodule "external/raylib-gizmo"]
+	path = external/raylib-gizmo
+	url = https://github.com/cloudofoz/raylib-gizmo.git
+[submodule "external/raygizmo"]
+	path = external/raygizmo
+	url = https://github.com/alexeykarnachev/raygizmo.git
