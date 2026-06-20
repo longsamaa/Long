@@ -10,19 +10,17 @@ namespace Long {
 		EditorCamera();
 		void Update(float dt);
 		void ZoomToward(float wheel, const raylib::Vector3& pivot);
+		void FocusOn(const raylib::Vector3& point);
 		void Begin3D() { m_camera.BeginMode(); }
 		void End3D() { m_camera.EndMode(); }
 		raylib::Camera3D& Raw() { return m_camera; }
 	private:
 		void UpdateCameraVectors();
-
 		raylib::Camera3D m_camera;
-
 		raylib::Vector3 m_target = { 0.0f, 0.0f, 0.0f }; // point the camera looks at
 		float m_distance = 18.0f;                       // distance from target
 		float m_yaw = -45.0f;                           // horizontal angle (deg)
 		float m_pitch = 45.0f;                          // vertical angle (deg)
-
 		// Tunables.
 		float m_orbitSpeed = 0.3f;   // deg per pixel
 		float m_panSpeed = 0.001f;    // world units per pixel (scaled by distance)

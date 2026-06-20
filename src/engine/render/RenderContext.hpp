@@ -11,7 +11,9 @@
 #include "CommandDebugQueue.hpp"
 namespace Long {
 	class AssetManager;
+	class Environment;
 	struct RenderContext {
+		Environment* environment{ nullptr }; // scene skybox / lighting
 		CommandQueue* commandQueue{ nullptr };
 		CommandDebugQueue* commandDebugQueue{ nullptr }; 
 		entt::registry* registry{ nullptr };

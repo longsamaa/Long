@@ -4,6 +4,7 @@
 #include "editor/panels/ProfilerPanel.hpp"
 #include "editor/panels/ConsolePanel.hpp"
 #include "editor/panels/HierarchyPanel.hpp"
+#include "editor/panels/EnvironmentPanel.hpp"
 #include "core/Components.hpp"
 #include "system/RenderSystem.hpp"
 #include "system/TransformSystem.hpp"
@@ -34,6 +35,8 @@ namespace Long {
 		m_renderer.AddPass(std::make_unique<OutlinePass>());    // outline -> finalTarget
 		m_renderer.AddPass(std::make_unique<FXAAPass>());       // finalTarget -> screen (AA)
 
+		m_environment.Init(m_app.GetAssets());
+		m_panels.push_back(std::make_unique<EnvironmentPanel>(m_environment));
 		testCreateDefaultCube();
 	}
 
@@ -54,13 +57,18 @@ namespace Long {
 		}
 		raylib::Ray ray = ::GetScreenToWorldRay(GetMousePosition(), m_camera.Raw());
 		m_hoverHit = RaycastSystem(m_scene.Registry(), ray);
-
-		// Left click selects: pick the hovered entity, or clear selection if the
-		// click missed everything. Selection persists until the next click.
 		if (::IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-			m_selectedEntity = m_hoverHit.hit ? m_hoverHit.entity : entt::null;
+			if (m_hoverHit.hit) {
+				m_selectedEntity = m_hoverHit.entity;
+				auto& reg = m_scene.Registry();
+				if (reg.all_of<Transform>(m_selectedEntity)) {
+					m_camera.FocusOn(reg.get<Transform>(m_selectedEntity).position);
+				}
+			}
+			else {
+				m_selectedEntity = entt::null;
+			}
 		}
-
 		float wheel = ::GetMouseWheelMove();
 		if (wheel != 0.0f) {
 			raylib::Vector3 pivot;
@@ -72,24 +80,22 @@ namespace Long {
 				pivot = Vector3Add(ray.position, Vector3Scale(ray.direction, t > 0 ? t : 0));
 			}
 			else {
-				pivot = m_camera.Raw().target; // ray parallel to ground; keep target
+				pivot = m_camera.Raw().target; 
 			}
 			m_camera.ZoomToward(wheel, pivot);
 		}
 	}
 
 	void EditorState::RenderWorld() {
-		// ScenePass builds + sorts + executes the command queue; just wire it in.
-		//Draw Debug Grid first 
 		RenderContext ctx;
 		ctx.commandQueue = &m_commandQueue;
-		ctx.commandDebugQueue = &m_commandDebugQueue; 
+		ctx.commandDebugQueue = &m_commandDebugQueue;
+		ctx.environment = &m_environment;
 		ctx.registry = &m_scene.Registry();
 		ctx.assets = &m_app.GetAssets();
 		ctx.camera = &m_camera.Raw();
 		ctx.width = (uint32_t)GetRenderWidth();
 		ctx.height = (uint32_t)GetRenderHeight();
-		// Outline the SELECTED entity (set on click), not the hovered one.
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
 			ctx.selectedEntities = { m_selectedEntity };
 		}
@@ -105,19 +111,28 @@ namespace Long {
 		uint32_t meshId = assets.AddMesh(std::move(cube));
 		// material on top of it.
 		uint32_t shaderId = assets.GetShaderId("default");
-		uint32_t matId1 = assets.CreateDefaultMaterial(shaderId, raylib::Color::Maroon());
-		uint32_t matId2 = assets.CreateDefaultMaterial(shaderId, raylib::Color::RayWhite());
-		uint32_t matId3 = assets.CreateDefaultMaterial(shaderId, raylib::Color::Yellow());
+		// A few materials so the queue's sort-by-material actually has groups.
+		uint32_t mat[3] = {
+			assets.CreateDefaultMaterial(shaderId, raylib::Color::Maroon()),
+			assets.CreateDefaultMaterial(shaderId, raylib::Color::RayWhite()),
+			assets.CreateDefaultMaterial(shaderId, raylib::Color::Yellow()),
+		};
+
+		// Spawn a 10x10 grid of cubes (100 entities) to stress-test the pipeline.
 		auto& reg = m_scene.Registry();
-		for (uint32_t i = 0; i < 3; ++i) {
-			entt::entity e = m_scene.CreateEntity("cube");
-			Transform t;
-			t.position = { i * 2.0f - 2.0f, 0.5f, 0.0f };
-			t.scale = { 1.0f, 1.0f, 1.0f };
-			reg.emplace<Transform>(e, t);
-			reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
-			reg.emplace<MeshRenderer>(e, MeshRenderer{ (uint32_t)(i / 2), raylib::Color::Maroon(), true });
-			reg.emplace<BoxCollider3D>(e, BoxCollider3D{ box });
+		const int N = 10;
+		for (int x = 0; x < N; ++x) {
+			for (int z = 0; z < N; ++z) {
+				entt::entity e = m_scene.CreateEntity("cube");
+				Transform t;
+				t.position = { (x - N / 2) * 2.0f, 0.5f, (z - N / 2) * 2.0f };
+				t.scale = { 1.0f, 1.0f, 1.0f };
+				reg.emplace<Transform>(e, t);
+				reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
+				// Cycle materials so sort-by-material has something to group.
+				reg.emplace<MeshRenderer>(e, MeshRenderer{ mat[(x + z) % 3], raylib::Color::White(), true });
+				reg.emplace<BoxCollider3D>(e, BoxCollider3D{ box });
+			}
 		}
 	}
 

@@ -22,18 +22,14 @@ namespace Long {
 
 	void EditorCamera::Update(float dt) {
 		(void)dt;
-
 		raylib::Vector2 delta = ::GetMouseDelta();
-
 		if (::IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
 			m_yaw += delta.x * m_orbitSpeed;
-			m_pitch += delta.y * m_orbitSpeed; // drag down -> look from below
+			m_pitch += delta.y * m_orbitSpeed;
 			if (m_pitch > m_maxPitch) m_pitch = m_maxPitch;
 			if (m_pitch < m_minPitch) m_pitch = m_minPitch;
 		}
-
 		if (::IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
-			// Camera basis vectors.
 			Vector3 forward = ::Vector3Normalize(::Vector3Subtract(m_camera.target, m_camera.position));
 			Vector3 right = ::Vector3Normalize(::Vector3CrossProduct(forward, m_camera.up));
 			Vector3 up = ::Vector3CrossProduct(right, forward);
@@ -43,7 +39,11 @@ namespace Long {
 				::Vector3Scale(up, delta.y * scale));
 			m_target = ::Vector3Add(m_target, move);
 		}
+		UpdateCameraVectors();
+	}
 
+	void EditorCamera::FocusOn(const raylib::Vector3& point) {
+		m_target = point;
 		UpdateCameraVectors();
 	}
 

@@ -88,6 +88,14 @@ add_custom_command(TARGET long POST_BUILD
             "${SHADER_SRC_DIR}" "$<TARGET_FILE_DIR:long>/shaders"
     COMMENT "Copying shaders -> $<TARGET_FILE_DIR:long>/shaders")
 
+# ---- Copy resources (textures, models, ...) next to the executable ----
+# Same idea as shaders: loaded at runtime by relative path, copied per build.
+set(RESOURCES_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources")
+add_custom_command(TARGET long POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            "${RESOURCES_SRC_DIR}" "$<TARGET_FILE_DIR:long>/resources"
+    COMMENT "Copying resources -> $<TARGET_FILE_DIR:long>/resources")
+
 # ---- learn_ecs: standalone playground for learning EnTT (links only entt) ----
 # Separate executable so you can experiment with the ECS without touching the
 # engine. Sources live under learn/ecs/.

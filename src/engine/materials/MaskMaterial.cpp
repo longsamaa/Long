@@ -8,7 +8,6 @@ namespace Long {
 	}
 
 	void MaskMaterial::SetColor(raylib::Color color) {
-		// u_maskColor is our own uniform (not raylib-managed), so it sticks.
 		raylib::Vector4 c{
 			color.r / 255.0f,
 			color.g / 255.0f,

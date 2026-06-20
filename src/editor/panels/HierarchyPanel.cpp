@@ -6,11 +6,9 @@
 
 namespace Long {
 	HierarchyPanel::HierarchyPanel(Scene& scene) : m_scene(scene) {
-		m_title = "Hierarchy";
+		m_title = "Scene hierarchy";
 		m_isOpen = true;
 	}
-
-	// Recursively draw one entity and (if it has a Hierarchy) its children.
 	void HierarchyPanel::drawEntityNode(entt::entity e) {
 		const entt::registry& reg = m_scene.Registry();
 		std::string label;
@@ -28,7 +26,6 @@ namespace Long {
 			flags |= ImGuiTreeNodeFlags_Selected;
 		}
 		if (!hasChildren) {
-			// Leaf: no arrow, can't expand.
 			flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 		}
 		const bool open = ImGui::TreeNodeEx(
