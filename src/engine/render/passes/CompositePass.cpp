@@ -2,12 +2,11 @@
 #include "raylib-cpp.hpp"
 
 namespace Long {
-
 	void CompositePass::execute(RenderContext& ctx) {
 		if (!ctx.sceneTarget || !ctx.sceneTarget->IsValid() || !ctx.finalTarget) {
 			return;
 		}
-		
+
 		ctx.finalTarget->Resize(ctx.width, ctx.height);
 		if (!ctx.finalTarget->IsValid()) {
 			return;
@@ -22,5 +21,4 @@ namespace Long {
 		ctx.finalTarget->Unbind();
 		ctx.renderStats.renderPassCalls++;
 	}
-
 }

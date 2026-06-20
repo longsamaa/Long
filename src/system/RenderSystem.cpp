@@ -4,7 +4,7 @@
 #include "engine/AssetManager.hpp"
 #include "engine/Material.hpp"
 #include "raylib-cpp.hpp"
-#include "../engine/Logger.hpp"
+#include "engine/Logger.hpp"
 namespace Long {
 	void RenderSystem(entt::registry& registry, AssetManager& assets, CommandQueue& queue)
 	{

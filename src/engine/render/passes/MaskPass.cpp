@@ -3,7 +3,6 @@
 #include "engine/AssetManager.hpp"
 
 namespace Long {
-
 	void MaskPass::execute(RenderContext& ctx) {
 		if (!ctx.maskTarget || !ctx.registry || !ctx.assets || !ctx.camera) {
 			return;
@@ -44,5 +43,4 @@ namespace Long {
 		ctx.renderStats.renderPassCalls++;
 		ctx.maskTarget->Unbind();
 	}
-
 }

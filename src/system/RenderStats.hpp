@@ -14,7 +14,7 @@ namespace Long {
 		uint32_t culledEntities = 0; // entities skipped (invisible / invalid)
 		uint32_t stageCount = 0; //number of state changes (shader/material switches)
 		uint32_t materialCount = 0; //number of material (shader/material)
-		uint32_t renderPassCalls = 0; //number of render pass 
+		uint32_t renderPassCalls = 0; //number of render pass
 		void Reset() { *this = RenderStats{}; }
 	};
 }

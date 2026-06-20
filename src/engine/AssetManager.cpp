@@ -32,12 +32,12 @@ namespace Long {
 
 	uint32_t AssetManager::GetShaderId(const std::string& name) const {
 		auto it = m_shaderNameToId.find(name);
-		if (it != m_shaderNameToId.end()){
+		if (it != m_shaderNameToId.end()) {
 			return it->second;
 		}
 		else {
 			Logger::TraceLog(::LOG_ERROR, std::format("Shader not found: {}", name.c_str()));
-			return Invalid; 
+			return Invalid;
 		}
 	}
 
@@ -54,8 +54,8 @@ namespace Long {
 	}
 
 	uint32_t AssetManager::CreateDefaultMaterial(uint32_t shaderId, raylib::Color color) {
-		//get shader 
-		raylib::Shader& shader = GetShader(shaderId); 
-		return AddMaterial(std::make_unique<DefaultMaterial>(shaderId,color));
+		//get shader
+		raylib::Shader& shader = GetShader(shaderId);
+		return AddMaterial(std::make_unique<DefaultMaterial>(shaderId, color));
 	}
 } // namespace Long

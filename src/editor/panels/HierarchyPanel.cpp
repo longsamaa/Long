@@ -5,7 +5,6 @@
 #include <string>
 
 namespace Long {
-
 	HierarchyPanel::HierarchyPanel(Scene& scene) : m_scene(scene) {
 		m_title = "Hierarchy";
 		m_isOpen = true;
@@ -24,7 +23,7 @@ namespace Long {
 		const Hierarchy* hier = reg.try_get<Hierarchy>(e);
 		const bool hasChildren = hier && !hier->children.empty();
 		ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
-								   ImGuiTreeNodeFlags_SpanAvailWidth;
+			ImGuiTreeNodeFlags_SpanAvailWidth;
 		if (m_selected == e) {
 			flags |= ImGuiTreeNodeFlags_Selected;
 		}
@@ -65,7 +64,7 @@ namespace Long {
 					if (!hier || hier->parent == entt::null) {
 						drawEntityNode(e);
 					}
-				});
+					});
 				ImGui::TreePop();
 			}
 			// Click in empty space clears the selection.
@@ -79,11 +78,9 @@ namespace Long {
 
 	void HierarchyPanel::loadScene(Scene& scene)
 	{
-
 	}
 
 	void HierarchyPanel::clear()
 	{
 	}
-
 }

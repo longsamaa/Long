@@ -10,6 +10,7 @@
 #include "engine/render/Renderer.hpp"
 #include "engine/render/RenderContext.hpp"
 #include "engine/render/CommandQueue.hpp"
+#include "engine/render/CommandDebugQueue.hpp"
 #include <memory>
 #include <vector>
 namespace Long {
@@ -31,6 +32,7 @@ namespace Long {
 		std::vector<std::unique_ptr<IPanel>> m_panels;
 		Scene m_scene;
 		CommandQueue m_commandQueue;
+		CommandDebugQueue m_commandDebugQueue; 
 		EditorCamera m_camera;
 		Renderer m_renderer;
 		RenderStats m_renderStats;

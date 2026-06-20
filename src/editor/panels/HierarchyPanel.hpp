@@ -1,7 +1,7 @@
 #pragma once
 #ifndef _HIERARCHY_PANEL_HPP_
 #define _HIERARCHY_PANEL_HPP_
-#include "../IPanel.hpp"
+#include "editor/IPanel.hpp"
 #include <entt/entt.hpp>
 namespace Long {
 	class Scene;

@@ -1,7 +1,7 @@
 #pragma once
 #ifndef _PROFILER_PANEL_HPP_
 #define _PROFILER_PANEL_HPP_
-#include "../IPanel.hpp"
+#include "editor/IPanel.hpp"
 #include "system/RenderStats.hpp"
 namespace Long {
 	// Shows per-frame render stats (draw calls, triangles, FPS). It does not own

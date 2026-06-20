@@ -3,7 +3,6 @@
 #include "raylib-cpp.hpp"
 
 namespace Long {
-
 	void FXAAPass::execute(RenderContext& ctx) {
 		if (!ctx.finalTarget || !ctx.finalTarget->IsValid() || !ctx.assets) {
 			return;
@@ -20,17 +19,16 @@ namespace Long {
 		raylib::Shader& shader = ctx.assets->GetShader(m_shaderId);
 		raylib::TextureUnmanaged tex = ctx.finalTarget->GetTexture();
 		raylib::Vector2 res{ (float)ctx.width, (float)ctx.height };
-		
+
 		shader.SetValue(shader.GetLocation("u_resolution"), &res, SHADER_UNIFORM_VEC2);
-		
+
 		::Rectangle src = ctx.finalTarget->SourceRect();
 		::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
-		
+
 		shader.BeginMode();
-			::DrawTexturePro(tex, src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
+		::DrawTexturePro(tex, src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
 		shader.EndMode();
-		
+
 		ctx.renderStats.renderPassCalls++;
 	}
-
 }

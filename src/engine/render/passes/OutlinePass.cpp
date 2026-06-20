@@ -25,10 +25,10 @@ namespace Long {
 			outlineColor.r / 255.0f, outlineColor.g / 255.0f,
 			outlineColor.b / 255.0f, outlineColor.a / 255.0f
 		};
-		shader.SetValue(shader.GetLocation("size"),   &outlineSize, SHADER_UNIFORM_INT);
-		shader.SetValue(shader.GetLocation("width"),  &mw, SHADER_UNIFORM_INT);
+		shader.SetValue(shader.GetLocation("size"), &outlineSize, SHADER_UNIFORM_INT);
+		shader.SetValue(shader.GetLocation("width"), &mw, SHADER_UNIFORM_INT);
 		shader.SetValue(shader.GetLocation("height"), &mh, SHADER_UNIFORM_INT);
-		shader.SetValue(shader.GetLocation("color"),  &col, SHADER_UNIFORM_VEC4);
+		shader.SetValue(shader.GetLocation("color"), &col, SHADER_UNIFORM_VEC4);
 		if (!ctx.finalTarget || !ctx.finalTarget->IsValid()) {
 			return;
 		}
@@ -37,9 +37,9 @@ namespace Long {
 		ctx.finalTarget->Bind();
 		{
 			::BeginBlendMode(BLEND_ALPHA);
-				shader.BeginMode();
-					::DrawTexturePro(maskTex, src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
-				shader.EndMode();
+			shader.BeginMode();
+			::DrawTexturePro(maskTex, src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
+			shader.EndMode();
 			::EndBlendMode();
 		}
 		ctx.finalTarget->Unbind();

@@ -80,8 +80,10 @@ namespace Long {
 
 	void EditorState::RenderWorld() {
 		// ScenePass builds + sorts + executes the command queue; just wire it in.
+		//Draw Debug Grid first 
 		RenderContext ctx;
 		ctx.commandQueue = &m_commandQueue;
+		ctx.commandDebugQueue = &m_commandDebugQueue; 
 		ctx.registry = &m_scene.Registry();
 		ctx.assets = &m_app.GetAssets();
 		ctx.camera = &m_camera.Raw();

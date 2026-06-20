@@ -45,7 +45,7 @@ namespace Long {
 					shader.SetValue(loc, &v, SHADER_UNIFORM_VEC3);
 				else if constexpr (std::is_same_v<T, raylib::Vector4>)
 					shader.SetValue(loc, &v, SHADER_UNIFORM_VEC4);
-			}, value);
+				}, value);
 		}
 	}
 }
