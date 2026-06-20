@@ -2,6 +2,7 @@
 #define _RENDER_SYSTEM_HPP_
 #include <entt/entt.hpp>
 #include "system/RenderStats.hpp"
+#include "../engine/render/CommandQueue.hpp"
 namespace Long {
 	class AssetManager;
 
@@ -10,6 +11,6 @@ namespace Long {
 	// Run TransformSystem first. Call between camera Begin3D()/End3D().
 	//
 	// Fills `stats` with this frame's draw-call / triangle counts.
-	void RenderSystem(entt::registry& registry, AssetManager& assets, RenderStats& stats);
+	void RenderSystem(entt::registry& registry, AssetManager& assets, CommandQueue& queue);
 }
 #endif // !_RENDER_SYSTEM_HPP_

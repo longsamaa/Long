@@ -29,6 +29,7 @@ namespace Long {
 	}
 
 	void EditorState::Update(float dt) {
+		m_commandQueue.Clear(); 
 		if (!ImGui::GetIO().WantCaptureMouse) {
 			m_camera.Update(dt);
 		}
@@ -42,8 +43,6 @@ namespace Long {
 			m_hoverHit = RaycastHit{};
 			return;
 		}
-
-		// Cast a ray from the cursor and remember what it hit.
 		raylib::Ray ray = ::GetScreenToWorldRay(GetMousePosition(), m_camera.Raw());
 		m_hoverHit = RaycastSystem(m_scene.Registry(), ray);
 		float wheel = ::GetMouseWheelMove();
@@ -64,17 +63,21 @@ namespace Long {
 	}
 
 	void EditorState::RenderWorld() {
+		// ScenePass builds + sorts + executes the command queue; just wire it in.
 		RenderContext ctx;
+		ctx.commandQueue = &m_commandQueue;
 		ctx.registry = &m_scene.Registry();
 		ctx.assets   = &m_app.GetAssets();
 		ctx.camera   = &m_camera.Raw();
 		ctx.width    = (uint32_t)GetRenderWidth();
 		ctx.height   = (uint32_t)GetRenderHeight();
 		if (m_hoverHit.hit) {
-			ctx.selectedEntities = { m_hoverHit.entity };
+				
+			//ctx.selectedEntities = { m_hoverHit.entity };
+			//ctx.editorData = { {m_hoverHit.entity }, &m_hoverHit };
 		}
 		m_renderer.Render(ctx);
-		m_renderStats = ctx.renderStats; // surface stats to the Profiler panel
+		m_renderStats = ctx.renderStats; 
 	}
 
 	void EditorState::testCreateDefaultCube()

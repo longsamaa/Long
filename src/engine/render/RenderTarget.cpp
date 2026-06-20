@@ -7,12 +7,10 @@ namespace Long {
 			return;
 		}
 		if (newWidth == 0 || newHeight == 0) {
-			return; // ignore degenerate sizes (e.g. minimized window)
+			return; 
 		}
-
 		width = newWidth;
 		height = newHeight;
-		// raylib::RenderTexture::Load unloads the previous texture first.
 		m_texture.Load((int)width, (int)height);
 	}
 } // namespace Long
