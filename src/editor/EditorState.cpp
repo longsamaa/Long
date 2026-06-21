@@ -220,6 +220,24 @@ namespace Long {
 			}
 		}
 		ImGui::End();
+
+		// While rotating, draw the angle delta next to the cursor using ImGui's
+		// (antialiased) font, with a dark outline so it reads over the scene.
+		float deg;
+		if (m_gizmo.IsRotating(deg)) {
+			ImVec2 m = ImGui::GetMousePos();
+			char buf[32];
+			snprintf(buf, sizeof(buf), "%.1f\xC2\xB0", deg); // U+00B0 degree sign
+			ImDrawList* dl = ImGui::GetForegroundDrawList();
+			ImVec2 p{ m.x + 16.0f, m.y + 4.0f };
+			ImU32 shadow = IM_COL32(0, 0, 0, 200);
+			ImU32 white = IM_COL32(255, 255, 255, 255);
+			for (int dx = -1; dx <= 1; ++dx)
+				for (int dy = -1; dy <= 1; ++dy)
+					if (dx || dy)
+						dl->AddText(ImVec2(p.x + dx, p.y + dy), shadow, buf);
+			dl->AddText(p, white, buf);
+		}
 	}
 
 	void EditorState::RenderUI() {

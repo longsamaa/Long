@@ -41,6 +41,7 @@ namespace Long {
 				if (ok) {
 					float angle = RingAngle(hit, center, u, v);
 					float delta = angle - m_rotStartAngle;
+					m_rotDelta = delta;             // remember for the HUD text
 					Quaternion dq = QuaternionFromAxisAngle(n, delta);
 					// Apply the delta in world space on top of the start orientation.
 					target.quaternion = raylib::Quaternion(QuaternionMultiply(dq, m_rotStart));
@@ -250,12 +251,16 @@ namespace Long {
 	void EditorGizmo::DrawScreenGuide(const raylib::Camera3D& camera, const Transform& target) {
 		// 2D line from the gizmo center to the cursor while dragging an axis
 		// (translate/scale only; not for plane or rotate handles).
-		if (m_dragging < Handle::AxisX || m_dragging > Handle::AxisZ) {
-			return;
+		//if (m_dragging < Handle::AxisX || m_dragging > Handle::AxisZ) {
+		//	return;
+		//}
+		if ((m_dragging >= Handle::PlaneXY && m_dragging <= Handle::PlaneYZ) || m_dragging == Handle::None) {
+			return; 
 		}
-		raylib::Vector2 centerScreen = camera.GetWorldToScreen(target.position); 
+		raylib::Vector2 centerScreen = camera.GetWorldToScreen(target.position);
 		raylib::Vector2 mouse = raylib::Mouse::GetPosition();
 		::DrawLineEx(centerScreen, mouse, 1.5f, raylib::Color::White());
+		// Angle-delta text is drawn via ImGui in EditorState (nicer font).
 	}
 
 	void EditorGizmo::drawDebugGizmo(const Transform& target, const float& scale) {

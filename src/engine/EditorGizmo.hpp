@@ -25,7 +25,15 @@ namespace Long {
 		void DrawScreenGuide(const raylib::Camera3D& camera, const Transform& target);
 		bool IsActive() const { return m_dragging != Handle::None; }
 		bool IsHot() const { return m_hot != Handle::None; }
-		void drawDebugGizmo(const Transform& target, const float& scale); 
+		// True while dragging a rotate ring; `outDeg` gets the angle delta (degrees).
+		bool IsRotating(float& outDeg) const {
+			if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
+				outDeg = m_rotDelta * RAD2DEG;
+				return true;
+			}
+			return false;
+		}
+		void drawDebugGizmo(const Transform& target, const float& scale);
 	private:
 		float GizmoScale(const raylib::Camera3D& camera, raylib::Vector3 pos) const;
 		Handle m_hot = Handle::None;      // hovered this frame
@@ -38,6 +46,7 @@ namespace Long {
 		// Rotate drag state: cursor angle on the ring plane when the drag began.
 		float m_rotStartAngle = 0.0f;
 		raylib::Quaternion m_rotStart{ 0.0f, 0.0f, 0.0f, 1.0f };
+		float m_rotDelta = 0.0f;          // current rotation delta (radians), for the HUD
 		float cylinder_length{ 0.2f }; 
 		const raylib::Vector3 ax[3] = { {1,0,0}, {0,1,0}, {0,0,1} };
 		const raylib::Vector3 ax2[3] = { {0,1,1}, {1,0,1}, {1,1,0} };
