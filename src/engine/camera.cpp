@@ -17,7 +17,7 @@ namespace Long {
 			::cosf(pitchRad) * ::sinf(yawRad)
 		};
 		m_camera.target = m_target;
-		m_camera.position = ::Vector3Add(m_target, ::Vector3Scale(offset, m_distance));
+		m_camera.position = raylib::Vector3(m_target).Add(offset.Scale(m_distance));
 	}
 
 	void EditorCamera::Update(float dt) {
@@ -30,14 +30,12 @@ namespace Long {
 			if (m_pitch < m_minPitch) m_pitch = m_minPitch;
 		}
 		if (::IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
-			Vector3 forward = ::Vector3Normalize(::Vector3Subtract(m_camera.target, m_camera.position));
-			Vector3 right = ::Vector3Normalize(::Vector3CrossProduct(forward, m_camera.up));
-			Vector3 up = ::Vector3CrossProduct(right, forward);
+			raylib::Vector3 forward = raylib::Vector3(m_camera.target).Subtract(m_camera.position).Normalize();
+			raylib::Vector3 right = forward.CrossProduct(m_camera.up).Normalize();
+			raylib::Vector3 up = right.CrossProduct(forward);
 			float scale = m_panSpeed * m_distance;
-			Vector3 move = ::Vector3Add(
-				::Vector3Scale(right, -delta.x * scale),
-				::Vector3Scale(up, delta.y * scale));
-			m_target = ::Vector3Add(m_target, move);
+			raylib::Vector3 move = right.Scale(-delta.x * scale).Add(up.Scale(delta.y * scale));
+			m_target = raylib::Vector3(m_target).Add(move);
 		}
 		UpdateCameraVectors();
 	}
@@ -56,8 +54,8 @@ namespace Long {
 		if (m_distance < m_minDistance) m_distance = m_minDistance;
 		if (m_distance > m_maxDistance) m_distance = m_maxDistance;
 		float lerp = 1.0f - (m_distance / oldDistance);
-		m_target = ::Vector3Add(m_target,
-			::Vector3Scale(::Vector3Subtract(pivot, m_target), lerp));
+		m_target = raylib::Vector3(m_target).Add(
+			raylib::Vector3(pivot).Subtract(m_target).Scale(lerp));
 		UpdateCameraVectors();
 	}
 } // namespace Long

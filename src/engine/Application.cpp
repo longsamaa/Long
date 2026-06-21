@@ -82,7 +82,7 @@ namespace Long {
 #ifdef IMGUI_HAS_DOCK
 				// Let windows dock to the viewport; PassthruCentralNode keeps the
 				// raylib scene visible behind the central (empty) dock area.
-				ImGui::DockSpaceOverViewport(0, NULL, ImGuiDockNodeFlags_PassthruCentralNode);
+				m_dockspaceId = ImGui::DockSpaceOverViewport(0, NULL, ImGuiDockNodeFlags_PassthruCentralNode);
 #endif
 				m_state->RenderUI();
 				rlImGuiEnd();

@@ -28,6 +28,7 @@ namespace Long {
 		void testCreateDefaultCube();
 		void RenderMenuBar();
 		void RenderPanels();
+		void RenderGizmoToolbar();
 		void UpdatePicking();
 	private:
 		Application& m_app;

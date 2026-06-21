@@ -36,6 +36,9 @@ namespace Long {
 		void Quit() { m_running = false; }
 		raylib::Window& GetWindow() { return m_window; }
 		AssetManager& GetAssets() { return m_assets; }
+		// Dockspace id of the main viewport (valid after the first frame); lets
+		// states anchor overlays to the central (scene) node.
+		unsigned int GetDockspaceId() const { return m_dockspaceId; }
 
 	private:
 		Config m_config;
@@ -43,6 +46,7 @@ namespace Long {
 		AssetManager m_assets;
 		std::unique_ptr<AppState> m_state;
 		bool m_running = true;
+		unsigned int m_dockspaceId = 0;
 	};
 }
 #endif // !_LONG_APPLICATION_HPP_

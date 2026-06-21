@@ -16,6 +16,7 @@
 #include "engine/render/passes/FXAAPass.hpp"
 #include "engine/render/passes/GizmoPass.hpp"
 #include "imgui.h"
+#include "imgui_internal.h" // DockBuilderGetCentralNode
 #include "raylib-cpp.hpp"
 
 namespace Long {
@@ -44,10 +45,6 @@ namespace Long {
 			m_camera.Update(dt);
 		}
 		TransformSystem(m_scene.Registry());
-
-		// Run the gizmo's input FIRST: it does GPU picking to know if the cursor
-		// is over a handle. If the gizmo is hot (hovered) or active (dragging),
-		// skip entity picking so clicking a handle doesn't deselect / orbit.
 		bool gizmoHasInput = false;
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
 			&& m_scene.Registry().all_of<Transform>(m_selectedEntity)
@@ -72,10 +69,6 @@ namespace Long {
 		if (::IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 			if (m_hoverHit.hit) {
 				m_selectedEntity = m_hoverHit.entity;
-				//auto& reg = m_scene.Registry();
-				//if (reg.all_of<Transform>(m_selectedEntity)) {
-				//	m_camera.FocusOn(reg.get<Transform>(m_selectedEntity).position);
-				//}
 			}
 			else {
 				m_selectedEntity = entt::null;
@@ -89,7 +82,7 @@ namespace Long {
 			}
 			else if (fabsf(ray.direction.y) > 1e-5f) {
 				float t = -ray.position.y / ray.direction.y;
-				pivot = Vector3Add(ray.position, Vector3Scale(ray.direction, t > 0 ? t : 0));
+				pivot = raylib::Vector3(ray.position).Add(raylib::Vector3(ray.direction).Scale(t > 0 ? t : 0));
 			}
 			else {
 				pivot = m_camera.Raw().target; 
@@ -179,9 +172,61 @@ namespace Long {
 		}
 	}
 
+	void EditorState::RenderGizmoToolbar() {
+		// Floating overlay toolbar (top-left, under the menu bar) to pick the
+		// gizmo mode. Hotkeys: W = translate, E = rotate, R = scale.
+		if (!ImGui::GetIO().WantCaptureKeyboard) {
+			if (ImGui::IsKeyPressed(ImGuiKey_W)) m_gizmo.SetMode(EditorGizmo::Mode::Translate);
+			if (ImGui::IsKeyPressed(ImGuiKey_E)) m_gizmo.SetMode(EditorGizmo::Mode::Rotate);
+			if (ImGui::IsKeyPressed(ImGuiKey_R)) m_gizmo.SetMode(EditorGizmo::Mode::Scale);
+		}
+
+		// Anchor to the top-left of the central (scene) dock node so the toolbar
+		// sits beside the docked panels, over the scene -- not under them.
+		const float pad = 8.0f;
+		const ImGuiViewport* vp = ImGui::GetMainViewport();
+		ImVec2 origin = vp->WorkPos; // fallback: viewport work area
+		if (ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(m_app.GetDockspaceId())) {
+			origin = central->Pos;
+		}
+		ImVec2 pos{ origin.x + pad, origin.y + pad };
+		ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
+		ImGui::SetNextWindowViewport(vp->ID);
+		ImGui::SetNextWindowBgAlpha(0.65f);
+		ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar
+			| ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoNav
+			| ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking;
+
+		if (ImGui::Begin("##GizmoToolbar", nullptr, flags)) {
+			struct ModeBtn { const char* label; EditorGizmo::Mode mode; };
+			const ModeBtn buttons[] = {
+				{ "Move",   EditorGizmo::Mode::Translate },
+				{ "Rotate", EditorGizmo::Mode::Rotate },
+				{ "Scale",  EditorGizmo::Mode::Scale },
+			};
+			for (int i = 0; i < 3; ++i) {
+				if (i > 0) ImGui::SameLine();
+				bool active = m_gizmo.GetMode() == buttons[i].mode;
+				if (active) {
+					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.45f, 0.85f, 1.0f));
+				}
+				if (ImGui::Button(buttons[i].label)) {
+					m_gizmo.SetMode(buttons[i].mode);
+				}
+				if (active) {
+					ImGui::PopStyleColor();
+				}
+			}
+		}
+		ImGui::End();
+	}
+
 	void EditorState::RenderUI() {
 		// Menu bar.
 		RenderMenuBar();
+		// Floating gizmo-mode toolbar.
+		RenderGizmoToolbar();
 		// Each panel decides whether to draw based on its own open flag.
 		RenderPanels();
 	}

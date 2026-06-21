@@ -4,44 +4,49 @@
 
 #include "raylib-cpp.hpp"
 #include "core/Components.hpp"
-
+#include <vector>
 namespace Long {
-
-	// Our own transform gizmo (no external lib). CPU ray-collision picking, so it
-	// doesn't touch framebuffer/GL state. Starts with TRANSLATE (3 axis arrows +
-	// 3 plane handles); rotate/scale added later.
 	class EditorGizmo {
 	public:
-		// Which part of the gizmo the cursor is on / dragging.
 		enum class Handle {
 			None,
-			AxisX, AxisY, AxisZ,        // move along one axis
+			AxisX, AxisY, AxisZ,        // move/scale along one axis
 			PlaneXY, PlaneXZ, PlaneYZ,  // move on a plane
+			RingX, RingY, RingZ,        // rotate around one axis
 		};
 
-		// Process input for the gizmo at `target`'s position; edits target.
-		// Returns true if the gizmo consumed the mouse (hovered or dragging).
+		// What the gizmo edits. (Rotate/Scale TODO; only Translate is wired up.)
+		enum class Mode { Translate, Rotate, Scale };
+		Mode GetMode() const { return m_mode; }
+		void SetMode(Mode mode) { m_mode = mode; }
+
 		bool Update(const raylib::Camera3D& camera, Transform& target);
-
-		// Draw the gizmo handles. Call inside the camera's 3D mode.
 		void Draw(const raylib::Camera3D& camera, const Transform& target);
-
-		// Draw the 2D overlay (line from the gizmo center to the cursor). Call
-		// AFTER EndMode3D (it's screen-space).
 		void DrawScreenGuide(const raylib::Camera3D& camera, const Transform& target);
-
 		bool IsActive() const { return m_dragging != Handle::None; }
 		bool IsHot() const { return m_hot != Handle::None; }
-
+		void drawDebugGizmo(const Transform& target, const float& scale); 
 	private:
-		// On-screen size as a fraction of camera distance (constant screen size).
 		float GizmoScale(const raylib::Camera3D& camera, raylib::Vector3 pos) const;
-
 		Handle m_hot = Handle::None;      // hovered this frame
 		Handle m_dragging = Handle::None; // axis being dragged
 		raylib::Vector3 m_dragStartHit{}; // world point where the drag began
-
+		raylib::Vector3 m_closetPoint{ 0.0,0.0,0.0 }; // For debug
+		// Scale drag state: param along the axis + scale when the drag began.
+		float m_scaleStartParam = 0.0f;
+		raylib::Vector3 m_scaleStart{ 1.0f, 1.0f, 1.0f };
+		// Rotate drag state: cursor angle on the ring plane when the drag began.
+		float m_rotStartAngle = 0.0f;
+		raylib::Quaternion m_rotStart{ 0.0f, 0.0f, 0.0f, 1.0f };
+		float cylinder_length{ 0.2f }; 
+		const raylib::Vector3 ax[3] = { {1,0,0}, {0,1,0}, {0,0,1} };
+		const raylib::Vector3 ax2[3] = { {0,1,1}, {1,0,1}, {1,1,0} };
+		const std::vector<Handle> def_handle_planes{ Handle::PlaneYZ , Handle::PlaneXZ, Handle::PlaneXY }; 
+		const std::vector<Handle> def_handle_axis{ Handle::AxisX , Handle::AxisY, Handle::AxisZ }; 
+		raylib::Color axisCol[3] = { raylib::Color::Red(), raylib::Color::Green(), raylib::Color::Blue() };
+		bool debug{ false };
 		float m_viewSize = 0.12f;         // gizmo size (fraction of distance)
+		Mode m_mode = Mode::Translate;    // current edit mode
 	};
 
 } // namespace Long
