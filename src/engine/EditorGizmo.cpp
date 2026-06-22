@@ -6,12 +6,11 @@
 #include <limits>
 
 namespace Long {
-
 	// --- tunables (fractions of the gizmo radius) ---
-	static constexpr float AXIS_LEN      = 1.0f;   // arrow length
-	static constexpr float AXIS_PICK_R   = 0.10f;  // arrow pick half-thickness
-	static constexpr float PLANE_OFFSET  = 0.35f;  // plane handle offset from center
-	static constexpr float PLANE_SIZE    = 0.25f;  // plane handle size
+	static constexpr float AXIS_LEN = 1.0f;   // arrow length
+	static constexpr float AXIS_PICK_R = 0.10f;  // arrow pick half-thickness
+	static constexpr float PLANE_OFFSET = 0.35f;  // plane handle offset from center
+	static constexpr float PLANE_SIZE = 0.25f;  // plane handle size
 
 	float EditorGizmo::GizmoScale(const raylib::Camera3D& camera, raylib::Vector3 pos) const {
 		// Constant on-screen size: scale by distance to the camera.
@@ -93,7 +92,6 @@ namespace Long {
 		// --- Not dragging: hover-test the handles, pick the closest ---
 		m_hot = Handle::None;
 		float bestDist = std::numeric_limits<float>::max();
-
 		// Axis arrows (translate/scale): an AABB enclosing center->tip.
 		if (m_mode != Mode::Rotate) {
 			for (int i = 0; i < 3; ++i) {
@@ -143,8 +141,6 @@ namespace Long {
 				}
 			}
 		}
-
-		// --- Begin drag on click ---
 		if (m_hot != Handle::None && raylib::Mouse::IsButtonPressed(MOUSE_BUTTON_LEFT)) {
 			m_dragging = m_hot;
 			if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
@@ -178,14 +174,9 @@ namespace Long {
 	void EditorGizmo::Draw(const raylib::Camera3D& camera, const Transform& target) {
 		raylib::Vector3 center = target.position;
 		float r = GizmoScale(camera, center);
-		
-
 		rlDisableDepthTest(); // gizmo always on top
-
 		const bool scaleMode = (m_mode == Mode::Scale);
 		const bool rotateMode = (m_mode == Mode::Rotate);
-
-		// Axis handles (translate/scale). Translate -> arrow; Scale -> cube tip.
 		if (!rotateMode) {
 			for (int i = 0; i < 3; ++i) {
 				Handle hAxis = def_handle_axis[i];
@@ -193,7 +184,6 @@ namespace Long {
 				raylib::Vector3 tip = center.Add(ax[i].Scale(r * AXIS_LEN));
 				tip.DrawLine3D(center, c);
 				if (scaleMode) {
-					// Small cube at the end of each axis.
 					float hs = r * 0.08f;
 					raylib::Vector3 half = raylib::Vector3{ hs, hs, hs };
 					raylib::BoundingBox box{ tip.Subtract(half), tip.Add(half) };
@@ -206,19 +196,18 @@ namespace Long {
 			}
 		}
 
-		// Rotate rings: one circle per axis, drawn as line segments on its plane.
 		if (rotateMode) {
 			const Handle ringHandles[3] = { Handle::RingX, Handle::RingY, Handle::RingZ };
 			for (int i = 0; i < 3; ++i) {
-				raylib::Color c = (m_hot == ringHandles[i] || m_dragging == ringHandles[i])
-					? raylib::Color::Yellow() : axisCol[i];
+				bool activeRing = (m_hot == ringHandles[i] || m_dragging == ringHandles[i]);
+				raylib::Color c = activeRing ? raylib::Color::Yellow() : axisCol[i];
+				float tube = (activeRing ? 0.05f : 0.03f) * r;
 				raylib::Vector3 u, v;
 				PlaneBasis(ax[i], u, v);
-				DrawCircle3D(center, u, v, r, c);
+				DrawTorus3D(center, u, v, r, tube, c);
 			}
 		}
 
-		// Plane handles only in translate mode (plane-scale not implemented).
 		if (m_mode == Mode::Translate) {
 			raylib::Color planeCol[3] = { raylib::Color::Red(), raylib::Color::Green(), raylib::Color::Blue() };
 			rlDisableBackfaceCulling();
@@ -233,8 +222,6 @@ namespace Long {
 				box.Draw(c);
 			}
 		}
-
-		// Long white guide line along the hovered/dragged axis.
 		Handle active = (m_dragging != Handle::None) ? m_dragging : m_hot;
 		if (active >= Handle::AxisX && active <= Handle::AxisZ) {
 			int i = (int)active - (int)Handle::AxisX;
@@ -249,24 +236,17 @@ namespace Long {
 	}
 
 	void EditorGizmo::DrawScreenGuide(const raylib::Camera3D& camera, const Transform& target) {
-		// 2D line from the gizmo center to the cursor while dragging an axis
-		// (translate/scale only; not for plane or rotate handles).
-		//if (m_dragging < Handle::AxisX || m_dragging > Handle::AxisZ) {
-		//	return;
-		//}
 		if ((m_dragging >= Handle::PlaneXY && m_dragging <= Handle::PlaneYZ) || m_dragging == Handle::None) {
-			return; 
+			return;
 		}
 		raylib::Vector2 centerScreen = camera.GetWorldToScreen(target.position);
 		raylib::Vector2 mouse = raylib::Mouse::GetPosition();
 		::DrawLineEx(centerScreen, mouse, 1.5f, raylib::Color::White());
-		// Angle-delta text is drawn via ImGui in EditorState (nicer font).
 	}
 
 	void EditorGizmo::drawDebugGizmo(const Transform& target, const float& scale) {
 		raylib::Vector3 center = target.position;
 		center.DrawSphere(0.1f, raylib::Color::Red());
-		// Axis pick boxes.
 		for (int i = 0; i < 3; ++i) {
 			raylib::Vector3 tip = center.Add(ax[i].Scale((1.0f + cylinder_length) * AXIS_LEN * scale));
 			raylib::Vector3 pad = ax2[i].Scale(AXIS_PICK_R * scale);
@@ -274,7 +254,6 @@ namespace Long {
 			tip.DrawLine3D(center, raylib::Color::Red());
 			box.Draw(raylib::Color::Gray());
 		}
-		// Plane pick boxes.
 		for (int i = 0; i < 3; ++i) {
 			raylib::Vector3 tip = center.Add(ax2[i].Scale(PLANE_OFFSET * scale));
 			raylib::Vector3 half = ax2[i].Scale(PLANE_SIZE * scale * 0.5f);
@@ -282,7 +261,6 @@ namespace Long {
 			tip.DrawSphere(0.1f, raylib::Color::Red());
 			box.Draw(raylib::Color::Gray());
 		}
-		m_closetPoint.DrawSphere(0.1f, raylib::Color::Green()); 
+		m_closetPoint.DrawSphere(0.1f, raylib::Color::Green());
 	}
-
 } // namespace Long

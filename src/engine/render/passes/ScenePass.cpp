@@ -16,6 +16,7 @@ namespace Long {
 		ctx.commandDebugQueue->Clear(); 
 		RenderSystem(*ctx.registry, *ctx.assets, *ctx.commandQueue);
 		ctx.commandQueue->Sort();
+		ctx.commandQueue->BuildBatches();
 		ctx.sceneTarget->Bind();
 		{
 			::ClearBackground(raylib::Color::DarkGray());

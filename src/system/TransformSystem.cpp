@@ -3,7 +3,6 @@
 #include <raylib-cpp.hpp>
 
 namespace Long {
-
 	// Build the local model matrix from a Transform (scale -> rotate -> translate).
 	static raylib::Matrix LocalMatrix(const Transform& t) {
 		raylib::Matrix s = raylib::Matrix::Scale(t.scale.x, t.scale.y, t.scale.z);
@@ -38,5 +37,4 @@ namespace Long {
 			}
 		}
 	}
-
 }

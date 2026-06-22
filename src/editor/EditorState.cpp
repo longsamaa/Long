@@ -26,7 +26,6 @@ namespace Long {
 		m_panels.push_back(std::make_unique<ConsolePanel>());
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene));
 
-		
 		m_renderer.AddPass(std::make_unique<ScenePass>());
 		m_renderer.AddPass(std::make_unique<MaskPass>());
 		m_renderer.AddPass(std::make_unique<CompositePass>());  // scene -> finalTarget
@@ -85,7 +84,7 @@ namespace Long {
 				pivot = raylib::Vector3(ray.position).Add(raylib::Vector3(ray.direction).Scale(t > 0 ? t : 0));
 			}
 			else {
-				pivot = m_camera.Raw().target; 
+				pivot = m_camera.Raw().target;
 			}
 			m_camera.ZoomToward(wheel, pivot);
 		}
@@ -129,13 +128,15 @@ namespace Long {
 		};
 
 		// Spawn a 10x10 grid of cubes (100 entities) to stress-test the pipeline.
+		// Cubes are 1 unit wide, so a spacing of 1.0 makes them sit edge-to-edge.
 		auto& reg = m_scene.Registry();
 		const int N = 10;
+		const float spacing = 1.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {
 				entt::entity e = m_scene.CreateEntity("cube");
 				Transform t;
-				t.position = { (x - N / 2) * 2.0f, 0.5f, (z - N / 2) * 2.0f };
+				t.position = { (x - N / 2) * spacing, 0.5f, (z - N / 2) * spacing };
 				t.scale = { 1.0f, 1.0f, 1.0f };
 				reg.emplace<Transform>(e, t);
 				reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
@@ -173,16 +174,11 @@ namespace Long {
 	}
 
 	void EditorState::RenderGizmoToolbar() {
-		// Floating overlay toolbar (top-left, under the menu bar) to pick the
-		// gizmo mode. Hotkeys: W = translate, E = rotate, R = scale.
 		if (!ImGui::GetIO().WantCaptureKeyboard) {
 			if (ImGui::IsKeyPressed(ImGuiKey_W)) m_gizmo.SetMode(EditorGizmo::Mode::Translate);
 			if (ImGui::IsKeyPressed(ImGuiKey_E)) m_gizmo.SetMode(EditorGizmo::Mode::Rotate);
 			if (ImGui::IsKeyPressed(ImGuiKey_R)) m_gizmo.SetMode(EditorGizmo::Mode::Scale);
 		}
-
-		// Anchor to the top-left of the central (scene) dock node so the toolbar
-		// sits beside the docked panels, over the scene -- not under them.
 		const float pad = 8.0f;
 		const ImGuiViewport* vp = ImGui::GetMainViewport();
 		ImVec2 origin = vp->WorkPos; // fallback: viewport work area
@@ -220,9 +216,6 @@ namespace Long {
 			}
 		}
 		ImGui::End();
-
-		// While rotating, draw the angle delta next to the cursor using ImGui's
-		// (antialiased) font, with a dark outline so it reads over the scene.
 		float deg;
 		if (m_gizmo.IsRotating(deg)) {
 			ImVec2 m = ImGui::GetMousePos();

@@ -5,8 +5,7 @@
 #include "raylib-cpp.hpp"
 
 namespace Long {
-
-	//Math + Vector Helper for raylib 
+	//Math + Vector Helper for raylib
 	static float ClosestAxisParam(const raylib::Ray& ray, raylib::Vector3 origin, raylib::Vector3 dir) {
 		raylib::Vector3 rdir = ray.direction;
 		raylib::Vector3 w0 = raylib::Vector3(ray.position).Subtract(origin);
@@ -33,19 +32,17 @@ namespace Long {
 	static void PlaneBasis(const raylib::Vector3& n, raylib::Vector3& u, raylib::Vector3& v) {
 		// Pick a reference axis that isn't parallel to n.
 		raylib::Vector3 ref = (fabsf(n.x) < 0.9f) ? raylib::Vector3{ 1, 0, 0 }
-												  : raylib::Vector3{ 0, 1, 0 };
+		: raylib::Vector3{ 0, 1, 0 };
 		u = n.CrossProduct(ref).Normalize();
 		v = n.CrossProduct(u).Normalize();
 	}
 
 	// Angle (radians) of `point` around `center` on the plane (u,v).
 	static float RingAngle(raylib::Vector3 point, raylib::Vector3 center,
-						   raylib::Vector3 u, raylib::Vector3 v) {
+		raylib::Vector3 u, raylib::Vector3 v) {
 		raylib::Vector3 d = point.Subtract(center);
 		return atan2f(d.DotProduct(v), d.DotProduct(u));
 	}
-
-
 } // namespace Long
 
 #endif // !_MATH_HELPER_HPP_

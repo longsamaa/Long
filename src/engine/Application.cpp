@@ -12,25 +12,18 @@ namespace Long {
 	Application::Application(const Config& config)
 		: m_config(config),
 		m_window(config.width, config.height, config.title,
-			FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE) {
-		// No HIGHDPI: it makes GetMousePosition (screen coords) and
-		// GetRenderWidth (pixel coords) use different scales, which breaks the
-		// gizmo's ray picking. Without it, screen == render -> picking matches.
+			FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI) {
 		m_window.SetTargetFPS(m_config.targetFps);
 		rlImGuiSetup(true);
-		// Enable docking if the linked ImGui is the docking branch.
 #ifdef IMGUI_HAS_DOCK
 		ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 #endif
-		// Set up style
 		SetEditorStyle(m_config.editorMode);
-
-		// GL context exists now -> load core shaders (copied next to the exe).
-		// Resolve relative to the EXE, not the working directory (which can be
-		// anything depending on how the app was launched).
 		std::filesystem::path shaderDir =
 			std::filesystem::path(GetApplicationDirectory()) / "shaders";
 		m_assets.LoadAllShaders(shaderDir);
+		// Instanced copy of the lit shader for DrawMeshInstanced batches.
+		m_assets.LoadInstancedVariant(shaderDir, "default");
 	}
 
 	Application::~Application() {
@@ -38,7 +31,6 @@ namespace Long {
 			m_state->OnExit();
 			m_state.reset();
 		}
-		// Shut ImGui down before m_window's destructor closes the GL context.
 		rlImGuiShutdown();
 	}
 
@@ -80,8 +72,6 @@ namespace Long {
 				m_state->RenderWorld();
 				rlImGuiBegin();
 #ifdef IMGUI_HAS_DOCK
-				// Let windows dock to the viewport; PassthruCentralNode keeps the
-				// raylib scene visible behind the central (empty) dock area.
 				m_dockspaceId = ImGui::DockSpaceOverViewport(0, NULL, ImGuiDockNodeFlags_PassthruCentralNode);
 #endif
 				m_state->RenderUI();
