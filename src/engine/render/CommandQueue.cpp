@@ -7,10 +7,15 @@ namespace Long {
 	{
 		m_commands.emplace_back(cmd);
 	}
+	void CommandQueue::Reserve(size_t count)
+	{
+		m_commands.reserve(count);
+		m_order.reserve(count);
+	}
 	void CommandQueue::Clear()
 	{
 		m_commands.clear();
-		m_batches.clear();
+		m_order.clear();
 	}
 	const std::vector<Command>& CommandQueue::GetCommands()
 	{
@@ -19,11 +24,15 @@ namespace Long {
 
 	void CommandQueue::Sort()
 	{
-		// Sort so commands that can be batched together end up adjacent. The batch
-		// key is (shader, material, mesh): identical material guarantees same
-		// shader/texture/uniforms, identical mesh same VBO -> safe to instance.
-		std::sort(m_commands.begin(), m_commands.end(),
-			[](const Command& a, const Command& b) {
+		m_order.resize(m_commands.size());
+		for (uint32_t i = 0; i < (uint32_t)m_commands.size(); ++i) {
+			m_order[i] = i;
+		}
+		//const Command* cmds = m_commands.data();
+		std::sort(m_order.begin(), m_order.end(),
+			[cmds = m_commands.data()](const uint32_t& ia, const uint32_t& ib) {
+				const Command& a = cmds[ia];
+				const Command& b = cmds[ib];
 				uint32_t sa = a.material ? a.material->GetShaderId() : 0;
 				uint32_t sb = b.material ? b.material->GetShaderId() : 0;
 				if (sa != sb) return sa < sb;
@@ -34,32 +43,34 @@ namespace Long {
 
 	void CommandQueue::BuildBatches()
 	{
-		// Walk the sorted commands and start a new batch whenever (mesh, material)
-		// changes. Because Sort() grouped equal keys together, each batch is just a
-		// contiguous run -- no hashing needed.
-		m_batches.clear();
+		m_batchCount = 0;
 		Batch* current = nullptr;
-		for (const Command& cmd : m_commands) {
+		const Command* cmds = m_commands.data();
+		for (uint32_t idx : m_order) {
+			const Command& cmd = cmds[idx];
 			if (cmd.isCulled || !cmd.mesh || !cmd.material) {
 				continue;
 			}
-			if (!current || current->mesh != cmd.mesh || current->material != cmd.material) {
-				m_batches.push_back(Batch{ cmd.mesh, cmd.material, {} });
-				current = &m_batches.back();
+			if (!current || current->mesh != cmd.mesh || current->material != cmd.material)
+			{
+				if (m_batchCount == m_batches.size()) {
+					m_batches.emplace_back();
+				}
+				current = &m_batches[m_batchCount++];
+				current->mesh = cmd.mesh;
+				current->material = cmd.material;
+				current->transforms.clear(); 
 			}
-			current->transforms.push_back(cmd.worldMatrix);
+			current->transforms.emplace_back(cmd.worldMatrix);
 		}
 	}
 
 	void CommandQueue::Execute(AssetManager& assets, RenderStats& stats)
 	{
 		stats.materialCount = assets.materialCount();
-
-		// Groups smaller than this aren't worth the instance-buffer setup; draw them
-		// one by one instead.
 		constexpr size_t kInstanceThreshold = 4;
-
-		for (const Batch& batch : m_batches) {
+		for (size_t b = 0; b < m_batchCount; ++b) {
+			const Batch& batch = m_batches[b];
 			if (!assets.IsValidShader(batch.material->GetShaderId())) {
 				continue;
 			}
@@ -68,7 +79,6 @@ namespace Long {
 			uint32_t instShaderId = assets.GetInstancedShaderId(baseShaderId);
 
 			if (count >= kInstanceThreshold && instShaderId != AssetManager::Invalid) {
-				// One instanced draw for the whole batch.
 				raylib::Shader& instShader = assets.GetShader(instShaderId);
 				raylib::Material& rlMat = batch.material->Apply(instShader);
 				::DrawMeshInstanced(*batch.mesh, rlMat,
@@ -79,7 +89,6 @@ namespace Long {
 				stats.vertices += (uint32_t)batch.mesh->GetVertexCount() * (uint32_t)count;
 			}
 			else {
-				// Small batch (or no instanced variant): regular draws.
 				raylib::Shader& shader = assets.GetShader(baseShaderId);
 				raylib::Material& rlMat = batch.material->Apply(shader);
 				stats.stageCount++;

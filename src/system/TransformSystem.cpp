@@ -14,6 +14,7 @@ namespace Long {
 	// Recursively set world = local * parentWorld for an entity and its children.
 	static void UpdateRecursive(entt::registry& reg, entt::entity e, const raylib::Matrix& parentWorld) {
 		const Transform& local = reg.get<Transform>(e);
+		//if auto matrix update 
 		raylib::Matrix world = LocalMatrix(local) * parentWorld;
 		reg.get_or_emplace<WorldTransform>(e).matrix = world;
 		// Recurse into children, if any.

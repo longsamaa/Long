@@ -10,13 +10,22 @@ namespace Long {
 		raylib::Vector3 position = { 0, 0, 0 };
 		raylib::Quaternion quaternion = { 0, 0, 0, 1 }; // identity rotation
 		raylib::Vector3 scale = { 1, 1, 1 };
+
+		// Bumped whenever this transform changes. TransformSystem compares it with
+		// WorldTransform::builtVersion and only recomputes the world matrix when they
+		// differ -- so static objects cost nothing per frame. Call MarkDirty() (or
+		// just ++version) after editing position/quaternion/scale. Starts at 1 so the
+		// world matrix (builtVersion 0) is computed once on the first frame.
+		uint32_t version = 1;
+		void MarkDirty() { ++version; }
 	};
 
-	// WORLD transform: the absolute model matrix, computed each frame by the
-	// TransformSystem as  parent.world * local.  RenderSystem draws with THIS.
-	// Do not edit by hand.
+	// WORLD transform: the absolute model matrix, computed by the TransformSystem
+	// as  parent.world * local.  RenderSystem draws with THIS. Do not edit by hand.
 	struct WorldTransform {
 		raylib::Matrix matrix = MatrixIdentity();
+		// Value of Transform::version when `matrix` was last computed.
+		uint32_t builtVersion = 0;
 	};
 
 	// Scene-graph link. A model with many parts = one parent entity with one child

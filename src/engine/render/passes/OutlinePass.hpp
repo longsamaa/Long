@@ -11,7 +11,7 @@ namespace Long {
 	public:
 		void execute(RenderContext& ctx) override;
 
-		int outlineSize = 2;                               // thickness in mask texels
+		int outlineSize = 5;                               // thickness in mask texels
 		raylib::Color outlineColor = { 255, 160, 0, 255 }; // orange
 	private:
 		uint32_t m_shaderId = UINT32_MAX;                  // resolved lazily

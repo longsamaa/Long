@@ -46,6 +46,10 @@ namespace Long {
 		bool IsValidMaterial(uint32_t id) const { return id < m_materials.size(); }
 		uint32_t CreateDefaultMaterial(uint32_t shaderId,
 			raylib::Color color = raylib::Color::White());
+		uint32_t CreateWireframeMaterial(uint32_t shaderId,
+			raylib::Color lineColor = raylib::Color::Black(),
+			raylib::Color faceColor = raylib::Color::White(),
+			float thickness = 0.03f);
 		size_t materialCount() { return m_materials.size(); };
 	private:
 		std::vector<raylib::Shader> m_shaders;

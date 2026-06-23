@@ -22,8 +22,9 @@ namespace Long {
 		std::filesystem::path shaderDir =
 			std::filesystem::path(GetApplicationDirectory()) / "shaders";
 		m_assets.LoadAllShaders(shaderDir);
-		// Instanced copy of the lit shader for DrawMeshInstanced batches.
+		// Instanced copies for DrawMeshInstanced batches.
 		m_assets.LoadInstancedVariant(shaderDir, "default");
+		m_assets.LoadInstancedVariant(shaderDir, "wireframe");
 	}
 
 	Application::~Application() {

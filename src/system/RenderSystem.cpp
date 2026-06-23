@@ -10,6 +10,9 @@ namespace Long {
 	{
 		//stats.Reset();
 		auto view = registry.view<WorldTransform, MeshFilter, MeshRenderer>();
+		// Pre-grow the command buffer once so the per-entity Submit() loop below
+		// doesn't trigger repeated vector reallocations.
+		queue.Reserve(view.size_hint());
 		for (auto e : view) {
 			const auto& [wt, mf, mr] = view.get<WorldTransform, MeshFilter, MeshRenderer>(e);
 			if (!assets.IsValidMesh(mf.meshId) || !assets.IsValidMaterial(mr.materialId)) {

@@ -37,6 +37,8 @@ namespace Long {
 		CommandQueue& operator=(const CommandQueue&) = delete;
 	public:
 		void Submit(const Command& cmd);
+		// Pre-grow the command buffer so a frame's Submit() calls don't realloc.
+		void Reserve(size_t count);
 		void Clear();
 		const std::vector<Command>& GetCommands();
 		//Sort de cache state changes
@@ -48,6 +50,12 @@ namespace Long {
 	private:
 		std::vector<Command> m_commands;
 		std::vector<Batch> m_batches;
+		// Reusable index buffer: Sort() orders these instead of swapping the heavy
+		// Command structs, and BuildBatches()/Execute() walk commands through it.
+		std::vector<uint32_t> m_order;
+		// Pool of Batch objects kept alive across frames so their transforms vectors
+		// retain capacity (BuildBatches reuses them instead of reallocating).
+		size_t m_batchCount{ 0 };
 	};
 }
 #endif // !_COMMAND_QUEUE_HPP_

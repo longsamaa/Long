@@ -51,13 +51,6 @@ add_library(rlimgui STATIC
 target_include_directories(rlimgui PUBLIC ${RLIMGUI_DIR})
 target_link_libraries(rlimgui PUBLIC imgui raylib)
 
-# ---- raygizmo (alexeykarnachev, header-only transform gizmo) ----
-# Header-only: one .c defines RAYGIZMO_IMPLEMENTATION to compile it.
-set(GIZMO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/raygizmo/include")
-add_library(raygizmo STATIC "${CMAKE_CURRENT_SOURCE_DIR}/external/raygizmo_impl.c")
-target_include_directories(raygizmo PUBLIC ${GIZMO_DIR})
-target_link_libraries(raygizmo PUBLIC raylib)
-
 # ---- App sources (our own code under src/) ----
 # GLOB our code because we add files often. CONFIGURE_DEPENDS makes CMake
 # re-run the glob when files are added/removed, so you don't have to
@@ -75,7 +68,7 @@ file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS
 # ---- App ----
 add_executable(long ${APP_SOURCES})
 target_include_directories(long PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(long PRIVATE raylib raylib_cpp imgui rlimgui entt raygizmo)
+target_link_libraries(long PRIVATE raylib raylib_cpp imgui rlimgui entt)
 
 # Show the src/ folder tree (core/engine/editor/game) as filters in Visual
 # Studio instead of a flat "Source Files" list.

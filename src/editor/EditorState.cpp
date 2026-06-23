@@ -116,21 +116,24 @@ namespace Long {
 	{
 		auto& assets = m_app.GetAssets();
 		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
-		raylib::BoundingBox box = ::GetMeshBoundingBox(cube);
+		raylib::BoundingBox box(cube); 
 		uint32_t meshId = assets.AddMesh(std::move(cube));
 		// material on top of it.
-		uint32_t shaderId = assets.GetShaderId("default");
-		// A few materials so the queue's sort-by-material actually has groups.
+		uint32_t wireId = assets.GetShaderId("wireframe");
+		// Wireframe material: light-brown edge line on a slightly darker face so
+		// the brown border still reads against the fill.
+		// Signature: CreateWireframeMaterial(shader, lineColor, faceColor, thickness)
+		raylib::Color lightBrown{ 196, 164, 132, 255 }; // edge line
+		raylib::Color faceBrown{ 120, 96, 72, 255 };    // darker fill behind it
 		uint32_t mat[3] = {
-			assets.CreateDefaultMaterial(shaderId, raylib::Color::Maroon()),
-			assets.CreateDefaultMaterial(shaderId, raylib::Color::RayWhite()),
-			assets.CreateDefaultMaterial(shaderId, raylib::Color::Yellow()),
+			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.03f),
+			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.03f),
+			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.03f),
 		};
-
 		// Spawn a 10x10 grid of cubes (100 entities) to stress-test the pipeline.
 		// Cubes are 1 unit wide, so a spacing of 1.0 makes them sit edge-to-edge.
 		auto& reg = m_scene.Registry();
-		const int N = 10;
+		const int N = 200;
 		const float spacing = 1.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {
