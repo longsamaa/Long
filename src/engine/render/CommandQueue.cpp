@@ -37,7 +37,7 @@ namespace Long {
 				uint32_t sb = b.material ? b.material->GetShaderId() : 0;
 				if (sa != sb) return sa < sb;
 				if (a.material != b.material) return a.material < b.material;
-				return a.mesh < b.mesh; // group same mesh together for instancing
+				return a.mesh < b.mesh; 
 			});
 	}
 

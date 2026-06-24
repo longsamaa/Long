@@ -27,15 +27,15 @@ namespace Long {
 				ctx.camera->BeginMode();
 				raylib::Material& rlMat = m_material->Apply(shader);
 				for (entt::entity e : ctx.selectedEntities) {
-					if (!reg.valid(e) || !reg.all_of<WorldTransform, MeshFilter>(e)) {
+					if (!reg.valid(e) || !reg.all_of<MatrixTransform, MeshFilter>(e)) {
 						continue;
 					}
-					const auto& wt = reg.get<WorldTransform>(e);
+					const auto& wt = reg.get<MatrixTransform>(e);
 					const auto& mf = reg.get<MeshFilter>(e);
 					if (!ctx.assets->IsValidMesh(mf.meshId)) {
 						continue;
 					}
-					ctx.assets->GetMesh(mf.meshId).Draw(rlMat, wt.matrix);
+					ctx.assets->GetMesh(mf.meshId).Draw(rlMat, wt.world_matrix);
 				}
 				ctx.camera->EndMode();
 			}

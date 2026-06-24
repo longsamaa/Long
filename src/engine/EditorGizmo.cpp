@@ -1,6 +1,7 @@
 #include "engine/EditorGizmo.hpp"
 #include "helpers/MathHelper.hpp"
 #include "helpers/draw_debug_helper.hpp"
+#include "core/Components.hpp"
 #include "rlgl.h"
 #include "raymath.h"
 #include <limits>
@@ -18,7 +19,7 @@ namespace Long {
 	}
 
 	bool EditorGizmo::Update(const raylib::Camera3D& camera, Transform& target) {
-		raylib::Vector3 center = target.position;
+		raylib::Vector3 center = target.getPos();
 		float r = GizmoScale(camera, center);
 		raylib::Ray ray = camera.GetScreenToWorldRay(raylib::Mouse::GetPosition());
 
@@ -43,7 +44,7 @@ namespace Long {
 					m_rotDelta = delta;             // remember for the HUD text
 					Quaternion dq = QuaternionFromAxisAngle(n, delta);
 					// Apply the delta in world space on top of the start orientation.
-					target.quaternion = raylib::Quaternion(QuaternionMultiply(dq, m_rotStart));
+					target.setQuaternion(raylib::Quaternion(QuaternionMultiply(dq, m_rotStart)));
 				}
 				return true;
 			}
@@ -58,17 +59,18 @@ namespace Long {
 					// where the drag began (ratio keeps it frame-rate independent).
 					float factor = (fabsf(m_scaleStartParam) > 1e-4f)
 						? (t / m_scaleStartParam) : 1.0f;
-					raylib::Vector3 s = target.scale;
+					raylib::Vector3 s = target.getScale();
 					if (i == 0) s.x = m_scaleStart.x * factor;
 					else if (i == 1) s.y = m_scaleStart.y * factor;
 					else s.z = m_scaleStart.z * factor;
-					target.scale = s;
+					target.setScale(s);
 				}
 				else {
 					raylib::Vector3 hit = center.Add(ax[i].Scale(t));
 					raylib::Vector3 delta = hit.Subtract(m_dragStartHit);
 					delta = ax[i].Scale(delta.DotProduct(ax[i])); // keep only along axis
-					target.position = raylib::Vector3(target.position).Add(delta);
+					target.setPos(target.getPos().Add(delta)); 
+					//target = raylib::Vector3(target.position).Add(delta);
 					m_dragStartHit = m_dragStartHit.Add(delta);
 				}
 			}
@@ -81,7 +83,8 @@ namespace Long {
 				raylib::Vector3 hit = RayPlane(ray, center, n, ok);
 				if (ok) {
 					raylib::Vector3 delta = hit.Subtract(m_dragStartHit);
-					target.position = raylib::Vector3(target.position).Add(delta);
+					//target.position = raylib::Vector3(target.position).Add(delta);
+					target.setPos(target.getPos().Add(delta)); 
 					m_dragStartHit = hit;
 				}
 				(void)planeIdx;
@@ -151,14 +154,14 @@ namespace Long {
 				bool ok;
 				raylib::Vector3 hit = RayPlane(ray, center, n, ok);
 				m_rotStartAngle = RingAngle(hit, center, u, v);
-				m_rotStart = target.quaternion;  // orientation at drag start
+				m_rotStart = target.getQuaternion();  // orientation at drag start
 			}
 			else if (m_dragging >= Handle::AxisX && m_dragging <= Handle::AxisZ) {
 				int i = (int)m_dragging - (int)Handle::AxisX;
 				float t = ClosestAxisParam(ray, center, ax[i]);
 				m_dragStartHit = center.Add(ax[i].Scale(t));
 				m_scaleStartParam = t;          // for scale-ratio
-				m_scaleStart = target.scale;    // scale at drag start
+				m_scaleStart = target.getScale();    // scale at drag start
 			}
 			else {
 				raylib::Vector3 n = (m_dragging == Handle::PlaneXY) ? ax[2]
@@ -172,7 +175,7 @@ namespace Long {
 	}
 
 	void EditorGizmo::Draw(const raylib::Camera3D& camera, const Transform& target) {
-		raylib::Vector3 center = target.position;
+		const raylib::Vector3& center = target.getPos();
 		float r = GizmoScale(camera, center);
 		rlDisableDepthTest(); // gizmo always on top
 		const bool scaleMode = (m_mode == Mode::Scale);
@@ -239,13 +242,13 @@ namespace Long {
 		if ((m_dragging >= Handle::PlaneXY && m_dragging <= Handle::PlaneYZ) || m_dragging == Handle::None) {
 			return;
 		}
-		raylib::Vector2 centerScreen = camera.GetWorldToScreen(target.position);
+		raylib::Vector2 centerScreen = camera.GetWorldToScreen(target.getPos());
 		raylib::Vector2 mouse = raylib::Mouse::GetPosition();
 		::DrawLineEx(centerScreen, mouse, 1.5f, raylib::Color::White());
 	}
 
 	void EditorGizmo::drawDebugGizmo(const Transform& target, const float& scale) {
-		raylib::Vector3 center = target.position;
+		const raylib::Vector3& center = target.getPos();
 		center.DrawSphere(0.1f, raylib::Color::Red());
 		for (int i = 0; i < 3; ++i) {
 			raylib::Vector3 tip = center.Add(ax[i].Scale((1.0f + cylinder_length) * AXIS_LEN * scale));

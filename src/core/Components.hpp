@@ -7,25 +7,51 @@ namespace Long {
 	// LOCAL transform: position/rotation/scale RELATIVE TO THE PARENT (or to the
 	// world if the entity has no parent). This is what you edit.
 	struct Transform {
-		raylib::Vector3 position = { 0, 0, 0 };
-		raylib::Quaternion quaternion = { 0, 0, 0, 1 }; // identity rotation
-		raylib::Vector3 scale = { 1, 1, 1 };
-
-		// Bumped whenever this transform changes. TransformSystem compares it with
-		// WorldTransform::builtVersion and only recomputes the world matrix when they
-		// differ -- so static objects cost nothing per frame. Call MarkDirty() (or
-		// just ++version) after editing position/quaternion/scale. Starts at 1 so the
-		// world matrix (builtVersion 0) is computed once on the first frame.
-		uint32_t version = 1;
+	public: 
+		const raylib::Vector3& setPos(const raylib::Vector3& _position) {
+			position = _position; 
+			MarkDirty();
+			return position; 
+		};
+		const raylib::Quaternion& setQuaternion(const raylib::Quaternion& _quaternion) {
+			quaternion = _quaternion;
+			MarkDirty(); 
+			return quaternion; 
+		};
+		const raylib::Vector3& setScale(const raylib::Vector3& _scale) {
+			scale = _scale;
+			MarkDirty(); 
+			return scale; 
+		};
 		void MarkDirty() { ++version; }
+		const raylib::Vector3& getPos() const {
+			return position; 
+		}
+		const raylib::Vector3& getScale() const {
+			return scale;
+		}
+		const raylib::Quaternion& getQuaternion() const {
+			return quaternion;
+		}
+		const uint32_t& getVersion() const {
+			return version; 
+		}
+	private: 
+		raylib::Vector3 position = { 0, 0, 0 };
+		raylib::Quaternion quaternion = { 0, 0, 0, 1 };
+		raylib::Vector3 scale = { 1, 1, 1 }; 
+		// Start at 1 so a freshly-created Transform is != MatrixTransform's
+		// buildFromTransformVersion (0) -> it always gets built on the first pass,
+		// even if no setter was ever called.
+		uint32_t version{ 1 };
 	};
 
 	// WORLD transform: the absolute model matrix, computed by the TransformSystem
 	// as  parent.world * local.  RenderSystem draws with THIS. Do not edit by hand.
-	struct WorldTransform {
-		raylib::Matrix matrix = MatrixIdentity();
-		// Value of Transform::version when `matrix` was last computed.
-		uint32_t builtVersion = 0;
+	struct MatrixTransform {
+		raylib::Matrix world_matrix = MatrixIdentity();
+		raylib::Matrix local_matrix = MatrixIdentity();
+		uint32_t buildFromTransformVersion{ 0 }; 
 	};
 
 	// Scene-graph link. A model with many parts = one parent entity with one child

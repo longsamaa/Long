@@ -9,12 +9,12 @@ namespace Long {
 	void RenderSystem(entt::registry& registry, AssetManager& assets, CommandQueue& queue)
 	{
 		//stats.Reset();
-		auto view = registry.view<WorldTransform, MeshFilter, MeshRenderer>();
+		auto view = registry.view<MatrixTransform, MeshFilter, MeshRenderer>();
 		// Pre-grow the command buffer once so the per-entity Submit() loop below
 		// doesn't trigger repeated vector reallocations.
 		queue.Reserve(view.size_hint());
 		for (auto e : view) {
-			const auto& [wt, mf, mr] = view.get<WorldTransform, MeshFilter, MeshRenderer>(e);
+			const auto& [wt, mf, mr] = view.get<MatrixTransform, MeshFilter, MeshRenderer>(e);
 			if (!assets.IsValidMesh(mf.meshId) || !assets.IsValidMaterial(mr.materialId)) {
 				Logger::TraceLog(LOG_WARNING,
 					std::format("RenderSystem: Entity {} has invalid mesh or material.", entt::to_integral(e)));
@@ -30,7 +30,7 @@ namespace Long {
 			}
 			//Push to queue instead of drawing directly
 			queue.Submit({
-				wt.matrix,
+				wt.world_matrix,
 				&mesh,
 				&material,
 				!mr.visible

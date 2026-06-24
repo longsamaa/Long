@@ -139,8 +139,8 @@ namespace Long {
 			for (int z = 0; z < N; ++z) {
 				entt::entity e = m_scene.CreateEntity("cube");
 				Transform t;
-				t.position = { (x - N / 2) * spacing, 0.5f, (z - N / 2) * spacing };
-				t.scale = { 1.0f, 1.0f, 1.0f };
+				t.setPos({ (x - N / 2) * spacing, 0.5f, (z - N / 2) * spacing });
+				t.setScale({ 1.0f, 1.0f, 1.0f });
 				reg.emplace<Transform>(e, t);
 				reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
 				// Cycle materials so sort-by-material has something to group.
