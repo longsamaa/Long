@@ -19,6 +19,24 @@ namespace Long {
 		return (a * e - b * d) / denom;
 	}
 
+	// Shortest distance between the mouse ray and the segment [origin, origin+dir*len]
+	// (dir unit length). Used to pick a tilted axis handle without an AABB, which
+	// would balloon when the axis isn't world-aligned. `outT` returns the clamped
+	// parameter along the axis (0..len) of the closest point.
+	static float RayAxisDistance(const raylib::Ray& ray, raylib::Vector3 origin,
+		raylib::Vector3 dir, float len, float& outT) {
+		float t = ClosestAxisParam(ray, origin, dir);   // param along the axis line
+		t = (t < 0.0f) ? 0.0f : (t > len ? len : t);    // clamp to the segment
+		outT = t;
+		raylib::Vector3 onAxis = origin.Add(dir.Scale(t));
+		// Closest point on the ray to that axis point, then measure the gap.
+		raylib::Vector3 w = onAxis.Subtract(ray.position);
+		float s = w.DotProduct(ray.direction);          // ray.direction is unit
+		if (s < 0.0f) s = 0.0f;                          // ray starts at camera
+		raylib::Vector3 onRay = raylib::Vector3(ray.position).Add(raylib::Vector3(ray.direction).Scale(s));
+		return onAxis.Distance(onRay);
+	}
+
 	static raylib::Vector3 RayPlane(const raylib::Ray& ray, raylib::Vector3 p, raylib::Vector3 n, bool& ok) {
 		raylib::Vector3 rdir = ray.direction;
 		float denom = n.DotProduct(rdir);

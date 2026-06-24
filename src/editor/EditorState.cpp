@@ -63,9 +63,9 @@ namespace Long {
 			m_hoverHit = RaycastHit{};
 			return;
 		}
-		raylib::Ray ray = ::GetScreenToWorldRay(GetMousePosition(), m_camera.Raw());
-		m_hoverHit = RaycastSystem(m_scene.Registry(), ray);
-		if (::IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+		if (raylib::Mouse::IsButtonDown(MOUSE_BUTTON_LEFT)) {
+			raylib::Ray ray = ::GetScreenToWorldRay(GetMousePosition(), m_camera.Raw());
+			m_hoverHit = RaycastSystem(m_scene.Registry(), ray);
 			if (m_hoverHit.hit) {
 				m_selectedEntity = m_hoverHit.entity;
 			}
@@ -75,6 +75,7 @@ namespace Long {
 		}
 		float wheel = ::GetMouseWheelMove();
 		if (wheel != 0.0f) {
+			raylib::Ray ray = ::GetScreenToWorldRay(GetMousePosition(), m_camera.Raw());
 			raylib::Vector3 pivot;
 			if (m_hoverHit.hit) {
 				pivot = m_hoverHit.point;
@@ -126,14 +127,14 @@ namespace Long {
 		raylib::Color lightBrown{ 196, 164, 132, 255 }; // edge line
 		raylib::Color faceBrown{ 120, 96, 72, 255 };    // darker fill behind it
 		uint32_t mat[3] = {
-			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.03f),
-			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.03f),
-			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.03f),
+			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.01f),
+			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.01f),
+			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.01f),
 		};
 		// Spawn a 10x10 grid of cubes (100 entities) to stress-test the pipeline.
 		// Cubes are 1 unit wide, so a spacing of 1.0 makes them sit edge-to-edge.
 		auto& reg = m_scene.Registry();
-		const int N = 200;
+		const int N = 10;
 		const float spacing = 1.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {
@@ -216,6 +217,18 @@ namespace Long {
 				if (active) {
 					ImGui::PopStyleColor();
 				}
+			}
+			ImGui::SameLine();
+			// Toggle local/world space; label + highlight reflect the current state.
+			bool local = m_gizmo.IsLocal();
+			if (local) {
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.45f, 0.85f, 1.0f));
+			}
+			if (ImGui::Button(local ? "Local" : "World")) {
+				m_gizmo.SetGizmoToLocal();
+			}
+			if (local) {
+				ImGui::PopStyleColor();
 			}
 		}
 		ImGui::End();

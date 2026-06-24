@@ -13,9 +13,45 @@ namespace Long {
 	static constexpr float PLANE_OFFSET = 0.35f;  // plane handle offset from center
 	static constexpr float PLANE_SIZE = 0.25f;  // plane handle size
 
+	// Component-wise absolute value. Used to turn a (possibly rotated) axis vector
+	// into a positive half-extent for an axis-aligned BoundingBox.
+	static raylib::Vector3 AbsVec(const raylib::Vector3& v) {
+		return raylib::Vector3{ std::fabsf(v.x), std::fabsf(v.y), std::fabsf(v.z) };
+	}
+
 	float EditorGizmo::GizmoScale(const raylib::Camera3D& camera, raylib::Vector3 pos) const {
 		// Constant on-screen size: scale by distance to the camera.
 		return m_viewSize * pos.Distance(camera.position);
+	}
+
+	void EditorGizmo::SetGizmoToLocal()
+	{
+		m_local = !m_local;
+	}
+
+	raylib::Quaternion EditorGizmo::HandleOrientation(const Transform& target) const {
+		if (!m_local) {
+			return raylib::Quaternion{ 0, 0, 0, 1 }; // world-aligned
+		}
+		// While dragging a rotate ring, keep the orientation latched at drag start so
+		// the ring planes stay put as the target spins under the cursor.
+		if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
+			return m_rotStart;
+		}
+		return target.getQuaternion();
+	}
+
+	raylib::Vector3 EditorGizmo::Axis(const Transform& target, int i) const {
+		if (!m_local) return ax[i];
+		return ax[i].RotateByQuaternion(HandleOrientation(target)); 
+	}
+
+	raylib::Vector3 EditorGizmo::Axis2(const Transform& target, int i) const {
+		if (!m_local) return ax2[i];
+		// ax2 is a 2-axis combo used to size/offset plane handles; rotating it as a
+		// vector keeps the plane handles attached to the same two local axes.
+		
+		return raylib::Vector3(Vector3RotateByQuaternion(ax2[i], HandleOrientation(target)));
 	}
 
 	bool EditorGizmo::Update(const raylib::Camera3D& camera, Transform& target) {
@@ -33,7 +69,7 @@ namespace Long {
 			if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
 				// Rotate around the ring's axis by the change in cursor angle.
 				int i = (int)m_dragging - (int)Handle::RingX;
-				raylib::Vector3 n = ax[i];
+				raylib::Vector3 n = Axis(target, i);
 				raylib::Vector3 u, v;
 				PlaneBasis(n, u, v);
 				bool ok;
@@ -50,9 +86,10 @@ namespace Long {
 			}
 			if (m_dragging >= Handle::AxisX && m_dragging <= Handle::AxisZ) {
 				int i = (int)m_dragging - (int)Handle::AxisX;
-				float t = ClosestAxisParam(ray, center, ax[i]);
+				raylib::Vector3 axis = Axis(target, i);
+				float t = ClosestAxisParam(ray, center, axis);
 				if (debug) {
-					m_closetPoint = center.Add(ax[i].Scale(t));
+					m_closetPoint = center.Add(axis.Scale(t));
 				}
 				if (m_mode == Mode::Scale) {
 					// Scale along the axis by how far the cursor moved relative to
@@ -66,10 +103,10 @@ namespace Long {
 					target.setScale(s);
 				}
 				else {
-					raylib::Vector3 hit = center.Add(ax[i].Scale(t));
+					raylib::Vector3 hit = center.Add(axis.Scale(t));
 					raylib::Vector3 delta = hit.Subtract(m_dragStartHit);
-					delta = ax[i].Scale(delta.DotProduct(ax[i])); // keep only along axis
-					target.setPos(target.getPos().Add(delta)); 
+					delta = axis.Scale(delta.DotProduct(axis)); // keep only along axis
+					target.setPos(target.getPos().Add(delta));
 					//target = raylib::Vector3(target.position).Add(delta);
 					m_dragStartHit = m_dragStartHit.Add(delta);
 				}
@@ -77,14 +114,14 @@ namespace Long {
 			else {
 				// Plane normal = the axis NOT in the plane (ax[] index).
 				int planeIdx = (int)m_dragging - (int)Handle::PlaneXY; // 0,1,2
-				raylib::Vector3 n = (m_dragging == Handle::PlaneXY) ? ax[2]
-					: (m_dragging == Handle::PlaneXZ) ? ax[1] : ax[0];
+				raylib::Vector3 n = (m_dragging == Handle::PlaneXY) ? Axis(target, 2)
+					: (m_dragging == Handle::PlaneXZ) ? Axis(target, 1) : Axis(target, 0);
 				bool ok;
 				raylib::Vector3 hit = RayPlane(ray, center, n, ok);
 				if (ok) {
 					raylib::Vector3 delta = hit.Subtract(m_dragStartHit);
 					//target.position = raylib::Vector3(target.position).Add(delta);
-					target.setPos(target.getPos().Add(delta)); 
+					target.setPos(target.getPos().Add(delta));
 					m_dragStartHit = hit;
 				}
 				(void)planeIdx;
@@ -95,16 +132,21 @@ namespace Long {
 		// --- Not dragging: hover-test the handles, pick the closest ---
 		m_hot = Handle::None;
 		float bestDist = std::numeric_limits<float>::max();
-		// Axis arrows (translate/scale): an AABB enclosing center->tip.
+		// Axis arrows (translate/scale): distance from the ray to the axis segment.
+		// (An AABB would balloon for a tilted local axis and overshoot the pick.)
 		if (m_mode != Mode::Rotate) {
+			const float axisLen = (1.0f + cylinder_length) * r * AXIS_LEN;
+			const float pickR = r * AXIS_PICK_R; // pick radius around the arrow
 			for (int i = 0; i < 3; ++i) {
-				raylib::Vector3 tip = center.Add(ax[i].Scale((1.0f + cylinder_length) * r * AXIS_LEN));
-				raylib::Vector3 pad = ax2[i].Scale(r * AXIS_PICK_R);
-				raylib::BoundingBox box{ center.Min(tip).Subtract(pad), center.Max(tip).Add(pad) };
-				raylib::RayCollision col = ray.GetCollision(box);
-				if (col.hit && col.distance < bestDist) {
-					bestDist = col.distance;
-					m_hot = def_handle_axis[i];
+				float t;
+				float dist = RayAxisDistance(ray, center, Axis(target, i), axisLen, t);
+				if (dist < pickR) {
+					// Tie-break by camera distance to the closest point on the axis.
+					float camDist = center.Add(Axis(target, i).Scale(t)).Distance(ray.position);
+					if (camDist < bestDist) {
+						bestDist = camDist;
+						m_hot = def_handle_axis[i];
+					}
 				}
 			}
 		}
@@ -115,7 +157,7 @@ namespace Long {
 			const Handle ringHandles[3] = { Handle::RingX, Handle::RingY, Handle::RingZ };
 			const float ringTol = r * 0.12f; // pick band thickness
 			for (int i = 0; i < 3; ++i) {
-				raylib::Vector3 n = ax[i];
+				raylib::Vector3 n = Axis(target, i);
 				bool ok;
 				raylib::Vector3 hit = RayPlane(ray, center, n, ok);
 				if (!ok) continue;
@@ -130,17 +172,28 @@ namespace Long {
 			}
 		}
 
-		// Plane handles: small boxes offset along the plane's two axes (ax2).
-		// Only in translate mode.
+		// Plane handles: a flat square spanned by the plane's two LOCAL axes. Pick by
+		// intersecting the ray with that square's plane and checking the hit falls
+		// inside the square (projected onto the two axes). Matches the drawn quad.
 		if (m_mode == Mode::Translate) {
+			const int planeAxes[3][2] = { {1, 2}, {0, 2}, {0, 1} };
+			const float off = PLANE_OFFSET * r;
+			const float hs = PLANE_SIZE * r * 0.5f;
 			for (int i = 0; i < 3; ++i) {
-				raylib::Vector3 tip = center.Add(ax2[i].Scale(PLANE_OFFSET * r));
-				raylib::Vector3 half = ax2[i].Scale(PLANE_SIZE * r * 0.5f);
-				raylib::BoundingBox box{ tip.Subtract(half), tip.Add(half) };
-				raylib::RayCollision col = ray.GetCollision(box);
-				if (col.hit && col.distance < bestDist) {
-					bestDist = col.distance;
-					m_hot = def_handle_planes[i];
+				raylib::Vector3 a = Axis(target, planeAxes[i][0]);
+				raylib::Vector3 b = Axis(target, planeAxes[i][1]);
+				raylib::Vector3 cpos = center.Add(Axis2(target, i).Scale(off));
+				raylib::Vector3 n = a.CrossProduct(b); // plane normal
+				bool ok;
+				raylib::Vector3 hit = RayPlane(ray, cpos, n, ok);
+				if (!ok) continue;
+				raylib::Vector3 d = hit.Subtract(cpos);
+				if (std::fabsf(d.DotProduct(a)) <= hs && std::fabsf(d.DotProduct(b)) <= hs) {
+					float camDist = raylib::Vector3(ray.position).Distance(hit);
+					if (camDist < bestDist) {
+						bestDist = camDist;
+						m_hot = def_handle_planes[i];
+					}
 				}
 			}
 		}
@@ -148,24 +201,27 @@ namespace Long {
 			m_dragging = m_hot;
 			if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
 				int i = (int)m_dragging - (int)Handle::RingX;
-				raylib::Vector3 n = ax[i];
+				// Latch the orientation FIRST so HandleOrientation() (used by Axis())
+				// returns the locked rotation for the rest of this drag.
+				m_rotStart = target.getQuaternion();  // orientation at drag start
+				raylib::Vector3 n = Axis(target, i);
 				raylib::Vector3 u, v;
 				PlaneBasis(n, u, v);
 				bool ok;
 				raylib::Vector3 hit = RayPlane(ray, center, n, ok);
 				m_rotStartAngle = RingAngle(hit, center, u, v);
-				m_rotStart = target.getQuaternion();  // orientation at drag start
 			}
 			else if (m_dragging >= Handle::AxisX && m_dragging <= Handle::AxisZ) {
 				int i = (int)m_dragging - (int)Handle::AxisX;
-				float t = ClosestAxisParam(ray, center, ax[i]);
-				m_dragStartHit = center.Add(ax[i].Scale(t));
+				raylib::Vector3 axis = Axis(target, i);
+				float t = ClosestAxisParam(ray, center, axis);
+				m_dragStartHit = center.Add(axis.Scale(t));
 				m_scaleStartParam = t;          // for scale-ratio
 				m_scaleStart = target.getScale();    // scale at drag start
 			}
 			else {
-				raylib::Vector3 n = (m_dragging == Handle::PlaneXY) ? ax[2]
-					: (m_dragging == Handle::PlaneXZ) ? ax[1] : ax[0];
+				raylib::Vector3 n = (m_dragging == Handle::PlaneXY) ? Axis(target, 2)
+					: (m_dragging == Handle::PlaneXZ) ? Axis(target, 1) : Axis(target, 0);
 				bool ok;
 				m_dragStartHit = RayPlane(ray, center, n, ok);
 			}
@@ -178,13 +234,15 @@ namespace Long {
 		const raylib::Vector3& center = target.getPos();
 		float r = GizmoScale(camera, center);
 		rlDisableDepthTest(); // gizmo always on top
+		rlDisableBackfaceCulling();
 		const bool scaleMode = (m_mode == Mode::Scale);
 		const bool rotateMode = (m_mode == Mode::Rotate);
 		if (!rotateMode) {
 			for (int i = 0; i < 3; ++i) {
 				Handle hAxis = def_handle_axis[i];
 				raylib::Color c = (m_hot == hAxis || m_dragging == hAxis) ? raylib::Color::Yellow() : axisCol[i];
-				raylib::Vector3 tip = center.Add(ax[i].Scale(r * AXIS_LEN));
+				raylib::Vector3 axis = Axis(target, i);
+				raylib::Vector3 tip = center.Add(axis.Scale(r * AXIS_LEN));
 				tip.DrawLine3D(center, c);
 				if (scaleMode) {
 					float hs = r * 0.08f;
@@ -193,7 +251,7 @@ namespace Long {
 					box.Draw(c);
 				}
 				else {
-					raylib::Vector3 tipEnd = tip.Add(ax[i].Scale(r * cylinder_length));
+					raylib::Vector3 tipEnd = tip.Add(axis.Scale(r * cylinder_length));
 					::DrawCylinderEx(tip, tipEnd, r * 0.06f, 0.0f, 12, c);
 				}
 			}
@@ -206,29 +264,44 @@ namespace Long {
 				raylib::Color c = activeRing ? raylib::Color::Yellow() : axisCol[i];
 				float tube = (activeRing ? 0.05f : 0.03f) * r;
 				raylib::Vector3 u, v;
-				PlaneBasis(ax[i], u, v);
+				PlaneBasis(Axis(target, i), u, v);
 				DrawTorus3D(center, u, v, r, tube, c);
 			}
 		}
 
 		if (m_mode == Mode::Translate) {
 			raylib::Color planeCol[3] = { raylib::Color::Red(), raylib::Color::Green(), raylib::Color::Blue() };
-			rlDisableBackfaceCulling();
+			// The two local axes that span each plane handle. Order matches
+			// def_handle_planes = { PlaneYZ, PlaneXZ, PlaneXY }.
+			const int planeAxes[3][2] = { {1, 2}, {0, 2}, {0, 1} };
 			for (int i = 0; i < 3; ++i) {
 				Handle h = def_handle_planes[i];
 				raylib::Color c = (m_hot == h || m_dragging == h) ? raylib::Color::Yellow() : planeCol[i];
 				c.a = 140;
-				raylib::Vector3 cpos = center.Add(ax2[i].Scale(PLANE_OFFSET * r));
+				raylib::Vector3 a = Axis(target, planeAxes[i][0]);
+				raylib::Vector3 b = Axis(target, planeAxes[i][1]);
+				float off = PLANE_OFFSET * r;
 				float hs = PLANE_SIZE * r * 0.5f;
-				raylib::Vector3 half = ax2[i].Scale(hs);
-				raylib::BoundingBox box{ cpos.Subtract(half), cpos.Add(half) };
-				box.Draw(c);
+				raylib::Vector3 cpos = center.Add(Axis2(target, i).Scale(off));
+				raylib::Vector3 ea = a.Scale(hs);
+				raylib::Vector3 eb = b.Scale(hs);
+				raylib::Vector3 p0 = cpos.Subtract(ea).Subtract(eb);
+				raylib::Vector3 p1 = cpos.Add(ea).Subtract(eb);
+				raylib::Vector3 p2 = cpos.Add(ea).Add(eb);
+				raylib::Vector3 p3 = cpos.Subtract(ea).Add(eb);
+				::DrawTriangle3D(p0, p1, p2, c);
+				::DrawTriangle3D(p0, p2, p3, c);
+				::DrawTriangle3D(p0, p2, p1, c);
+				::DrawTriangle3D(p0, p3, p2, c);
+				raylib::Color edge = c; edge.a = 255;
+				p0.DrawLine3D(p1, edge); p1.DrawLine3D(p2, edge);
+				p2.DrawLine3D(p3, edge); p3.DrawLine3D(p0, edge);
 			}
 		}
 		Handle active = (m_dragging != Handle::None) ? m_dragging : m_hot;
 		if (active >= Handle::AxisX && active <= Handle::AxisZ) {
 			int i = (int)active - (int)Handle::AxisX;
-			raylib::Vector3 farHalf = ax[i].Scale(10000.0f);
+			raylib::Vector3 farHalf = Axis(target, i).Scale(10000.0f);
 			center.Add(farHalf).DrawLine3D(center.Subtract(farHalf), raylib::Color::White());
 		}
 
