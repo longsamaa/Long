@@ -18,6 +18,7 @@
 #include "imgui.h"
 #include "imgui_internal.h" // DockBuilderGetCentralNode
 #include "raylib-cpp.hpp"
+#include <chrono>
 
 namespace Long {
 	void EditorState::OnEnter() {
@@ -39,11 +40,20 @@ namespace Long {
 	}
 
 	void EditorState::Update(float dt) {
+		using Clock = std::chrono::high_resolution_clock;
+		auto ms = [](Clock::time_point from) {
+			return std::chrono::duration<double, std::milli>(Clock::now() - from).count();
+		};
+		const auto tUpdate = Clock::now();
+
 		m_commandQueue.Clear();
 		if (!ImGui::GetIO().WantCaptureMouse) {
 			m_camera.Update(dt);
 		}
+		auto t0 = Clock::now();
 		TransformSystem(m_scene.Registry());
+		m_msTransformSystem = ms(t0);
+
 		bool gizmoHasInput = false;
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
 			&& m_scene.Registry().all_of<Transform>(m_selectedEntity)
@@ -52,9 +62,11 @@ namespace Long {
 			gizmoHasInput = m_gizmo.IsActive() || m_gizmo.IsHot();
 		}
 
+		m_msPicking = 0.0;
 		if (!gizmoHasInput) {
 			UpdatePicking();
 		}
+		m_msUpdate = ms(tUpdate);
 	}
 
 	void EditorState::UpdatePicking() {
@@ -65,7 +77,10 @@ namespace Long {
 		}
 		if (raylib::Mouse::IsButtonDown(MOUSE_BUTTON_LEFT)) {
 			raylib::Ray ray = ::GetScreenToWorldRay(GetMousePosition(), m_camera.Raw());
+			auto tPick = std::chrono::high_resolution_clock::now();
 			m_hoverHit = RaycastSystem(m_scene.Registry(), ray);
+			m_msPicking = std::chrono::duration<double, std::milli>(
+				std::chrono::high_resolution_clock::now() - tPick).count();
 			if (m_hoverHit.hit) {
 				m_selectedEntity = m_hoverHit.entity;
 			}
@@ -111,6 +126,12 @@ namespace Long {
 		}
 		m_renderer.Render(ctx);
 		m_renderStats = ctx.renderStats;
+		// Merge in the Update-phase timings measured before Render() (which Reset()s
+		// the stats), so the Profiler shows scene + update stages together.
+		m_renderStats.msTransformSystem = m_msTransformSystem;
+		m_renderStats.msPicking = m_msPicking;
+		m_renderStats.msUpdate = m_msUpdate;
+		m_renderStats.msEndDrawing = m_msEndDrawing; // from the previous frame
 	}
 
 	void EditorState::testCreateDefaultCube()
@@ -134,7 +155,7 @@ namespace Long {
 		// Spawn a 10x10 grid of cubes (100 entities) to stress-test the pipeline.
 		// Cubes are 1 unit wide, so a spacing of 1.0 makes them sit edge-to-edge.
 		auto& reg = m_scene.Registry();
-		const int N = 10;
+		const int N = 500;
 		const float spacing = 1.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {

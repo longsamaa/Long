@@ -81,8 +81,9 @@ namespace Long {
 			if (count >= kInstanceThreshold && instShaderId != AssetManager::Invalid) {
 				raylib::Shader& instShader = assets.GetShader(instShaderId);
 				raylib::Material& rlMat = batch.material->Apply(instShader);
-				::DrawMeshInstanced(*batch.mesh, rlMat,
-					(const Matrix*)batch.transforms.data(), (int)count);
+				// Instanced draw via raylib-cpp's Mesh::Draw(material, transforms, n)
+				// (wraps ::DrawMeshInstanced).
+				batch.mesh->Draw(rlMat, (const Matrix*)batch.transforms.data(), (int)count);
 				stats.drawCalls++;
 				stats.stageCount++;
 				stats.triangles += (uint32_t)batch.mesh->GetTriangleCount() * (uint32_t)count;

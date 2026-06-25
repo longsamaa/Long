@@ -24,6 +24,7 @@ namespace Long {
 		void Update(float dt) override;
 		void RenderWorld() override;
 		void RenderUI() override;
+		void ReportEndDrawingMs(double ms) override { m_msEndDrawing = ms; }
 	private:
 		void testCreateDefaultCube();
 		void RenderMenuBar();
@@ -41,6 +42,12 @@ namespace Long {
 		EditorGizmo m_gizmo;
 		Renderer m_renderer;
 		RenderStats m_renderStats;
+		// Update-phase timings (ms). Measured in Update(), merged into m_renderStats
+		// after RenderWorld() so Renderer's per-frame Reset() doesn't clobber them.
+		double m_msTransformSystem = 0.0;
+		double m_msPicking = 0.0;
+		double m_msUpdate = 0.0;
+		double m_msEndDrawing = 0.0; // previous frame's EndDrawing (from Application)
 		RaycastHit m_hoverHit;                       // entity under the cursor this frame
 		entt::entity m_selectedEntity = entt::null;  // entity clicked/selected (persists)
 	};

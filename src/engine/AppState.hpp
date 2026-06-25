@@ -15,6 +15,9 @@ namespace Long {
         virtual void RenderWorld() {}
         // Draw ImGui UI on top of the world.
         virtual void RenderUI() {}
+        // Report the previous frame's EndDrawing/SwapBuffers time (ms), measured by
+        // Application after RenderUI. Lets a state surface it in its profiler.
+        virtual void ReportEndDrawingMs(double) {}
     };
 }
 #endif // !_APP_STATE_HPP_

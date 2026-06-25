@@ -15,24 +15,30 @@ namespace Long {
 	}
 
 	// Recursively set world = local * parentWorld for an entity and its children.
-	static void UpdateRecursive(entt::registry& reg, entt::entity e, const raylib::Matrix& parentWorld, bool parent_change) {
+	// `parentWorld` is taken BY VALUE: get_or_emplace<MatrixTransform> below can grow
+	// (reallocate) the MatrixTransform pool, which would dangle any reference we held
+	// into it across the recursion. A local copy is immune to that reallocation --
+	// this is the cause of the Release-only 0xFFFF... crash.
+	static void UpdateRecursive(entt::registry& reg, entt::entity e, raylib::Matrix parentWorld, bool parent_change) {
 		const Transform& local = reg.get<Transform>(e);
-		//if auto matrix update 		
+		//if auto matrix update
 		auto& matrix_component = reg.get_or_emplace<MatrixTransform>(e);
-		bool isDirty = matrix_component.buildFromTransformVersion != local.getVersion() || parent_change; 
+		bool isDirty = matrix_component.buildFromTransformVersion != local.getVersion() || parent_change;
 		if (isDirty) {
-			//update version 
-			matrix_component.buildFromTransformVersion = local.getVersion(); 
+			//update version
+			matrix_component.buildFromTransformVersion = local.getVersion();
 			raylib::Matrix localMatrix = LocalMatrix(local);
 			raylib::Matrix worldMatrix = localMatrix * parentWorld;
 			matrix_component.world_matrix = worldMatrix;
 			matrix_component.local_matrix = localMatrix;
 		}
-		// Recurse into children, if any.
+		// Recurse into children, if any. Copy the world matrix out of the component
+		// FIRST so a child's get_or_emplace can't dangle it mid-loop.
 		if (auto* h = reg.try_get<Hierarchy>(e)) {
+			raylib::Matrix world = matrix_component.world_matrix;
 			for (entt::entity child : h->children) {
 				if (reg.valid(child) && reg.all_of<Transform>(child)) {
-					UpdateRecursive(reg, child, matrix_component.world_matrix, isDirty);
+					UpdateRecursive(reg, child, world, isDirty);
 				}
 			}
 		}
