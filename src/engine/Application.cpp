@@ -1,10 +1,8 @@
 #include "engine/Application.hpp"
 #include "engine/AppState.hpp"
-
 #include "rlImGui.h"
 #include "imgui.h"
 #include <filesystem>
-#include <chrono>
 
 // Member init list constructs m_window, which opens the window (InitWindow).
 // Native resolution, resizable window (good for an editor). Do NOT use
@@ -79,15 +77,7 @@ namespace Long {
 				m_state->RenderUI();
 				rlImGuiEnd();
 			}
-			// EndDrawing does SwapBuffers and waits for vsync -- often the bulk of a
-			// frame. Time it and hand it back to the state for its profiler.
-			auto tEnd = std::chrono::high_resolution_clock::now();
 			m_window.EndDrawing();
-			if (m_state) {
-				double endMs = std::chrono::duration<double, std::milli>(
-					std::chrono::high_resolution_clock::now() - tEnd).count();
-				m_state->ReportEndDrawingMs(endMs);
-			}
 		}
 	}
 }

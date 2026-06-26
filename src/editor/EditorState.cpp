@@ -18,7 +18,7 @@
 #include "imgui.h"
 #include "imgui_internal.h" // DockBuilderGetCentralNode
 #include "raylib-cpp.hpp"
-#include <chrono>
+#include "helpers/TimerHelper.hpp"
 
 namespace Long {
 	void EditorState::OnEnter() {
@@ -40,19 +40,14 @@ namespace Long {
 	}
 
 	void EditorState::Update(float dt) {
-		using Clock = std::chrono::high_resolution_clock;
-		auto ms = [](Clock::time_point from) {
-			return std::chrono::duration<double, std::milli>(Clock::now() - from).count();
-		};
-		const auto tUpdate = Clock::now();
-
+		const auto tUpdate = Time::now();
 		m_commandQueue.Clear();
 		if (!ImGui::GetIO().WantCaptureMouse) {
 			m_camera.Update(dt);
 		}
-		auto t0 = Clock::now();
+		auto t0 = Time::now();
 		TransformSystem(m_scene.Registry());
-		m_msTransformSystem = ms(t0);
+		m_msTransformSystem = Time::elapsedSecond(t0);
 
 		bool gizmoHasInput = false;
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
@@ -66,7 +61,7 @@ namespace Long {
 		if (!gizmoHasInput) {
 			UpdatePicking();
 		}
-		m_msUpdate = ms(tUpdate);
+		m_msUpdate = Time::elapsedSecond(tUpdate);
 	}
 
 	void EditorState::UpdatePicking() {
@@ -77,10 +72,9 @@ namespace Long {
 		}
 		if (raylib::Mouse::IsButtonDown(MOUSE_BUTTON_LEFT)) {
 			raylib::Ray ray = ::GetScreenToWorldRay(GetMousePosition(), m_camera.Raw());
-			auto tPick = std::chrono::high_resolution_clock::now();
+			auto tPick = Time::now(); 
 			m_hoverHit = RaycastSystem(m_scene.Registry(), ray);
-			m_msPicking = std::chrono::duration<double, std::milli>(
-				std::chrono::high_resolution_clock::now() - tPick).count();
+			m_msPicking = Time::elapsedMs(tPick); 
 			if (m_hoverHit.hit) {
 				m_selectedEntity = m_hoverHit.entity;
 			}

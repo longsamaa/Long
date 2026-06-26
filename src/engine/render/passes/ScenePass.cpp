@@ -3,15 +3,8 @@
 #include "raylib-cpp.hpp"
 #include "engine/AssetManager.hpp"
 #include "engine/Environment.hpp"
-#include <chrono>
+#include "helpers/TimerHelper.hpp"
 namespace Long {
-	// Steady, high-resolution clock so per-stage timings aren't affected by wall-
-	// clock adjustments. Returns milliseconds elapsed since `from`.
-	using Clock = std::chrono::high_resolution_clock;
-	static double MsSince(Clock::time_point from) {
-		return std::chrono::duration<double, std::milli>(Clock::now() - from).count();
-	}
-
 	void ScenePass::execute(RenderContext& ctx) {
 		if (!ctx.sceneTarget || !ctx.registry || !ctx.assets || !ctx.camera) {
 			return;
@@ -20,23 +13,22 @@ namespace Long {
 		if (!ctx.sceneTarget->IsValid()) {
 			return;
 		}
-		// Per-stage CPU timing so the Profiler can show where a frame's time goes.
-		const auto tPassStart = Clock::now();
 
+		const auto tPassStart = Time::now();
 		ctx.commandQueue->Clear();
 		ctx.commandDebugQueue->Clear();
 
-		auto t0 = Clock::now();
+		auto t0 = Time::now();
 		RenderSystem(*ctx.registry, *ctx.assets, *ctx.commandQueue);
-		ctx.renderStats.msRenderSystem = MsSince(t0);
+		ctx.renderStats.msRenderSystem = Time::elapsedMs(t0);
 
-		t0 = Clock::now();
+		t0 = Time::now();
 		ctx.commandQueue->Sort();
-		ctx.renderStats.msSort = MsSince(t0);
+		ctx.renderStats.msSort = Time::elapsedMs(t0);
 
-		t0 = Clock::now();
+		t0 = Time::now();
 		ctx.commandQueue->BuildBatches();
-		ctx.renderStats.msBuildBatches = MsSince(t0);
+		ctx.renderStats.msBuildBatches = Time::elapsedMs(t0);
 
 		ctx.sceneTarget->Bind();
 		{
@@ -44,9 +36,9 @@ namespace Long {
 			ctx.commandDebugQueue->Submit(GridCommand{ 20,1.0f });
 			ctx.camera->BeginMode();
 
-			t0 = Clock::now();
+			t0 = Time::now();
 			ctx.commandQueue->Execute(*ctx.assets, ctx.renderStats);
-			ctx.renderStats.msExecute = MsSince(t0);
+			ctx.renderStats.msExecute = Time::elapsedMs(t0);
 
 			// Skybox after opaque geometry: it writes no depth and sits at the
 			// far plane, so it only fills pixels the scene didn't cover.
@@ -60,6 +52,6 @@ namespace Long {
 		}
 		ctx.renderStats.renderPassCalls++;
 		ctx.sceneTarget->Unbind();
-		ctx.renderStats.msScenePass = MsSince(tPassStart);
+		ctx.renderStats.msScenePass = Time::elapsedMs(tPassStart);
 	}
 }
