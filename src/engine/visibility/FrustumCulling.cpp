@@ -23,7 +23,6 @@ namespace Long {
 			m_planes[i].normal = n;
 			m_planes[i].d = d;
 		};
-		// (planes set below; isVisible() follows)
 		// Left, Right, Bottom, Top, Near, Far.
 		setPlane(0, m.m3 + m.m0, m.m7 + m.m4, m.m11 + m.m8,  m.m15 + m.m12);
 		setPlane(1, m.m3 - m.m0, m.m7 - m.m4, m.m11 - m.m8,  m.m15 - m.m12);
@@ -34,9 +33,6 @@ namespace Long {
 	}
 
 	bool FrustumCulling::isVisible(const raylib::BoundingBox& box) const {
-		// For each plane pick the box's "positive vertex": the corner farthest along
-		// the plane normal. If even that corner is outside (n.p + d < 0), the whole
-		// box is outside this plane -> not visible. Inside convention: n.p + d >= 0.
 		for (const Plane& pl : m_planes) {
 			raylib::Vector3 p{
 				pl.normal.x >= 0.0f ? box.max.x : box.min.x,

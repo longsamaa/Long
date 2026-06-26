@@ -12,8 +12,6 @@ namespace Long {
 	public: 
 		void setCamera(raylib::Camera3D* _camera);
 		void update();
-		// True if the world-space AABB is inside or intersects the frustum. A box is
-		// rejected only when it lies entirely on the outside of any single plane.
 		bool isVisible(const raylib::BoundingBox& worldBox) const;
 		const std::array<Plane, 6>& planes() const { return m_planes; }
 	private:
