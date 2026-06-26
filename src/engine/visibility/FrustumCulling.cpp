@@ -1,0 +1,52 @@
+#include "FrustumCulling.hpp"
+#include "rcamera.h"
+namespace Long {
+	void FrustumCulling::setCamera(raylib::Camera3D* _camera)
+	{
+		camera = _camera; 
+	}
+	void FrustumCulling::update()
+	{
+		buildPlane(); 
+	}
+	void FrustumCulling::buildPlane()
+	{
+		if (!camera) return;
+		raylib::Matrix view_matrix = camera->GetMatrix();
+		const float aspect = (float)::GetScreenWidth() / (float)::GetScreenHeight();
+		raylib::Matrix proj_matrix(::GetCameraProjectionMatrix(camera, aspect));
+		raylib::Matrix m = view_matrix.Multiply(proj_matrix); 
+		auto setPlane = [&](int i, float a, float b, float c, float d) {
+			raylib::Vector3 n{ a, b, c };
+			float len = n.Length();
+			if (len > 0.0f) { n = n.Scale(1.0f / len); d /= len; }
+			m_planes[i].normal = n;
+			m_planes[i].d = d;
+		};
+		// (planes set below; isVisible() follows)
+		// Left, Right, Bottom, Top, Near, Far.
+		setPlane(0, m.m3 + m.m0, m.m7 + m.m4, m.m11 + m.m8,  m.m15 + m.m12);
+		setPlane(1, m.m3 - m.m0, m.m7 - m.m4, m.m11 - m.m8,  m.m15 - m.m12);
+		setPlane(2, m.m3 + m.m1, m.m7 + m.m5, m.m11 + m.m9,  m.m15 + m.m13);
+		setPlane(3, m.m3 - m.m1, m.m7 - m.m5, m.m11 - m.m9,  m.m15 - m.m13);
+		setPlane(4, m.m3 + m.m2, m.m7 + m.m6, m.m11 + m.m10, m.m15 + m.m14);
+		setPlane(5, m.m3 - m.m2, m.m7 - m.m6, m.m11 - m.m10, m.m15 - m.m14);
+	}
+
+	bool FrustumCulling::isVisible(const raylib::BoundingBox& box) const {
+		// For each plane pick the box's "positive vertex": the corner farthest along
+		// the plane normal. If even that corner is outside (n.p + d < 0), the whole
+		// box is outside this plane -> not visible. Inside convention: n.p + d >= 0.
+		for (const Plane& pl : m_planes) {
+			raylib::Vector3 p{
+				pl.normal.x >= 0.0f ? box.max.x : box.min.x,
+				pl.normal.y >= 0.0f ? box.max.y : box.min.y,
+				pl.normal.z >= 0.0f ? box.max.z : box.min.z,
+			};
+			if (pl.normal.DotProduct(p) + pl.d < 0.0f) {
+				return false;
+			}
+		}
+		return true;
+	}
+}

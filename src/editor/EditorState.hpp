@@ -13,6 +13,7 @@
 #include "engine/render/CommandDebugQueue.hpp"
 #include "engine/Environment.hpp"
 #include "engine/EditorGizmo.hpp"
+#include "engine/visibility/FrustumCulling.hpp"
 #include <memory>
 #include <vector>
 namespace Long {
@@ -42,8 +43,8 @@ namespace Long {
 		EditorGizmo m_gizmo;
 		Renderer m_renderer;
 		RenderStats m_renderStats;
-		// Update-phase timings (ms). Measured in Update(), merged into m_renderStats
-		// after RenderWorld() so Renderer's per-frame Reset() doesn't clobber them.
+		//visibility
+		FrustumCulling m_frustum; 
 		double m_msTransformSystem = 0.0;
 		double m_msPicking = 0.0;
 		double m_msUpdate = 0.0;

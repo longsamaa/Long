@@ -9,6 +9,7 @@
 #include "system/RenderSystem.hpp"
 #include "system/TransformSystem.hpp"
 #include "system/RayCastSystem.hpp"
+#include "system/WorldBoundSystem.hpp"
 #include "engine/render/passes/ScenePass.hpp"
 #include "engine/render/passes/MaskPass.hpp"
 #include "engine/render/passes/CompositePass.hpp"
@@ -36,6 +37,8 @@ namespace Long {
 
 		m_environment.Init(m_app.GetAssets());
 		m_panels.push_back(std::make_unique<EnvironmentPanel>(m_environment));
+		//init camera 
+		m_frustum.setCamera(&m_camera.Raw()); 
 		testCreateDefaultCube();
 	}
 
@@ -47,6 +50,7 @@ namespace Long {
 		}
 		auto t0 = Time::now();
 		TransformSystem(m_scene.Registry());
+		WorldBoundsSystem(m_scene.Registry(),m_app.GetAssets());
 		m_msTransformSystem = Time::elapsedSecond(t0);
 
 		bool gizmoHasInput = false;
@@ -62,10 +66,10 @@ namespace Long {
 			UpdatePicking();
 		}
 		m_msUpdate = Time::elapsedSecond(tUpdate);
+		m_frustum.update(); 
 	}
 
 	void EditorState::UpdatePicking() {
-		// Don't pick/zoom while the cursor is over an ImGui panel.
 		if (ImGui::GetIO().WantCaptureMouse) {
 			m_hoverHit = RaycastHit{};
 			return;
@@ -108,6 +112,7 @@ namespace Long {
 		ctx.registry = &m_scene.Registry();
 		ctx.assets = &m_app.GetAssets();
 		ctx.camera = &m_camera.Raw();
+		ctx.frustum = &m_frustum;
 		ctx.width = (uint32_t)GetRenderWidth();
 		ctx.height = (uint32_t)GetRenderHeight();
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
@@ -120,8 +125,6 @@ namespace Long {
 		}
 		m_renderer.Render(ctx);
 		m_renderStats = ctx.renderStats;
-		// Merge in the Update-phase timings measured before Render() (which Reset()s
-		// the stats), so the Profiler shows scene + update stages together.
 		m_renderStats.msTransformSystem = m_msTransformSystem;
 		m_renderStats.msPicking = m_msPicking;
 		m_renderStats.msUpdate = m_msUpdate;

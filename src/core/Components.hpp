@@ -51,7 +51,17 @@ namespace Long {
 	struct MatrixTransform {
 		raylib::Matrix world_matrix = MatrixIdentity();
 		raylib::Matrix local_matrix = MatrixIdentity();
-		uint32_t buildFromTransformVersion{ 0 }; 
+		uint32_t buildFromTransformVersion{ 0 };
+	};
+
+	// Cached world-space AABB, recomputed only when the transform changes (see
+	// TransformSystem). Lets frustum culling read bounds without re-transforming the
+	// collider's 8 corners every frame. `builtVersion` mirrors the Transform version
+	// the AABB was built from.
+	struct WorldAABB {
+		raylib::Vector3 min{ 0, 0, 0 };
+		raylib::Vector3 max{ 0, 0, 0 };
+		uint32_t builtVersion{ 0 };
 	};
 
 	// Scene-graph link. A model with many parts = one parent entity with one child

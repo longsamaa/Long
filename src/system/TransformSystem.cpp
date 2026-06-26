@@ -1,9 +1,9 @@
 #include "TransformSystem.hpp"
 #include "core/Components.hpp"
+#include "helpers/draw_debug_helper.hpp" // MakeWorldBoundingBox
 #include <raylib-cpp.hpp>
 
 namespace Long {
-	// Build the local model matrix from a Transform (scale -> rotate -> translate).
 	static raylib::Matrix LocalMatrix(const Transform& t) {
 		const raylib::Vector3& scale = t.getScale(); 
 		const raylib::Quaternion& quaternion = t.getQuaternion();
@@ -14,11 +14,6 @@ namespace Long {
 		return s * r * tr;
 	}
 
-	// Recursively set world = local * parentWorld for an entity and its children.
-	// `parentWorld` is taken BY VALUE: get_or_emplace<MatrixTransform> below can grow
-	// (reallocate) the MatrixTransform pool, which would dangle any reference we held
-	// into it across the recursion. A local copy is immune to that reallocation --
-	// this is the cause of the Release-only 0xFFFF... crash.
 	static void UpdateRecursive(entt::registry& reg, entt::entity e, raylib::Matrix parentWorld, bool parent_change) {
 		const Transform& local = reg.get<Transform>(e);
 		//if auto matrix update

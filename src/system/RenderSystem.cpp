@@ -5,10 +5,12 @@
 #include "engine/Material.hpp"
 #include "raylib-cpp.hpp"
 #include "engine/Logger.hpp"
+#include "engine/visibility/FrustumCulling.hpp"
+#include "helpers/draw_debug_helper.hpp"
 namespace Long {
-	void RenderSystem(entt::registry& registry, AssetManager& assets, CommandQueue& queue)
+	void RenderSystem(entt::registry& registry, AssetManager& assets, CommandQueue& queue,
+		const FrustumCulling* frustum, RenderStats& stats)
 	{
-		//stats.Reset();
 		auto view = registry.view<MatrixTransform, MeshFilter, MeshRenderer>();
 		// Pre-grow the command buffer once so the per-entity Submit() loop below
 		// doesn't trigger repeated vector reallocations.
@@ -20,10 +22,17 @@ namespace Long {
 					std::format("RenderSystem: Entity {} has invalid mesh or material.", entt::to_integral(e)));
 				continue;
 			}
+			if (frustum) {
+				if (const WorldAABB* aabb = registry.try_get<WorldAABB>(e)) {
+					if (!frustum->isVisible(raylib::BoundingBox(aabb->min, aabb->max))) {
+						stats.culledEntities++;
+						continue;
+					}
+				}
+			}
 			raylib::Mesh& mesh = assets.GetMesh(mf.meshId);
 			BaseMaterial& material = assets.GetMaterial(mr.materialId);
 			if (!assets.IsValidShader(material.GetShaderId())) {
-				//stats.culledEntities++;
 				Logger::TraceLog(LOG_WARNING,
 					std::format("RenderSystem: Entity {} has invalid shader in material.", entt::to_integral(e)));
 				continue;

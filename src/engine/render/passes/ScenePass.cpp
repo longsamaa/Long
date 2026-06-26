@@ -19,7 +19,7 @@ namespace Long {
 		ctx.commandDebugQueue->Clear();
 
 		auto t0 = Time::now();
-		RenderSystem(*ctx.registry, *ctx.assets, *ctx.commandQueue);
+		RenderSystem(*ctx.registry, *ctx.assets, *ctx.commandQueue, ctx.frustum, ctx.renderStats);
 		ctx.renderStats.msRenderSystem = Time::elapsedMs(t0);
 
 		t0 = Time::now();

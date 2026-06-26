@@ -13,6 +13,7 @@
 namespace Long {
 	class AssetManager;
 	class Environment;
+	class FrustumCulling;
 	struct RenderContext {
 		Environment* environment{ nullptr }; // scene skybox / lighting
 		CommandQueue* commandQueue{ nullptr };
@@ -20,6 +21,7 @@ namespace Long {
 		entt::registry* registry{ nullptr };
 		AssetManager* assets{ nullptr };     // ScenePass needs meshes/materials
 		raylib::Camera3D* camera{ nullptr };
+		FrustumCulling* frustum{ nullptr };  // visibility: cull entities outside view
 		uint32_t width{ 0 };
 		uint32_t height{ 0 };
 		RenderTarget* sceneTarget{ nullptr };  // 3D scene color
