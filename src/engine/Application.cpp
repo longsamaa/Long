@@ -24,6 +24,7 @@ namespace Long {
 		// Instanced copies for DrawMeshInstanced batches.
 		m_assets.LoadInstancedVariant(shaderDir, "default");
 		m_assets.LoadInstancedVariant(shaderDir, "wireframe");
+		m_assets.LoadInstancedVariant(shaderDir, "emissive");
 	}
 
 	Application::~Application() {

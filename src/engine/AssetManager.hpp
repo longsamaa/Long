@@ -50,6 +50,9 @@ namespace Long {
 			raylib::Color lineColor = raylib::Color::Black(),
 			raylib::Color faceColor = raylib::Color::White(),
 			float thickness = 0.03f);
+		uint32_t CreateEmissiveMaterial(uint32_t shaderId,
+			raylib::Color color = raylib::Color::White(),
+			float intensity = 4.0f);
 		size_t materialCount() { return m_materials.size(); };
 	private:
 		std::vector<raylib::Shader> m_shaders;

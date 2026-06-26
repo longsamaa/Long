@@ -51,30 +51,47 @@ add_library(rlimgui STATIC
 target_include_directories(rlimgui PUBLIC ${RLIMGUI_DIR})
 target_link_libraries(rlimgui PUBLIC imgui raylib)
 
-# ---- App sources (our own code under src/) ----
-# GLOB our code because we add files often. CONFIGURE_DEPENDS makes CMake
-# re-run the glob when files are added/removed, so you don't have to
-# reconfigure manually. (We only glob .cpp -- headers are found via include
-# dirs. We also glob headers (.h/.hpp) and add them to the target so they show
-# up in IDEs (Visual Studio / VS Code) -- headers are not compiled, just listed.
-file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS
+# ============================================================================
+#  LongEngineCore  --  the reusable core (ECS, render pipeline, math, assets).
+#  Everything under src/ EXCEPT src/editor/ and src/main.cpp. Built as a static
+#  library so different front-ends (the editor below, a future Android "player")
+#  can all link the same engine. The editor-only ImGui bits still live in
+#  Application for now, so the lib links ImGui too; that dependency can be lifted
+#  later when porting to platforms without ImGui.
+# ============================================================================
+file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.vert"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.frag"
 )
+# Drop editor sources and the app entry point from the engine library.
+list(FILTER ENGINE_SOURCES EXCLUDE REGEX "/src/editor/")
+list(FILTER ENGINE_SOURCES EXCLUDE REGEX "/src/main\\.cpp$")
 
-# ---- App ----
-add_executable(long ${APP_SOURCES})
-target_include_directories(long PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(long PRIVATE raylib raylib_cpp imgui rlimgui entt)
+add_library(LongEngineCore STATIC ${ENGINE_SOURCES})
+# PUBLIC include dir + deps: anything linking LongEngineCore inherits these.
+target_include_directories(LongEngineCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(LongEngineCore PUBLIC raylib raylib_cpp imgui rlimgui entt)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${ENGINE_SOURCES})
 
-# Show the src/ folder tree (core/engine/editor/game) as filters in Visual
-# Studio instead of a flat "Source Files" list.
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${APP_SOURCES})
+# ============================================================================
+#  LongEditor  --  the editor executable. Editor-only code + entry point, linked
+#  against LongEngineCore. A future "LongPlayer" target would link LongEngineCore
+#  too but bring its own (touch/gamepad) front-end instead of src/editor.
+# ============================================================================
+file(GLOB_RECURSE EDITOR_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/editor/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/editor/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/editor/*.hpp"
+)
+add_executable(LongEditor ${EDITOR_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+target_link_libraries(LongEditor PRIVATE LongEngineCore)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src"
+    FILES ${EDITOR_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 
-set_target_properties(long PROPERTIES
+set_target_properties(LongEditor PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # ---- Copy shaders next to the executable after each build ----
@@ -83,28 +100,15 @@ set_target_properties(long PROPERTIES
 # Debug/Release subfolder that Visual Studio adds). copy_directory_if_different
 # only copies changed files, so it's cheap to run every build.
 set(SHADER_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders")
-add_custom_command(TARGET long POST_BUILD
+add_custom_command(TARGET LongEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-            "${SHADER_SRC_DIR}" "$<TARGET_FILE_DIR:long>/shaders"
-    COMMENT "Copying shaders -> $<TARGET_FILE_DIR:long>/shaders")
+            "${SHADER_SRC_DIR}" "$<TARGET_FILE_DIR:LongEditor>/shaders"
+    COMMENT "Copying shaders -> $<TARGET_FILE_DIR:LongEditor>/shaders")
 
 # ---- Copy resources (textures, models, ...) next to the executable ----
 # Same idea as shaders: loaded at runtime by relative path, copied per build.
 set(RESOURCES_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources")
-add_custom_command(TARGET long POST_BUILD
+add_custom_command(TARGET LongEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-            "${RESOURCES_SRC_DIR}" "$<TARGET_FILE_DIR:long>/resources"
-    COMMENT "Copying resources -> $<TARGET_FILE_DIR:long>/resources")
-
-# ---- learn_ecs: standalone playground for learning EnTT (links only entt) ----
-# Separate executable so you can experiment with the ECS without touching the
-# engine. Sources live under learn/ecs/.
-file(GLOB_RECURSE LEARN_ECS_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/learn/ecs/*.cpp"
-)
-if(LEARN_ECS_SOURCES)
-    add_executable(learn_ecs ${LEARN_ECS_SOURCES})
-    target_link_libraries(learn_ecs PRIVATE entt)
-    set_target_properties(learn_ecs PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-endif()
+            "${RESOURCES_SRC_DIR}" "$<TARGET_FILE_DIR:LongEditor>/resources"
+    COMMENT "Copying resources -> $<TARGET_FILE_DIR:LongEditor>/resources")

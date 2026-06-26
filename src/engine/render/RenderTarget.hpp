@@ -17,6 +17,13 @@ namespace Long {
 		RenderTarget(const RenderTarget&) = delete;
 		RenderTarget& operator=(const RenderTarget&) = delete;
 
+		// Choose the color format the target (re)allocates with. Call before the
+		// first Resize (or it forces a realloc on the next Resize). HDR uses a
+		// half-float RGBA buffer so values can exceed 1.0 -- required for bloom's
+		// bright-pass / tonemapping. LDR is the normal 8-bit buffer.
+		enum class Format { LDR, HDR };
+		void SetFormat(Format fmt);
+
 		// Ensure the target is allocated at (width, height). No-op if unchanged.
 		void Resize(uint32_t width, uint32_t height);
 
@@ -45,6 +52,7 @@ namespace Long {
 		raylib::RenderTexture2D m_texture;
 		uint32_t width{ 0 };
 		uint32_t height{ 0 };
+		Format m_format{ Format::LDR };
 	};
 }
 #endif // !_RENDER_TARGET_HPP_

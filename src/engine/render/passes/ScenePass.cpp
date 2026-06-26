@@ -32,26 +32,27 @@ namespace Long {
 
 		ctx.sceneTarget->Bind();
 		{
-			::ClearBackground(raylib::Color::DarkGray());
+			raylib::Color::DarkGray().ClearBackground(); 
 			ctx.commandDebugQueue->Submit(GridCommand{ 20,1.0f });
 			ctx.camera->BeginMode();
 
 			t0 = Time::now();
 			ctx.commandQueue->Execute(*ctx.assets, ctx.renderStats);
 			ctx.renderStats.msExecute = Time::elapsedMs(t0);
-
-			// Skybox after opaque geometry: it writes no depth and sits at the
-			// far plane, so it only fills pixels the scene didn't cover.
+			auto tDebug = Time::now();
 			ctx.commandDebugQueue->Execute(ctx.renderStats);
+			ctx.renderStats.msDebugQueue = Time::elapsedMs(tDebug);
+			auto tSky = Time::now();
 			if (ctx.environment) {
 				ctx.environment->DrawSkybox(*ctx.camera);
 			}
-			// Gizmo is drawn later by GizmoPass (overlay on the screen), not here
-			// in the render texture -- that keeps its mouse picking aligned.
+			ctx.renderStats.msSkybox = Time::elapsedMs(tSky);
 			ctx.camera->EndMode();
 		}
 		ctx.renderStats.renderPassCalls++;
+		auto tUnbind = Time::now();
 		ctx.sceneTarget->Unbind();
+		ctx.renderStats.msUnbind = Time::elapsedMs(tUnbind);
 		ctx.renderStats.msScenePass = Time::elapsedMs(tPassStart);
 	}
 }

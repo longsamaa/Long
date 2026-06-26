@@ -29,6 +29,9 @@ namespace Long {
 			ImGui::Text("Sort:         %.3f", m_stats.msSort);
 			ImGui::Text("BuildBatches: %.3f", m_stats.msBuildBatches);
 			ImGui::Text("Execute:      %.3f", m_stats.msExecute);
+			ImGui::Text("DebugQueue:   %.3f", m_stats.msDebugQueue);
+			ImGui::Text("Skybox:       %.3f", m_stats.msSkybox);
+			ImGui::Text("Unbind:       %.3f", m_stats.msUnbind);
 			ImGui::Text("ScenePass:    %.3f", m_stats.msScenePass);
 			ImGui::SeparatorText("Update timing (ms)");
 			ImGui::Text("TransformSys: %.3f", m_stats.msTransformSystem);

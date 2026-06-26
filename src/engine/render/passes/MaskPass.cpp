@@ -1,7 +1,6 @@
 #include "engine/render/passes/MaskPass.hpp"
 #include "core/Components.hpp"
 #include "engine/AssetManager.hpp"
-
 namespace Long {
 	void MaskPass::execute(RenderContext& ctx) {
 		if (!ctx.maskTarget || !ctx.registry || !ctx.assets || !ctx.camera) {

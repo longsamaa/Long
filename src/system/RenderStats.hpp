@@ -20,6 +20,9 @@ namespace Long {
 		double msSort = 0.0;         // sort the command index buffer
 		double msBuildBatches = 0.0; // group sorted commands into batches
 		double msExecute = 0.0;      // issue draw calls (DrawMeshInstanced etc.)
+		double msDebugQueue = 0.0;   // grid / debug draws
+		double msSkybox = 0.0;       // skybox draw
+		double msUnbind = 0.0;       // FBO unbind (may stall on GPU flush)
 		double msScenePass = 0.0;    // whole ScenePass (clear -> unbind)
 		// Update-phase timings (filled by EditorState::Update, not the render passes).
 		double msTransformSystem = 0.0; // world-matrix update for all transforms

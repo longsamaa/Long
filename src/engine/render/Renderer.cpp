@@ -13,7 +13,6 @@ namespace Long {
 		ctx.maskTarget  = &m_maskTarget;
 		ctx.finalTarget = &m_finalTarget;
 		ctx.renderStats.Reset();
-
 		const auto tRender = Time::now();
 		int idx = 0;
 		for (auto& pass : m_passes) {

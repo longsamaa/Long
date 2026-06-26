@@ -26,7 +26,7 @@ namespace Long {
 		::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
 
 		shader.BeginMode();
-		::DrawTexturePro(tex, src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
+		tex.Draw(src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
 		shader.EndMode();
 
 		ctx.renderStats.renderPassCalls++;

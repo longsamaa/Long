@@ -4,6 +4,7 @@
 #include "engine/AssetManager.hpp"
 #include "engine/materials/DefaultMaterial.hpp"
 #include "engine/materials/WireframeMaterial.hpp"
+#include "engine/materials/EmissiveMaterial.hpp"
 #include "raylib.h"
 #include "Logger.hpp"
 
@@ -116,5 +117,11 @@ namespace Long {
 		raylib::Color lineColor, raylib::Color faceColor, float thickness) {
 		return AddMaterial(std::make_unique<WireframeMaterial>(
 			shaderId, lineColor, faceColor, thickness));
+	}
+
+	uint32_t AssetManager::CreateEmissiveMaterial(uint32_t shaderId,
+		raylib::Color color, float intensity) {
+		return AddMaterial(std::make_unique<EmissiveMaterial>(
+			shaderId, color, intensity));
 	}
 } // namespace Long
