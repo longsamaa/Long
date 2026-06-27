@@ -17,17 +17,15 @@ namespace Long {
 		}
 		raylib::Shader& shader = ctx.assets->GetShader(m_shaderId);
 		raylib::TextureUnmanaged hdrTex = ctx.finalTarget->GetTexture();
-		raylib::Rectangle src = ctx.finalTarget->SourceRect(); // negative height: GL flip
+		raylib::Rectangle src = ctx.finalTarget->SourceRect(); 
 		raylib::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
 		raylib::Vector2 res{ (float)ctx.width, (float)ctx.height };
 		int fxaa = fxaaEnabled ? 1 : 0;
-		// Tonemap (+ optional FXAA) straight to the screen.
 		shader.BeginMode();
 		shader.SetValue(getLoc("u_exposure", shader), &u_exposure, SHADER_UNIFORM_FLOAT);
 		shader.SetValue(getLoc("u_resolution", shader), &res, SHADER_UNIFORM_VEC2);
 		shader.SetValue(getLoc("u_fxaaEnabled", shader), &fxaa, SHADER_UNIFORM_INT);
 		hdrTex.Draw(src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
 		shader.EndMode();
-		ctx.renderStats.renderPassCalls++;
 	}
 }

@@ -39,7 +39,6 @@ namespace Long {
 				ctx.camera->EndMode();
 			}
 		}
-		ctx.renderStats.renderPassCalls++;
 		ctx.maskTarget->Unbind();
 	}
 }

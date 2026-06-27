@@ -14,6 +14,7 @@
 #include "engine/Environment.hpp"
 #include "engine/EditorGizmo.hpp"
 #include "engine/visibility/FrustumCulling.hpp"
+#include "game/game.hpp"
 #include <memory>
 #include <vector>
 namespace Long {
@@ -25,7 +26,6 @@ namespace Long {
 		void Update(float dt) override;
 		void RenderWorld() override;
 		void RenderUI() override;
-		void ReportEndDrawingMs(double ms) override { m_msEndDrawing = ms; }
 	private:
 		void createGround();
 		void createEmissiveBoxes(); // 4 glowing boxes spread out, to test bloom/HDR
@@ -47,11 +47,10 @@ namespace Long {
 		//visibility
 		FrustumCulling m_frustum; 
 		double m_msTransformSystem = 0.0;
-		double m_msPicking = 0.0;
 		double m_msUpdate = 0.0;
-		double m_msEndDrawing = 0.0; // previous frame's EndDrawing (from Application)
 		RaycastHit m_hoverHit;                       // entity under the cursor this frame
 		entt::entity m_selectedEntity = entt::null;  // entity clicked/selected (persists)
+		std::unique_ptr<Game> m_gameState{ nullptr }; //game state 
 	};
 }
 #endif // !_EDITOR_STATE_HPP_

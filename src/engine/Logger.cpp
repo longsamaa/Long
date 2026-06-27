@@ -7,6 +7,9 @@ namespace Long {
 
 	std::vector<LogEntry> Logger::s_entries;
 
+	const std::vector<LogEntry>& Logger::Entries() { return s_entries; }
+	void Logger::Clear() { s_entries.clear(); }
+
 	void Logger::Install() {
 		SetTraceLogCallback(&Logger::Callback);
 	}

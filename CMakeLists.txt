@@ -5,6 +5,11 @@ project(long LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# LongEngineCore is a STATIC library. A DLL was tried but raylib (linked statically
+# into it) keeps its OpenGL function pointers in global state; splitting that across
+# a DLL boundary left gl* pointers null in the exe -> crash in glVertexAttribPointer.
+# Static keeps a single copy of raylib's state in the final exe, which is robust.
+
 # ---- raylib (C library) from git submodule, built statically into the app ----
 # Building from source with raylib's own bundled GLFW avoids the DLL / external
 # GLFW event-loop hang we hit with the prebuilt vcpkg DLL.
@@ -66,9 +71,12 @@ file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.vert"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.frag"
 )
-# Drop editor sources and the app entry point from the engine library.
+# Drop editor sources and the executables' entry points from the engine library.
+# (src/game/ stays in the core -- it's runtime, reused by editor Play mode and the
+# standalone game; only the game's main() is excluded here.)
 list(FILTER ENGINE_SOURCES EXCLUDE REGEX "/src/editor/")
 list(FILTER ENGINE_SOURCES EXCLUDE REGEX "/src/main\\.cpp$")
+list(FILTER ENGINE_SOURCES EXCLUDE REGEX "/src/game_main\\.cpp$")
 
 add_library(LongEngineCore STATIC ${ENGINE_SOURCES})
 # PUBLIC include dir + deps: anything linking LongEngineCore inherits these.
@@ -93,6 +101,23 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src"
 
 set_target_properties(LongEditor PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+# ============================================================================
+#  LongGame  --  the shipped game executable. No editor; boots straight into the
+#  Game runtime state. Same LongEngineCore, different entry point. This is the
+#  target you'd cross-compile for Android later.
+# ============================================================================
+add_executable(LongGame "${CMAKE_CURRENT_SOURCE_DIR}/src/game_main.cpp")
+target_link_libraries(LongGame PRIVATE LongEngineCore)
+set_target_properties(LongGame PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+# The game needs the same shaders/resources beside its exe.
+add_custom_command(TARGET LongGame POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders" "$<TARGET_FILE_DIR:LongGame>/shaders"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources" "$<TARGET_FILE_DIR:LongGame>/resources"
+    COMMENT "Copying shaders/resources -> $<TARGET_FILE_DIR:LongGame>")
 
 # ---- Copy shaders next to the executable after each build ----
 # Shaders are loaded at runtime by relative path, so they must sit beside the

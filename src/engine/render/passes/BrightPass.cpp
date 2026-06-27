@@ -34,6 +34,5 @@ namespace Long {
 			shader.EndMode();
 		}
 		ctx.brightTarget->Unbind();
-		ctx.renderStats.renderPassCalls++;
 	}
 }

@@ -18,9 +18,12 @@ namespace Long {
 	class Logger {
 	public:
 		static void Install();
-		static const std::vector<LogEntry>& Entries() { return s_entries; }
-		static void Clear() { s_entries.clear(); }
-		static void TraceLog(const TraceLogLevel level, 
+		// Defined in the .cpp (not inline) so they live inside the DLL alongside
+		// s_entries -- WINDOWS_EXPORT_ALL_SYMBOLS doesn't export data symbols, so an
+		// inline accessor in the exe couldn't reach s_entries across the DLL boundary.
+		static const std::vector<LogEntry>& Entries();
+		static void Clear();
+		static void TraceLog(const TraceLogLevel level,
 			const std::string& log,
 			const std::source_location location = std::source_location::current());
 	private:

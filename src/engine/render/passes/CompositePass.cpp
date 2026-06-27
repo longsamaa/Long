@@ -21,7 +21,5 @@ namespace Long {
 		raylib::Rectangle src = ctx.finalTarget->SourceRect();
 		raylib::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
 		ctx.finalTarget->GetTexture().Draw(src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
-
-		ctx.renderStats.renderPassCalls++;
 	}
 }

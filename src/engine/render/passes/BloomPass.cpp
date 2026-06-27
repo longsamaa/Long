@@ -81,6 +81,5 @@ namespace Long {
 		raylib::Color::Black().ClearBackground();
 		drawFull(m_mips[0], *ctx.blurTarget);
 		ctx.blurTarget->Unbind();
-		ctx.renderStats.renderPassCalls++;
 	}
 }

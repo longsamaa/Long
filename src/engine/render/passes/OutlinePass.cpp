@@ -69,7 +69,5 @@ namespace Long {
 			tempTex.Draw(m_tempTarget.SourceRect(), dstFull, { 0, 0 }, 0.0f, raylib::Color::White());
 			shader.EndMode();
 		}
-
-		ctx.renderStats.renderPassCalls++;
 	}
 }

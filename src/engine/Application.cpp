@@ -1,18 +1,38 @@
 #include "engine/Application.hpp"
 #include "engine/AppState.hpp"
+#include "engine/GpuInfo.hpp"
+#include "engine/Logger.hpp"
 #include "rlImGui.h"
 #include "imgui.h"
 #include <filesystem>
 
-// Member init list constructs m_window, which opens the window (InitWindow).
-// Native resolution, resizable window (good for an editor). Do NOT use
-// FLAG_WINDOW_HIGHDPI -- it upscales a low-res framebuffer.
 namespace Long {
 	Application::Application(const Config& config)
 		: m_config(config),
 		m_window(config.width, config.height, config.title,
-			FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI) {
+			FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE) {
 		m_window.SetTargetFPS(m_config.targetFps);
+		{
+			int mon = GetCurrentMonitor();
+			int mw = GetMonitorWidth(mon);
+			int mh = GetMonitorHeight(mon);
+			int w = config.width, h = config.height;
+			if (mw > 0 && w > mw - 80) w = mw - 80;   // leave room for taskbar/borders
+			if (mh > 0 && h > mh - 120) h = mh - 120;
+			if (w != config.width || h != config.height) {
+				m_window.SetSize(w, h);
+			}
+			m_window.SetPosition((mw - w) / 2, (mh - h) / 2);
+		}
+		GpuInfo gpu = GpuInfo::Query();
+		Logger::TraceLog(LOG_INFO, "=== Init diagnostics ===");
+		Logger::TraceLog(LOG_INFO, std::format("GPU vendor   : {}", gpu.vendor.c_str()));
+		Logger::TraceLog(LOG_INFO, std::format("GPU renderer : {}", gpu.renderer.c_str()));
+		Logger::TraceLog(LOG_INFO, std::format("GL version   : {}", gpu.version.c_str()));
+		Logger::TraceLog(LOG_INFO, std::format("Window size  : {} {}  (render {} {})",
+			GetScreenWidth(), GetScreenHeight(), GetRenderWidth(), GetRenderHeight()));
+		Logger::TraceLog(LOG_INFO, std::format("App dir      : {}", GetApplicationDirectory()));
+
 		rlImGuiSetup(true);
 #ifdef IMGUI_HAS_DOCK
 		ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -20,8 +40,9 @@ namespace Long {
 		SetEditorStyle(m_config.editorMode);
 		std::filesystem::path shaderDir =
 			std::filesystem::path(GetApplicationDirectory()) / "shaders";
+		Logger::TraceLog(LOG_INFO, std::format("Loading shaders from: {}", shaderDir.string().c_str()));
 		m_assets.LoadAllShaders(shaderDir);
-		// Instanced copies for DrawMeshInstanced batches.
+
 		m_assets.LoadInstancedVariant(shaderDir, "default");
 		m_assets.LoadInstancedVariant(shaderDir, "wireframe");
 		m_assets.LoadInstancedVariant(shaderDir, "emissive");
@@ -56,14 +77,16 @@ namespace Long {
 		}
 		m_state = std::move(state);
 		if (m_state) {
+			Logger::TraceLog(LOG_INFO, "AppState::OnEnter() begin");
 			m_state->OnEnter();
+			Logger::TraceLog(LOG_INFO, "AppState::OnEnter() done");
 		}
 	}
 
 	void Application::Run() {
+		TraceLog(LOG_INFO, "Application::Run() loop start");
 		while (m_running && !m_window.ShouldClose()) {
 			const float dt = m_window.GetFrameTime();
-
 			if (m_state) {
 				m_state->Update(dt);
 			}
@@ -80,5 +103,6 @@ namespace Long {
 			}
 			m_window.EndDrawing();
 		}
+		 TraceLog(LOG_INFO, "Application::Run() loop exit");
 	}
 }

@@ -24,14 +24,15 @@
 #include "imgui_internal.h" // DockBuilderGetCentralNode
 #include "raylib-cpp.hpp"
 #include "helpers/TimerHelper.hpp"
-
+#include "engine/Logger.hpp"
 namespace Long {
 	void EditorState::OnEnter() {
+		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: begin, creating panels");
 		m_panels.push_back(std::make_unique<GpuInfoPanel>());
 		m_panels.push_back(std::make_unique<ProfilerPanel>(m_renderStats));
 		m_panels.push_back(std::make_unique<ConsolePanel>());
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene));
-
+		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: panels done, adding render passes");
 		m_renderer.AddPass(std::make_unique<ScenePass>());          // scene -> sceneTarget (HDR)
 		m_renderer.AddPass(std::make_unique<MaskPass>());           // selection mask
 		m_renderer.AddPass(std::make_unique<BrightPass>());         // sceneTarget -> brightTarget
@@ -40,13 +41,16 @@ namespace Long {
 		m_renderer.AddPass(std::make_unique<TonemapPass>());        // HDR -> screen (tonemap + FXAA)
 		m_renderer.AddPass(std::make_unique<OutlinePass>());        // overlay, straight to screen
 		m_renderer.AddPass(std::make_unique<GizmoPass>());          // overlay, straight to screen
-
+		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: passes added, init environment");
 		m_environment.Init(m_app.GetAssets());
 		m_panels.push_back(std::make_unique<EnvironmentPanel>(m_environment));
-		//init camera 
+		//init camera
 		m_frustum.setCamera(&m_camera.Raw());
+		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround begin");
 		createGround();
+		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround done, createEmissiveBoxes begin");
 		createEmissiveBoxes();
+		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createEmissiveBoxes done");
 	}
 
 	void EditorState::Update(float dt) {
@@ -59,7 +63,6 @@ namespace Long {
 		TransformSystem(m_scene.Registry());
 		WorldBoundsSystem(m_scene.Registry(),m_app.GetAssets());
 		m_msTransformSystem = Time::elapsedSecond(t0);
-
 		bool gizmoHasInput = false;
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
 			&& m_scene.Registry().all_of<Transform>(m_selectedEntity)
@@ -67,8 +70,6 @@ namespace Long {
 			m_gizmo.Update(m_camera.Raw(), m_scene.Registry().get<Transform>(m_selectedEntity));
 			gizmoHasInput = m_gizmo.IsActive() || m_gizmo.IsHot();
 		}
-
-		m_msPicking = 0.0;
 		if (!gizmoHasInput) {
 			UpdatePicking();
 		}
@@ -85,7 +86,6 @@ namespace Long {
 			raylib::Ray ray = ::GetScreenToWorldRay(GetMousePosition(), m_camera.Raw());
 			auto tPick = Time::now(); 
 			m_hoverHit = RaycastSystem(m_scene.Registry(), ray);
-			m_msPicking = Time::elapsedMs(tPick); 
 			if (m_hoverHit.hit) {
 				m_selectedEntity = m_hoverHit.entity;
 			}
@@ -133,9 +133,7 @@ namespace Long {
 		m_renderer.Render(ctx);
 		m_renderStats = ctx.renderStats;
 		m_renderStats.msTransformSystem = m_msTransformSystem;
-		m_renderStats.msPicking = m_msPicking;
 		m_renderStats.msUpdate = m_msUpdate;
-		m_renderStats.msEndDrawing = m_msEndDrawing; // from the previous frame
 	}
 
 	void EditorState::createGround()
@@ -145,7 +143,6 @@ namespace Long {
 		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
 		raylib::BoundingBox box(cube);
 		uint32_t meshId = assets.AddMesh(std::move(cube));
-
 		uint32_t wireId = assets.GetShaderId("wireframe");
 		raylib::Color lightBrown{ 196, 164, 132, 255 };
 		raylib::Color faceBrown{ 120, 96, 72, 255 };
@@ -168,7 +165,6 @@ namespace Long {
 				children.push_back(tile);
 			}
 		}
-		// Attach the children to the parent once, after all emplaces are done.
 		reg.emplace<Hierarchy>(parent, Hierarchy{ entt::null, std::move(children) });
 	}
 
@@ -180,9 +176,6 @@ namespace Long {
 		raylib::BoundingBox box(cube);
 		uint32_t meshId = assets.AddMesh(std::move(cube));
 		uint32_t emissiveId = assets.GetShaderId("emissive");
-
-		// Boxes are 2 units tall, so y = 1.0 puts their bottom face on the ground
-		// (whose top is at y = 0).
 		struct Glow { raylib::Vector3 pos; raylib::Color color; };
 		const Glow glows[4] = {
 			{ {  8.0f, 1.0f,  8.0f }, raylib::Color{ 255,  40,  40, 255 } }, // red
@@ -195,7 +188,7 @@ namespace Long {
 			entt::entity e = m_scene.CreateEntity("emissive");
 			Transform t;
 			t.setPos(g.pos);
-			t.setScale({ 2.0f, 2.0f, 2.0f }); // bigger so the glow reads
+			t.setScale({ 0.5f, 0.5f, 0.5f }); // bigger so the glow reads
 			reg.emplace<Transform>(e, t);
 			reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
 			reg.emplace<MeshRenderer>(e, MeshRenderer{ emat, raylib::Color::White(), true });
