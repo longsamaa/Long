@@ -4,7 +4,7 @@
 
 namespace Long {
 	void FXAAPass::execute(RenderContext& ctx) {
-		if (!ctx.finalTarget || !ctx.finalTarget->IsValid() || !ctx.assets) {
+		if (!ctx.ldrTarget || !ctx.ldrTarget->IsValid() || !ctx.assets) {
 			return;
 		}
 
@@ -16,19 +16,17 @@ namespace Long {
 				return;
 			}
 		}
+		// Read the tonemapped LDR image and draw the antialiased result to the screen.
 		raylib::Shader& shader = ctx.assets->GetShader(m_shaderId);
-		raylib::TextureUnmanaged tex = ctx.finalTarget->GetTexture();
+		raylib::TextureUnmanaged tex = ctx.ldrTarget->GetTexture();
 		raylib::Vector2 res{ (float)ctx.width, (float)ctx.height };
-
-		shader.SetValue(shader.GetLocation("u_resolution"), &res, SHADER_UNIFORM_VEC2);
-
-		::Rectangle src = ctx.finalTarget->SourceRect();
-		::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
-
+		raylib::Rectangle src = ctx.ldrTarget->SourceRect();
+		raylib::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
 		shader.BeginMode();
+		//shader.SetValue(shader.GetLocation("u_resolution"), &res, SHADER_UNIFORM_VEC2);
+		shader.SetValue(getLoc("u_resolution",shader), &res, SHADER_UNIFORM_VEC2);
 		tex.Draw(src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
 		shader.EndMode();
-
 		ctx.renderStats.renderPassCalls++;
 	}
 }

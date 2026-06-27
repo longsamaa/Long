@@ -27,7 +27,7 @@ namespace Long {
 		void RenderUI() override;
 		void ReportEndDrawingMs(double ms) override { m_msEndDrawing = ms; }
 	private:
-		void testCreateDefaultCube();
+		void createGround();
 		void createEmissiveBoxes(); // 4 glowing boxes spread out, to test bloom/HDR
 		void RenderMenuBar();
 		void RenderPanels();

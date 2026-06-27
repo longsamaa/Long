@@ -16,6 +16,10 @@
 #include "engine/render/passes/OutlinePass.hpp"
 #include "engine/render/passes/FXAAPass.hpp"
 #include "engine/render/passes/GizmoPass.hpp"
+#include "engine/render/passes/BrightPass.hpp"
+#include "engine/render/passes/BloomPass.hpp"
+#include "engine/render/passes/BloomCompositePass.hpp"
+#include "engine/render/passes/TonemapPass.hpp"
 #include "imgui.h"
 #include "imgui_internal.h" // DockBuilderGetCentralNode
 #include "raylib-cpp.hpp"
@@ -28,18 +32,20 @@ namespace Long {
 		m_panels.push_back(std::make_unique<ConsolePanel>());
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene));
 
-		m_renderer.AddPass(std::make_unique<ScenePass>());
-		m_renderer.AddPass(std::make_unique<MaskPass>());
-		m_renderer.AddPass(std::make_unique<CompositePass>());  // scene -> finalTarget
-		m_renderer.AddPass(std::make_unique<OutlinePass>());    // outline -> finalTarget
-		m_renderer.AddPass(std::make_unique<FXAAPass>());       // finalTarget -> screen (AA)
-		m_renderer.AddPass(std::make_unique<GizmoPass>());      // gizmo overlay on screen
+		m_renderer.AddPass(std::make_unique<ScenePass>());          // scene -> sceneTarget (HDR)
+		m_renderer.AddPass(std::make_unique<MaskPass>());           // selection mask
+		m_renderer.AddPass(std::make_unique<BrightPass>());         // sceneTarget -> brightTarget
+		m_renderer.AddPass(std::make_unique<BloomPass>());          // brightTarget -> blurTarget (mip-chain bloom)
+		m_renderer.AddPass(std::make_unique<BloomCompositePass>()); // scene+bloom -> finalTarget (HDR)
+		m_renderer.AddPass(std::make_unique<TonemapPass>());        // HDR -> screen (tonemap + FXAA)
+		m_renderer.AddPass(std::make_unique<OutlinePass>());        // overlay, straight to screen
+		m_renderer.AddPass(std::make_unique<GizmoPass>());          // overlay, straight to screen
 
 		m_environment.Init(m_app.GetAssets());
 		m_panels.push_back(std::make_unique<EnvironmentPanel>(m_environment));
 		//init camera 
 		m_frustum.setCamera(&m_camera.Raw());
-		//testCreateDefaultCube();
+		createGround();
 		createEmissiveBoxes();
 	}
 
@@ -132,49 +138,42 @@ namespace Long {
 		m_renderStats.msEndDrawing = m_msEndDrawing; // from the previous frame
 	}
 
-	void EditorState::testCreateDefaultCube()
+	void EditorState::createGround()
 	{
 		auto& assets = m_app.GetAssets();
-		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
-		raylib::BoundingBox box(cube); 
-		uint32_t meshId = assets.AddMesh(std::move(cube));
-		// material on top of it.
-		uint32_t wireId = assets.GetShaderId("wireframe");
-		// Wireframe material: light-brown edge line on a slightly darker face so
-		// the brown border still reads against the fill.
-		// Signature: CreateWireframeMaterial(shader, lineColor, faceColor, thickness)
-		raylib::Color lightBrown{ 196, 164, 132, 255 }; // edge line
-		raylib::Color faceBrown{ 120, 96, 72, 255 };    // darker fill behind it
-		uint32_t mat[3] = {
-			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.01f),
-			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.01f),
-			assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.01f),
-		};
-		// Spawn a 10x10 grid of cubes (100 entities) to stress-test the pipeline.
-		// Cubes are 1 unit wide, so a spacing of 1.0 makes them sit edge-to-edge.
 		auto& reg = m_scene.Registry();
-		const int N = 10;
+		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
+		raylib::BoundingBox box(cube);
+		uint32_t meshId = assets.AddMesh(std::move(cube));
+
+		uint32_t wireId = assets.GetShaderId("wireframe");
+		raylib::Color lightBrown{ 196, 164, 132, 255 };
+		raylib::Color faceBrown{ 120, 96, 72, 255 };
+		uint32_t mat = assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.02f);
+		entt::entity parent = m_scene.CreateEntity("ground");
+		reg.emplace<Transform>(parent, Transform{});
+		std::vector<entt::entity> children;
+		const int N = 100;
 		const float spacing = 1.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {
-				entt::entity e = m_scene.CreateEntity("cube");
+				entt::entity tile = m_scene.CreateEntity("tile");
 				Transform t;
-				t.setPos({ (x - N / 2) * spacing, 0.5f, (z - N / 2) * spacing });
-				t.setScale({ 1.0f, 1.0f, 1.0f });
-				reg.emplace<Transform>(e, t);
-				reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
-				// Cycle materials so sort-by-material has something to group.
-				reg.emplace<MeshRenderer>(e, MeshRenderer{ mat[(x + z) % 3], raylib::Color::White(), true });
-				reg.emplace<BoxCollider3D>(e, BoxCollider3D{ box });
+				t.setPos({ (x - N / 2) * spacing, -0.5f, (z - N / 2) * spacing });
+				reg.emplace<Transform>(tile, t);
+				reg.emplace<Hierarchy>(tile, Hierarchy{ parent, {} });
+				reg.emplace<MeshFilter>(tile, MeshFilter{ meshId });
+				reg.emplace<MeshRenderer>(tile, MeshRenderer{ mat, raylib::Color::White(), true });
+				reg.emplace<BoxCollider3D>(tile, BoxCollider3D{ box });
+				children.push_back(tile);
 			}
 		}
+		// Attach the children to the parent once, after all emplaces are done.
+		reg.emplace<Hierarchy>(parent, Hierarchy{ entt::null, std::move(children) });
 	}
 
 	void EditorState::createEmissiveBoxes()
 	{
-		// 4 emissive boxes, spread far apart, to test bloom/HDR. They output
-		// color * intensity (>1.0), so once the scene renders into an HDR target and
-		// a bloom pass runs these will glow.
 		auto& assets = m_app.GetAssets();
 		auto& reg = m_scene.Registry();
 		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
@@ -182,12 +181,14 @@ namespace Long {
 		uint32_t meshId = assets.AddMesh(std::move(cube));
 		uint32_t emissiveId = assets.GetShaderId("emissive");
 
+		// Boxes are 2 units tall, so y = 1.0 puts their bottom face on the ground
+		// (whose top is at y = 0).
 		struct Glow { raylib::Vector3 pos; raylib::Color color; };
 		const Glow glows[4] = {
-			{ {  5.0f, 1.0f,  5.0f }, raylib::Color{ 255,  40,  40, 255 } }, // red
-			{ { -5.0f, 1.0f,  5.0f }, raylib::Color{  40, 255,  40, 255 } }, // green
-			{ {  5.0f, 1.0f, -5.0f }, raylib::Color{  40, 120, 255, 255 } }, // blue
-			{ { -5.0f, 1.0f, -5.0f }, raylib::Color{ 255, 220,  40, 255 } }, // yellow
+			{ {  8.0f, 1.0f,  8.0f }, raylib::Color{ 255,  40,  40, 255 } }, // red
+			{ { -8.0f, 1.0f,  8.0f }, raylib::Color{  40, 255,  40, 255 } }, // green
+			{ {  8.0f, 1.0f, -8.0f }, raylib::Color{  40, 120, 255, 255 } }, // blue
+			{ { -8.0f, 1.0f, -8.0f }, raylib::Color{ 255, 220,  40, 255 } }, // yellow
 		};
 		for (const Glow& g : glows) {
 			uint32_t emat = assets.CreateEmissiveMaterial(emissiveId, g.color, 5.0f);

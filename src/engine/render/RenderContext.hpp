@@ -27,6 +27,9 @@ namespace Long {
 		RenderTarget* sceneTarget{ nullptr };  // 3D scene color
 		RenderTarget* maskTarget{ nullptr };   // selected-only mask (outline)
 		RenderTarget* finalTarget{ nullptr };  // composited image (FXAA reads this)
+		RenderTarget* brightTarget{ nullptr };  // bright-pass output (bloom/flare read this)
+		RenderTarget* blurTarget{ nullptr };    // blur scratch / result (separable blur)
+		RenderTarget* ldrTarget{ nullptr };     // tonemapped LDR image (FXAA reads this)
 		RenderStats renderStats;
 		std::vector<entt::entity> selectedEntities{};
 

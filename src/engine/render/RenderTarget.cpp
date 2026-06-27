@@ -6,8 +6,8 @@ namespace Long {
 	// (HDR). raylib's LoadRenderTexture only makes 8-bit targets, so we assemble
 	// the framebuffer with rlgl directly. Mirrors raylib's own LoadRenderTexture
 	// but swaps the color format to PIXELFORMAT_UNCOMPRESSED_R16G16B16A16.
-	static ::RenderTexture2D LoadRenderTextureHDR(int w, int h) {
-		::RenderTexture2D target = { 0 };
+	static raylib::RenderTexture2D LoadRenderTextureHDR(int w, int h) {
+		raylib::RenderTexture2D target(::RenderTexture2D(0));
 		target.id = rlLoadFramebuffer();
 		if (target.id == 0) {
 			TRACELOG(LOG_WARNING, "RenderTarget: failed to create HDR framebuffer");
@@ -63,13 +63,13 @@ namespace Long {
 		width = newWidth;
 		height = newHeight;
 		if (m_format == Format::HDR) {
-			// raylib-cpp's RenderTexture owns its handle; Unload() the old one, then
-			// hand it the rlgl-built HDR framebuffer to manage.
 			m_texture.Unload();
 			m_texture = raylib::RenderTexture2D(LoadRenderTextureHDR((int)width, (int)height));
 		}
 		else {
 			m_texture.Load((int)width, (int)height);
 		}
+		SetTextureWrap(m_texture.texture, TEXTURE_WRAP_CLAMP);
+		SetTextureFilter(m_texture.texture, TEXTURE_FILTER_BILINEAR);
 	}
 } // namespace Long

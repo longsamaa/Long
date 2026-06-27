@@ -21,7 +21,7 @@ namespace Long {
 		raylib::Shader& shader = ctx.assets->GetShader(m_material->GetShaderId());
 		ctx.maskTarget->Bind();
 		{
-			ClearBackground(raylib::Color::Black());
+			raylib::Color::Black().ClearBackground(); 
 			if (!ctx.selectedEntities.empty()) {
 				ctx.camera->BeginMode();
 				raylib::Material& rlMat = m_material->Apply(shader);

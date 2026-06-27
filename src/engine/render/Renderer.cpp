@@ -8,10 +8,16 @@ namespace Long {
 	}
 
 	void Renderer::Render(RenderContext& ctx) {
-		// Hand the renderer-owned targets to the passes via the context.
+		m_sceneTarget.SetFormat(RenderTarget::Format::HDR);
+		m_finalTarget.SetFormat(RenderTarget::Format::HDR);
+		m_brightTarget.SetFormat(RenderTarget::Format::HDR);
+		m_blurTarget.SetFormat(RenderTarget::Format::HDR);
 		ctx.sceneTarget = &m_sceneTarget;
 		ctx.maskTarget  = &m_maskTarget;
 		ctx.finalTarget = &m_finalTarget;
+		ctx.brightTarget = &m_brightTarget;
+		ctx.blurTarget = &m_blurTarget;
+		ctx.ldrTarget = &m_ldrTarget;  // stays LDR (default format)
 		ctx.renderStats.Reset();
 		const auto tRender = Time::now();
 		int idx = 0;

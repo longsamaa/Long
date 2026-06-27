@@ -32,8 +32,7 @@ namespace Long {
 
 		ctx.sceneTarget->Bind();
 		{
-			raylib::Color::DarkGray().ClearBackground(); 
-			ctx.commandDebugQueue->Submit(GridCommand{ 20,1.0f });
+			raylib::Color::DarkGray().ClearBackground();
 			ctx.camera->BeginMode();
 
 			t0 = Time::now();

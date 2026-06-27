@@ -10,7 +10,7 @@ namespace Long {
 	public:
 		void execute(RenderContext& ctx) override;
 	private:
-		uint32_t m_shaderId = UINT32_MAX; // resolved lazily
+		uint32_t m_shaderId{ UINT32_MAX }; // resolved lazily
 	};
 
 }

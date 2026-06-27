@@ -30,6 +30,9 @@ namespace Long {
 		RenderTarget m_sceneTarget;
 		RenderTarget m_maskTarget;
 		RenderTarget m_finalTarget;
+		RenderTarget m_brightTarget;
+		RenderTarget m_blurTarget;
+		RenderTarget m_ldrTarget;  // tonemapped LDR (FXAA input)
 	};
 
 } // namespace Long
