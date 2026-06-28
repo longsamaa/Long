@@ -13,9 +13,11 @@ namespace Long {
 		void loadScene(Scene& scene); 
 		void clear(); 
 		entt::entity selected() const { return m_selected; }
+		void appendCamera(); 
 	private:
 		void drawEntityNode(entt::entity e);
 		Scene& m_scene;
+		bool bCameraSelected{ false };
 		entt::entity m_selected = entt::null;
 	};
 }
