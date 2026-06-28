@@ -22,7 +22,7 @@ namespace Long {
 			}
 			if (frustum) {
 				if (const WorldAABB* aabb = registry.try_get<WorldAABB>(e)) {
-					if (!frustum->isVisible(raylib::BoundingBox(aabb->min, aabb->max))) {
+					if (!frustum->isVisible(aabb->min,aabb->max)) {
 						stats.culledEntities++;
 						continue;
 					}

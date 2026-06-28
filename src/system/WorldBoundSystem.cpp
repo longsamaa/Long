@@ -4,7 +4,7 @@
 #include "engine/Logger.hpp"
 namespace Long {
 	void WorldBoundsSystem(entt::registry& registry, AssetManager& asset_manager) {
-		auto view = registry.view<MeshFilter, Transform, Name>();
+		auto view = registry.view<DirtyTransform,MeshFilter, Transform, Name>();
 		for (entt::entity e : view) {
 			//lay AABB component neu ko co thi create
 			WorldAABB& aabb = registry.get_or_emplace<WorldAABB>(e);
@@ -26,5 +26,6 @@ namespace Long {
 				aabb.builtVersion = world_matrix.buildFromTransformVersion;
 			}
 		}
+		registry.clear<DirtyTransform>();
 	}
 }

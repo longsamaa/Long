@@ -4,7 +4,9 @@
 #include "engine/Logger.hpp"
 #include "rlImGui.h"
 #include "imgui.h"
+#include "helpers/TimerHelper.hpp"
 #include <filesystem>
+#include <iostream>
 
 namespace Long {
 	Application::Application(const Config& config)
@@ -86,12 +88,17 @@ namespace Long {
 	void Application::Run() {
 		TraceLog(LOG_INFO, "Application::Run() loop start");
 		while (m_running && !m_window.ShouldClose()) {
+			const auto tFrame = Time::now();   // measure the WHOLE frame
 			const float dt = m_window.GetFrameTime();
+			double msUpdate = 0.0;
 			if (m_state) {
+				auto tu = Time::now();
 				m_state->Update(dt);
+				msUpdate = Time::elapsedMs(tu);
 			}
 			m_window.BeginDrawing();
 			m_window.ClearBackground(raylib::Color::White());
+			double msRenderWorld = 0.0, msRenderUI = 0.0;
 			if (m_state) {
 				m_state->RenderWorld();
 				rlImGuiBegin();
@@ -101,7 +108,7 @@ namespace Long {
 				m_state->RenderUI();
 				rlImGuiEnd();
 			}
-			m_window.EndDrawing();
+			m_window.EndDrawing();             // SwapBuffers + waits for vsync
 		}
 		TraceLog(LOG_INFO, "Application::Run() loop exit");
 	}

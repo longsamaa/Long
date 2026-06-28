@@ -64,6 +64,12 @@ namespace Long {
 		uint32_t builtVersion{ 0 };
 	};
 
+	// Tag: this entity's Transform changed this frame and its world matrix (and its
+	// children's) must be recomputed. TransformSystem only walks tagged roots, so
+	// static entities (the vast majority) are skipped entirely instead of version-
+	// checked every frame. setPos/setQuaternion/setScale should add this tag.
+	struct DirtyTransform {};
+
 	// Scene-graph link. A model with many parts = one parent entity with one child
 	// entity per (mesh, material). Children inherit the parent's world transform.
 	struct Hierarchy {

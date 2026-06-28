@@ -2,24 +2,23 @@
 #include "core/math/transform.hpp"
 #include "helpers/draw_debug_helper.hpp" // MakeWorldBoundingBox
 #include <raylib-cpp.hpp>
+#include <vector>
 namespace Long {
 	static void UpdateRecursive(entt::registry& reg, entt::entity e, raylib::Matrix parentWorld, bool parent_change) {
 		const Transform& local = reg.get<Transform>(e);
-		//if auto matrix update
 		auto& matrix_component = reg.get_or_emplace<MatrixTransform>(e);
 		bool isDirty = matrix_component.buildFromTransformVersion != local.getVersion() || parent_change;
 		if (isDirty) {
-			//update version
 			matrix_component.buildFromTransformVersion = local.getVersion();
 			raylib::Matrix localMatrix = LocalMatrix(local);
 			raylib::Matrix worldMatrix = localMatrix * parentWorld;
 			matrix_component.world_matrix = worldMatrix;
 			matrix_component.local_matrix = localMatrix;
+			reg.emplace_or_replace<DirtyTransform>(e);
 		}
-		//update child
-		if (auto* h = reg.try_get<Hierarchy>(e)) {
+		if (Hierarchy* h = reg.try_get<Hierarchy>(e)) {
 			raylib::Matrix world = matrix_component.world_matrix;
-			for (entt::entity child : h->children) {
+			for (entt::entity& child : h->children) {
 				if (reg.valid(child) && reg.all_of<Transform>(child)) {
 					UpdateRecursive(reg, child, world, isDirty);
 				}
@@ -29,13 +28,18 @@ namespace Long {
 
 	void TransformSystem(entt::registry& registry) {
 		static const raylib::Matrix identity = raylib::Matrix::Identity();
-		auto view = registry.view<Transform>();
-		for (entt::entity e : view) {
-			const Hierarchy* h = registry.try_get<Hierarchy>(e);
-			bool isRoot = (h == nullptr) || (h->parent == entt::null);
-			if (isRoot) {
-				UpdateRecursive(registry, e, identity, false);
+		std::vector<entt::entity> roots(registry.view<DirtyTransform>().begin(),
+		                                registry.view<DirtyTransform>().end());
+		for (entt::entity e : roots) {
+			raylib::Matrix parentWorld = identity;
+			if (const Hierarchy* h = registry.try_get<Hierarchy>(e)) {
+				if (h->parent != entt::null) {
+					if (const MatrixTransform* pm = registry.try_get<MatrixTransform>(h->parent)) {
+						parentWorld = pm->world_matrix;
+					}
+				}
 			}
+			UpdateRecursive(registry, e, parentWorld, true);
 		}
 	}
 }

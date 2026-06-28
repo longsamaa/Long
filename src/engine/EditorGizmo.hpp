@@ -4,6 +4,7 @@
 
 #include "raylib-cpp.hpp"
 #include "core/Components.hpp"
+#include "core/Scene.hpp"
 #include <vector>
 namespace Long {
 	class EditorGizmo {
@@ -23,7 +24,9 @@ namespace Long {
 		// orientation) and world space (handles stay axis-aligned).
 		void SetGizmoToLocal();
 		bool IsLocal() const { return m_local; }
-		bool Update(const raylib::Camera3D& camera, Transform& target);
+		// Drag the gizmo for entity `e`. On change it edits the entity's Transform and
+		// marks it dirty via the scene, so TransformSystem recomputes only this entity.
+		bool Update(const raylib::Camera3D& camera, Scene& scene, entt::entity e);
 		void Draw(const raylib::Camera3D& camera, const Transform& target);
 		void DrawScreenGuide(const raylib::Camera3D& camera, const Transform& target);
 		bool IsActive() const { return m_dragging != Handle::None; }

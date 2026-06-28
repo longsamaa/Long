@@ -2,6 +2,15 @@
 #include "core/Components.hpp"
 #include <unordered_map>
 namespace Long {
+	static void markTransformDirty(entt::registry& reg, entt::entity e) {
+		reg.emplace_or_replace<DirtyTransform>(e);
+	}
+
+	Scene::Scene() {
+		m_registry.on_construct<Transform>().connect<&markTransformDirty>();
+		m_registry.on_update<Transform>().connect<&markTransformDirty>();
+	}
+
 	entt::entity Scene::CreateEntity(const std::string& name) {
 		entt::entity e = m_registry.create();
 		if (!name.empty()) {
@@ -12,6 +21,12 @@ namespace Long {
 
 	void Scene::DestroyEntity(entt::entity e) {
 		m_registry.destroy(e);
+	}
+
+	void Scene::SetDirty(entt::entity e) {
+		if (m_registry.valid(e)) {
+			m_registry.emplace_or_replace<DirtyTransform>(e);
+		}
 	}
 	void Scene::Clone(const Scene& anotherScene)
 	{

@@ -25,6 +25,7 @@
 #include "raylib-cpp.hpp"
 #include "helpers/TimerHelper.hpp"
 #include "engine/Logger.hpp"
+#include <iostream>
 namespace Long {
 	void EditorState::OnEnter() {
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: begin, creating panels");
@@ -100,26 +101,26 @@ namespace Long {
 
 	void EditorState::EditorModeUpdate(const float& dt)
 	{
-		const auto tUpdate = Time::now();
 		if (!ImGui::GetIO().WantCaptureMouse) {
 			m_camera.Update(dt);
 		}
-		auto t0 = Time::now();
 		m_commandQueue.Clear();
+		
+		auto t0 = Time::now();
 		TransformSystem(m_scene.Registry());
 		WorldBoundsSystem(m_scene.Registry(), m_app.GetAssets());
 		m_msTransformSystem = Time::elapsedSecond(t0);
+		
 		bool gizmoHasInput = false;
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
 			&& m_scene.Registry().all_of<Transform>(m_selectedEntity)
 			&& !ImGui::GetIO().WantCaptureMouse) {
-			m_gizmo.Update(m_camera.Raw(), m_scene.Registry().get<Transform>(m_selectedEntity));
+			m_gizmo.Update(m_camera.Raw(), m_scene, m_selectedEntity);
 			gizmoHasInput = m_gizmo.IsActive() || m_gizmo.IsHot();
 		}
 		if (!gizmoHasInput) {
 			UpdatePicking();
 		}
-		m_msUpdate = Time::elapsedSecond(tUpdate);
 	}
 
 	void EditorState::GameModeUpdate(float dt)
@@ -180,7 +181,7 @@ namespace Long {
 	{
 		auto& assets = m_app.GetAssets();
 		auto& reg = m_scene.Registry();
-		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
+		raylib::Mesh cube = raylib::Mesh::Cube(4.0f, 4.0f, 4.0f);
 		raylib::BoundingBox box(cube);
 		uint32_t meshId = assets.AddMesh(std::move(cube));
 		uint32_t wireId = assets.GetShaderId("wireframe");
@@ -191,12 +192,12 @@ namespace Long {
 		reg.emplace<Transform>(parent, Transform{});
 		std::vector<entt::entity> children;
 		const int N = 100;
-		const float spacing = 1.0f;
+		const float spacing = 4.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {
 				entt::entity tile = m_scene.CreateEntity("tile");
 				Transform t;
-				t.setPos({ (x - N / 2) * spacing, -0.5f, (z - N / 2) * spacing });
+				t.setPos({ (x - N / 2) * spacing, -2.0f, (z - N / 2) * spacing });
 				reg.emplace<Transform>(tile, t);
 				reg.emplace<Hierarchy>(tile, Hierarchy{ parent, {} });
 				reg.emplace<MeshFilter>(tile, MeshFilter{ meshId });
@@ -233,6 +234,8 @@ namespace Long {
 			reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
 			reg.emplace<MeshRenderer>(e, MeshRenderer{ emat, raylib::Color::White(), true });
 			reg.emplace<BoxCollider3D>(e, BoxCollider3D{ box });
+			reg.emplace<Hierarchy>(e, Hierarchy{ entt::null, {} });
+			// on_construct<Transform> already marked it dirty.
 		}
 	}
 

@@ -19,7 +19,7 @@ namespace Long {
 		{
 			ctx.frustum->update();
 		}
-		const auto tPassStart = Time::now();
+		//const auto tPassStart = Time::now();
 		ctx.commandQueue->Clear();
 		ctx.commandDebugQueue->Clear();
 		auto t0 = Time::now();
@@ -35,9 +35,11 @@ namespace Long {
 		{
 			raylib::Color::DarkGray().ClearBackground();
 			ctx.camera->BeginMode();
+
 			t0 = Time::now();
 			ctx.commandQueue->Execute(*ctx.assets, ctx.renderStats);
 			ctx.renderStats.msExecute = Time::elapsedMs(t0);
+			
 			auto tDebug = Time::now();
 			ctx.commandDebugQueue->Execute(ctx.renderStats);
 			ctx.renderStats.msDebugQueue = Time::elapsedMs(tDebug);
@@ -51,6 +53,6 @@ namespace Long {
 		auto tUnbind = Time::now();
 		ctx.sceneTarget->Unbind();
 		ctx.renderStats.msUnbind = Time::elapsedMs(tUnbind);
-		ctx.renderStats.msScenePass = Time::elapsedMs(tPassStart);
+		//ctx.renderStats.msScenePass = Time::elapsedMs(tPassStart);
 	}
 }

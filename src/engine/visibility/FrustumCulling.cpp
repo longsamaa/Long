@@ -32,12 +32,12 @@ namespace Long {
 		setPlane(5, m.m3 - m.m2, m.m7 - m.m6, m.m11 - m.m10, m.m15 - m.m14);
 	}
 
-	bool FrustumCulling::isVisible(const raylib::BoundingBox& box) const {
+	bool FrustumCulling::isVisible(const raylib::Vector3& min, const raylib::Vector3& max) const {
 		for (const Plane& pl : m_planes) {
 			raylib::Vector3 p{
-				pl.normal.x >= 0.0f ? box.max.x : box.min.x,
-				pl.normal.y >= 0.0f ? box.max.y : box.min.y,
-				pl.normal.z >= 0.0f ? box.max.z : box.min.z,
+				pl.normal.x >= 0.0f ? max.x : min.x,
+				pl.normal.y >= 0.0f ? max.y : min.y,
+				pl.normal.z >= 0.0f ? max.z : min.z,
 			};
 			if (pl.normal.DotProduct(p) + pl.d < 0.0f) {
 				return false;

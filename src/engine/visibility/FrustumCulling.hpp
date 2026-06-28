@@ -12,7 +12,7 @@ namespace Long {
 	public: 
 		void setCamera(raylib::Camera3D* _camera);
 		void update();
-		bool isVisible(const raylib::BoundingBox& worldBox) const;
+		bool isVisible(const raylib::Vector3& min, const raylib::Vector3& max) const;
 		const std::array<Plane, 6>& planes() const { return m_planes; }
 	private:
 		void buildPlane();

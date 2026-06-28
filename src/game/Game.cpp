@@ -70,5 +70,6 @@ namespace Long {
 		reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
 		reg.emplace<MeshRenderer>(e, MeshRenderer{ mat, raylib::Color::White(), true });
 		reg.emplace<BoxCollider3D>(e, BoxCollider3D{ box });
+		// on_construct<Transform> already marked it dirty.
 	}
 }

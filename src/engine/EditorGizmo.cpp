@@ -54,18 +54,19 @@ namespace Long {
 		return raylib::Vector3(Vector3RotateByQuaternion(ax2[i], HandleOrientation(target)));
 	}
 
-	bool EditorGizmo::Update(const raylib::Camera3D& camera, Transform& target) {
+	bool EditorGizmo::Update(const raylib::Camera3D& camera, Scene& scene, entt::entity e) {
+		auto& reg = scene.Registry();
+		const Transform& target = reg.get<Transform>(e); // read-only view for hit-tests
 		raylib::Vector3 center = target.getPos();
 		float r = GizmoScale(camera, center);
 		raylib::Ray ray = camera.GetScreenToWorldRay(raylib::Mouse::GetPosition());
-
-		// --- Release ---
 		if (!raylib::Mouse::IsButtonDown(MOUSE_BUTTON_LEFT)) {
 			m_dragging = Handle::None;
 		}
 
-		// --- While dragging: apply movement ---
 		if (m_dragging != Handle::None) {
+			bool consumed = true;
+			reg.patch<Transform>(e, [&](Transform& target) {
 			if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
 				// Rotate around the ring's axis by the change in cursor angle.
 				int i = (int)m_dragging - (int)Handle::RingX;
@@ -79,10 +80,9 @@ namespace Long {
 					float delta = angle - m_rotStartAngle;
 					m_rotDelta = delta;             // remember for the HUD text
 					Quaternion dq = QuaternionFromAxisAngle(n, delta);
-					// Apply the delta in world space on top of the start orientation.
 					target.setQuaternion(raylib::Quaternion(QuaternionMultiply(dq, m_rotStart)));
 				}
-				return true;
+				return; // done with this drag branch (inside the patch lambda)
 			}
 			if (m_dragging >= Handle::AxisX && m_dragging <= Handle::AxisZ) {
 				int i = (int)m_dragging - (int)Handle::AxisX;
@@ -92,8 +92,6 @@ namespace Long {
 					m_closetPoint = center.Add(axis.Scale(t));
 				}
 				if (m_mode == Mode::Scale) {
-					// Scale along the axis by how far the cursor moved relative to
-					// where the drag began (ratio keeps it frame-rate independent).
 					float factor = (fabsf(m_scaleStartParam) > 1e-4f)
 						? (t / m_scaleStartParam) : 1.0f;
 					raylib::Vector3 s = target.getScale();
@@ -107,12 +105,10 @@ namespace Long {
 					raylib::Vector3 delta = hit.Subtract(m_dragStartHit);
 					delta = axis.Scale(delta.DotProduct(axis)); // keep only along axis
 					target.setPos(target.getPos().Add(delta));
-					//target = raylib::Vector3(target.position).Add(delta);
 					m_dragStartHit = m_dragStartHit.Add(delta);
 				}
 			}
 			else {
-				// Plane normal = the axis NOT in the plane (ax[] index).
 				int planeIdx = (int)m_dragging - (int)Handle::PlaneXY; // 0,1,2
 				raylib::Vector3 n = (m_dragging == Handle::PlaneXY) ? Axis(target, 2)
 					: (m_dragging == Handle::PlaneXZ) ? Axis(target, 1) : Axis(target, 0);
@@ -120,20 +116,18 @@ namespace Long {
 				raylib::Vector3 hit = RayPlane(ray, center, n, ok);
 				if (ok) {
 					raylib::Vector3 delta = hit.Subtract(m_dragStartHit);
-					//target.position = raylib::Vector3(target.position).Add(delta);
 					target.setPos(target.getPos().Add(delta));
 					m_dragStartHit = hit;
 				}
 				(void)planeIdx;
 			}
+			}); // end reg.patch lambda -> fires on_update -> auto DirtyTransform
+			(void)consumed;
 			return true;
 		}
 
-		// --- Not dragging: hover-test the handles, pick the closest ---
 		m_hot = Handle::None;
 		float bestDist = std::numeric_limits<float>::max();
-		// Axis arrows (translate/scale): distance from the ray to the axis segment.
-		// (An AABB would balloon for a tilted local axis and overshoot the pick.)
 		if (m_mode != Mode::Rotate) {
 			const float axisLen = (1.0f + cylinder_length) * r * AXIS_LEN;
 			const float pickR = r * AXIS_PICK_R; // pick radius around the arrow
@@ -151,8 +145,6 @@ namespace Long {
 			}
 		}
 
-		// Rotate rings: intersect the ray with each ring's plane, then check the
-		// hit lies near the ring radius (within a tolerance band).
 		if (m_mode == Mode::Rotate) {
 			const Handle ringHandles[3] = { Handle::RingX, Handle::RingY, Handle::RingZ };
 			const float ringTol = r * 0.12f; // pick band thickness
@@ -172,9 +164,6 @@ namespace Long {
 			}
 		}
 
-		// Plane handles: a flat square spanned by the plane's two LOCAL axes. Pick by
-		// intersecting the ray with that square's plane and checking the hit falls
-		// inside the square (projected onto the two axes). Matches the drawn quad.
 		if (m_mode == Mode::Translate) {
 			const int planeAxes[3][2] = { {1, 2}, {0, 2}, {0, 1} };
 			const float off = PLANE_OFFSET * r;
@@ -201,8 +190,6 @@ namespace Long {
 			m_dragging = m_hot;
 			if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
 				int i = (int)m_dragging - (int)Handle::RingX;
-				// Latch the orientation FIRST so HandleOrientation() (used by Axis())
-				// returns the locked rotation for the rest of this drag.
 				m_rotStart = target.getQuaternion();  // orientation at drag start
 				raylib::Vector3 n = Axis(target, i);
 				raylib::Vector3 u, v;
@@ -226,7 +213,6 @@ namespace Long {
 				m_dragStartHit = RayPlane(ray, center, n, ok);
 			}
 		}
-
 		return m_hot != Handle::None;
 	}
 
