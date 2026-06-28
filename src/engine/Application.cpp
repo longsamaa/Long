@@ -103,6 +103,6 @@ namespace Long {
 			}
 			m_window.EndDrawing();
 		}
-		 TraceLog(LOG_INFO, "Application::Run() loop exit");
+		TraceLog(LOG_INFO, "Application::Run() loop exit");
 	}
 }

@@ -7,25 +7,25 @@ namespace Long {
 	// LOCAL transform: position/rotation/scale RELATIVE TO THE PARENT (or to the
 	// world if the entity has no parent). This is what you edit.
 	struct Transform {
-	public: 
+	public:
 		const raylib::Vector3& setPos(const raylib::Vector3& _position) {
-			position = _position; 
+			position = _position;
 			MarkDirty();
-			return position; 
+			return position;
 		};
 		const raylib::Quaternion& setQuaternion(const raylib::Quaternion& _quaternion) {
 			quaternion = _quaternion;
-			MarkDirty(); 
-			return quaternion; 
+			MarkDirty();
+			return quaternion;
 		};
 		const raylib::Vector3& setScale(const raylib::Vector3& _scale) {
 			scale = _scale;
-			MarkDirty(); 
-			return scale; 
+			MarkDirty();
+			return scale;
 		};
 		void MarkDirty() { ++version; }
 		const raylib::Vector3& getPos() const {
-			return position; 
+			return position;
 		}
 		const raylib::Vector3& getScale() const {
 			return scale;
@@ -34,12 +34,12 @@ namespace Long {
 			return quaternion;
 		}
 		const uint32_t& getVersion() const {
-			return version; 
+			return version;
 		}
-	private: 
+	private:
 		raylib::Vector3 position = { 0, 0, 0 };
 		raylib::Quaternion quaternion = { 0, 0, 0, 1 };
-		raylib::Vector3 scale = { 1, 1, 1 }; 
+		raylib::Vector3 scale = { 1, 1, 1 };
 		// Start at 1 so a freshly-created Transform is != MatrixTransform's
 		// buildFromTransformVersion (0) -> it always gets built on the first pass,
 		// even if no setter was ever called.

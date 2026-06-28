@@ -4,7 +4,6 @@
 #include "raylib.h"
 
 namespace Long {
-
 	ConsolePanel::ConsolePanel() {
 		m_title = "Console";
 		m_isOpen = true;
@@ -38,7 +37,7 @@ namespace Long {
 
 			// Scrolling log region.
 			if (ImGui::BeginChild("log", ImVec2(0, 0), ImGuiChildFlags_None,
-								   ImGuiWindowFlags_HorizontalScrollbar)) {
+				ImGuiWindowFlags_HorizontalScrollbar)) {
 				for (const LogEntry& e : Logger::Entries()) {
 					ImGui::PushStyleColor(ImGuiCol_Text, LevelColor(e.level));
 					ImGui::TextUnformatted(e.text.c_str());
@@ -53,5 +52,4 @@ namespace Long {
 		}
 		ImGui::End();
 	}
-
 }

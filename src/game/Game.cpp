@@ -20,7 +20,7 @@ namespace Long {
 		m_renderer.AddPass(std::make_unique<TonemapPass>());
 		m_environment.Init(m_app.GetAssets());
 		m_frustum.setCamera(&m_camera.Raw());
-		buildDefaultScene();
+		//buildDefaultScene();
 	}
 
 	void Game::Update(float dt) {
@@ -42,8 +42,17 @@ namespace Long {
 		ctx.frustum = &m_frustum;
 		ctx.width = (uint32_t)GetRenderWidth();
 		ctx.height = (uint32_t)GetRenderHeight();
-		m_renderer.Render(ctx);
+		Execute(ctx);
 		m_renderStats = ctx.renderStats;
+	}
+
+	void Game::Execute(RenderContext& ctx) {
+		m_renderer.Render(ctx);
+	}
+
+	void Game::copyhierarchy(const Scene& scene)
+	{
+		m_scene.Clone(scene);
 	}
 
 	void Game::buildDefaultScene() {

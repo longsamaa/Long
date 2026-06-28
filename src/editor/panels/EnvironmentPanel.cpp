@@ -3,7 +3,6 @@
 #include "imgui.h"
 
 namespace Long {
-
 	EnvironmentPanel::EnvironmentPanel(Environment& env)
 		: m_env(env) {
 		m_title = "Environment";
@@ -16,13 +15,10 @@ namespace Long {
 		}
 		if (ImGui::Begin(m_title.c_str(), &m_isOpen)) {
 			ImGui::SeparatorText("Skybox Gradient");
-
-			// Vector3 is 3 contiguous floats {x,y,z}, so &.x works as float[3].
-			ImGui::ColorEdit3("Top color",    &m_env.topColor.x);
+			ImGui::ColorEdit3("Top color", &m_env.topColor.x);
 			ImGui::ColorEdit3("Bottom color", &m_env.bottomColor.x);
 			ImGui::SliderFloat("Horizon sharpness", &m_env.gradientSharpness, 0.0f, 1.0f);
 		}
 		ImGui::End();
 	}
-
 }

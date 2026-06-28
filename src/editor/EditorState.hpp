@@ -2,7 +2,7 @@
 #ifndef _EDITOR_STATE_HPP_
 #define _EDITOR_STATE_HPP_
 #include "engine/AppState.hpp"
-#include "engine/camera.hpp"
+#include "engine/camera/EditorCamera.hpp"
 #include "core/Scene.hpp"
 #include "editor/IPanel.hpp"
 #include "system/RenderStats.hpp"
@@ -21,18 +21,25 @@ namespace Long {
 	class Application;
 	class EditorState : public AppState {
 	public:
-		explicit EditorState(Application& app) : m_app(app) {}
+		explicit EditorState(Application& app) : m_app(app) { m_state = State::EDITOR; }
 		void OnEnter() override;
 		void Update(float dt) override;
 		void RenderWorld() override;
 		void RenderUI() override;
+		void Execute(RenderContext& ctx) override;
 	private:
 		void createGround();
 		void createEmissiveBoxes(); // 4 glowing boxes spread out, to test bloom/HDR
 		void RenderMenuBar();
 		void RenderPanels();
 		void RenderGizmoToolbar();
+		void RenderPlayBar();   // separate Play/Stop bar (top-center)
 		void UpdatePicking();
+		void EditorModeUpdate(const float& t);
+		void GameModeUpdate(float t);
+		void EditorModeRenderWorld();
+		void GameModeRenderWorld();
+		IPanel* getPanel(const std::string& name);
 	private:
 		Application& m_app;
 		std::vector<std::unique_ptr<IPanel>> m_panels;
@@ -45,12 +52,12 @@ namespace Long {
 		Renderer m_renderer;
 		RenderStats m_renderStats;
 		//visibility
-		FrustumCulling m_frustum; 
+		FrustumCulling m_frustum;
 		double m_msTransformSystem = 0.0;
 		double m_msUpdate = 0.0;
 		RaycastHit m_hoverHit;                       // entity under the cursor this frame
 		entt::entity m_selectedEntity = entt::null;  // entity clicked/selected (persists)
-		std::unique_ptr<Game> m_gameState{ nullptr }; //game state 
+		std::unique_ptr<Game> m_game{ nullptr }; //game state
 	};
 }
 #endif // !_EDITOR_STATE_HPP_

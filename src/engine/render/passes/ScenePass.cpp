@@ -4,6 +4,7 @@
 #include "engine/AssetManager.hpp"
 #include "engine/Environment.hpp"
 #include "helpers/TimerHelper.hpp"
+#include "engine/visibility/FrustumCulling.hpp"
 namespace Long {
 	void ScenePass::execute(RenderContext& ctx) {
 		if (!ctx.sceneTarget || !ctx.registry || !ctx.assets || !ctx.camera) {
@@ -12,6 +13,11 @@ namespace Long {
 		ctx.sceneTarget->Resize(ctx.width, ctx.height);
 		if (!ctx.sceneTarget->IsValid()) {
 			return;
+		}
+		//update frustum
+		if (ctx.frustum)
+		{
+			ctx.frustum->update();
 		}
 		const auto tPassStart = Time::now();
 		ctx.commandQueue->Clear();

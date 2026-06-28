@@ -32,6 +32,12 @@ namespace Long {
 		m_panels.push_back(std::make_unique<ProfilerPanel>(m_renderStats));
 		m_panels.push_back(std::make_unique<ConsolePanel>());
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene));
+		for (auto& panel : m_panels) {
+			if (!(panel->title() == "Scene hierarchy")) {
+				panel->close();
+			}
+		}
+
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: panels done, adding render passes");
 		m_renderer.AddPass(std::make_unique<ScenePass>());          // scene -> sceneTarget (HDR)
 		m_renderer.AddPass(std::make_unique<MaskPass>());           // selection mask
@@ -41,11 +47,12 @@ namespace Long {
 		m_renderer.AddPass(std::make_unique<TonemapPass>());        // HDR -> screen (tonemap + FXAA)
 		m_renderer.AddPass(std::make_unique<OutlinePass>());        // overlay, straight to screen
 		m_renderer.AddPass(std::make_unique<GizmoPass>());          // overlay, straight to screen
+
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: passes added, init environment");
 		m_environment.Init(m_app.GetAssets());
 		m_panels.push_back(std::make_unique<EnvironmentPanel>(m_environment));
+		m_panels.back()->close();
 		//init camera
-		m_frustum.setCamera(&m_camera.Raw());
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround begin");
 		createGround();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround done, createEmissiveBoxes begin");
@@ -54,27 +61,7 @@ namespace Long {
 	}
 
 	void EditorState::Update(float dt) {
-		const auto tUpdate = Time::now();
-		m_commandQueue.Clear();
-		if (!ImGui::GetIO().WantCaptureMouse) {
-			m_camera.Update(dt);
-		}
-		auto t0 = Time::now();
-		TransformSystem(m_scene.Registry());
-		WorldBoundsSystem(m_scene.Registry(),m_app.GetAssets());
-		m_msTransformSystem = Time::elapsedSecond(t0);
-		bool gizmoHasInput = false;
-		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
-			&& m_scene.Registry().all_of<Transform>(m_selectedEntity)
-			&& !ImGui::GetIO().WantCaptureMouse) {
-			m_gizmo.Update(m_camera.Raw(), m_scene.Registry().get<Transform>(m_selectedEntity));
-			gizmoHasInput = m_gizmo.IsActive() || m_gizmo.IsHot();
-		}
-		if (!gizmoHasInput) {
-			UpdatePicking();
-		}
-		m_msUpdate = Time::elapsedSecond(tUpdate);
-		m_frustum.update(); 
+		!m_game ? EditorModeUpdate(dt) : GameModeUpdate(dt); 
 	}
 
 	void EditorState::UpdatePicking() {
@@ -84,7 +71,7 @@ namespace Long {
 		}
 		if (raylib::Mouse::IsButtonDown(MOUSE_BUTTON_LEFT)) {
 			raylib::Ray ray = ::GetScreenToWorldRay(GetMousePosition(), m_camera.Raw());
-			auto tPick = Time::now(); 
+			auto tPick = Time::now();
 			m_hoverHit = RaycastSystem(m_scene.Registry(), ray);
 			if (m_hoverHit.hit) {
 				m_selectedEntity = m_hoverHit.entity;
@@ -111,7 +98,37 @@ namespace Long {
 		}
 	}
 
-	void EditorState::RenderWorld() {
+	void EditorState::EditorModeUpdate(const float& dt)
+	{
+		const auto tUpdate = Time::now();
+		if (!ImGui::GetIO().WantCaptureMouse) {
+			m_camera.Update(dt);
+		}
+		auto t0 = Time::now();
+		m_commandQueue.Clear();
+		TransformSystem(m_scene.Registry());
+		WorldBoundsSystem(m_scene.Registry(), m_app.GetAssets());
+		m_msTransformSystem = Time::elapsedSecond(t0);
+		bool gizmoHasInput = false;
+		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
+			&& m_scene.Registry().all_of<Transform>(m_selectedEntity)
+			&& !ImGui::GetIO().WantCaptureMouse) {
+			m_gizmo.Update(m_camera.Raw(), m_scene.Registry().get<Transform>(m_selectedEntity));
+			gizmoHasInput = m_gizmo.IsActive() || m_gizmo.IsHot();
+		}
+		if (!gizmoHasInput) {
+			UpdatePicking();
+		}
+		m_msUpdate = Time::elapsedSecond(tUpdate);
+	}
+
+	void EditorState::GameModeUpdate(float dt)
+	{
+		m_game->Update(dt); 
+	}
+
+	void EditorState::EditorModeRenderWorld()
+	{
 		RenderContext ctx;
 		ctx.commandQueue = &m_commandQueue;
 		ctx.commandDebugQueue = &m_commandDebugQueue;
@@ -120,8 +137,9 @@ namespace Long {
 		ctx.assets = &m_app.GetAssets();
 		ctx.camera = &m_camera.Raw();
 		ctx.frustum = &m_frustum;
-		ctx.width = (uint32_t)GetRenderWidth();
-		ctx.height = (uint32_t)GetRenderHeight();
+		ctx.frustum->setCamera(&m_camera.Raw());
+		ctx.width = (uint32_t)::GetRenderWidth();
+		ctx.height = (uint32_t)::GetRenderHeight();
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
 			ctx.selectedEntities = { m_selectedEntity };
 			auto& reg = m_scene.Registry();
@@ -130,10 +148,32 @@ namespace Long {
 				ctx.gizmoTarget = &reg.get<Transform>(m_selectedEntity);
 			}
 		}
-		m_renderer.Render(ctx);
+		Execute(ctx);
 		m_renderStats = ctx.renderStats;
 		m_renderStats.msTransformSystem = m_msTransformSystem;
 		m_renderStats.msUpdate = m_msUpdate;
+	}
+
+	void EditorState::GameModeRenderWorld()
+	{
+		m_game->RenderWorld(); 
+	}
+
+	IPanel* EditorState::getPanel(const std::string& name)
+	{
+		auto it = std::find_if(m_panels.begin(), m_panels.end(), [name](const std::unique_ptr<IPanel>& panel) {
+			return  (panel->title() == name);
+			});
+		return (it != m_panels.end() ? it->get() : nullptr);
+	}
+
+	void EditorState::RenderWorld() {
+		!m_game ? EditorModeRenderWorld() : GameModeRenderWorld(); 
+	}
+
+	void EditorState::Execute(RenderContext& ctx)
+	{
+		m_renderer.Render(ctx);
 	}
 
 	void EditorState::createGround()
@@ -277,6 +317,8 @@ namespace Long {
 			}
 		}
 		ImGui::End();
+
+		RenderPlayBar();
 		float deg;
 		if (m_gizmo.IsRotating(deg)) {
 			ImVec2 m = ImGui::GetMousePos();
@@ -292,6 +334,50 @@ namespace Long {
 						dl->AddText(ImVec2(p.x + dx, p.y + dy), shadow, buf);
 			dl->AddText(p, white, buf);
 		}
+	}
+
+	void EditorState::RenderPlayBar() {
+		const ImGuiViewport* vp = ImGui::GetMainViewport();
+		ImVec2 origin = vp->WorkPos;
+		float width = vp->WorkSize.x;
+		if (ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(m_app.GetDockspaceId())) {
+			origin = central->Pos;
+			width = central->Size.x;
+		}
+		ImVec2 pos{ origin.x + width * 0.5f, origin.y + 8.0f };
+		ImGui::SetNextWindowPos(pos, ImGuiCond_Always, ImVec2(0.5f, 0.0f)); // pivot: top-center
+		ImGui::SetNextWindowViewport(vp->ID);
+		ImGui::SetNextWindowBgAlpha(0.65f);
+		ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar
+			| ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoNav
+			| ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking;
+
+		if (ImGui::Begin("##PlayBar", nullptr, flags)) {
+			const bool playing = (m_game != nullptr);
+			if (playing) {
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.25f, 0.20f, 1.0f));
+			}
+			if (ImGui::Button(playing ? "Stop" : "Run Game")) {
+				if (playing) {
+					Logger::TraceLog(LOG_TRACE, "[Editor] Swap Editor mode");
+					m_game->OnExit(); 
+					m_game.reset();
+					m_game = nullptr;
+				}
+				else {
+					m_game = std::make_unique<Game>(m_app);
+					Logger::TraceLog(LOG_TRACE, "[Game] Swap Game Playing mode");
+					m_game->OnEnter(); 
+					m_game->copyhierarchy(m_scene);
+					Logger::TraceLog(LOG_TRACE, "[Game] Copy hierarchy");
+				}
+			}
+			if (playing) {
+				ImGui::PopStyleColor();
+			}
+		}
+		ImGui::End();
 	}
 
 	void EditorState::RenderUI() {

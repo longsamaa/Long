@@ -1,4 +1,4 @@
-#include "engine/camera.hpp"
+#include "engine/camera/EditorCamera.hpp"
 
 namespace Long {
 	EditorCamera::EditorCamera() {

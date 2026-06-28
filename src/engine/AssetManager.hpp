@@ -23,12 +23,8 @@ namespace Long {
 		//Load All Shader
 		void LoadAllShaders(const std::filesystem::path& directory);
 		uint32_t GetShaderId(const std::string& name) const;
-		// Load a second copy of `name`'s shader with `#define INSTANCED` injected,
-		// registered as `<name>_instanced`. Returns its id (or Invalid).
 		uint32_t LoadInstancedVariant(const std::filesystem::path& directory,
 			const std::string& name);
-		// Returns the instanced shader id for a base shader id, or Invalid if the
-		// shader has no instanced variant.
 		uint32_t GetInstancedShaderId(uint32_t baseShaderId) const {
 			auto it = m_instancedOf.find(baseShaderId);
 			return (it != m_instancedOf.end()) ? it->second : Invalid;

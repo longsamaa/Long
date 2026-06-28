@@ -3,7 +3,6 @@
 #include "helpers/draw_debug_helper.hpp"
 
 namespace Long {
-
 	RaycastHit RaycastSystem(entt::registry& registry, const raylib::Ray& ray) {
 		RaycastHit best;
 		float bestDist = 0.0f;

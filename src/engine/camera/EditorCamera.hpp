@@ -1,18 +1,17 @@
 #pragma once
 #ifndef _EDITOR_CAMERA_HPP_
 #define _EDITOR_CAMERA_HPP_
-
+#include "BaseCamera.hpp"
 #include "raylib-cpp.hpp"
-
 namespace Long {
-	class EditorCamera {
+	class EditorCamera : public BaseCamera {
 	public:
 		EditorCamera();
-		void Update(float dt);
+		void Update(float dt) override;
 		void ZoomToward(float wheel, const raylib::Vector3& pivot);
 		void FocusOn(const raylib::Vector3& point);
-		void Begin3D() { m_camera.BeginMode(); }
-		void End3D() { m_camera.EndMode(); }
+		void Begin3D() override { m_camera.BeginMode(); };
+		void End3D() override { m_camera.EndMode(); }
 		raylib::Camera3D& Raw() { return m_camera; }
 	private:
 		void UpdateCameraVectors();

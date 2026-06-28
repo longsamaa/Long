@@ -8,7 +8,6 @@ namespace Long {
 	public:
 		GpuInfoPanel();
 		~GpuInfoPanel() = default;
-
 		void render() override;
 	private:
 		GpuInfo m_gpu;
