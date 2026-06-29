@@ -119,49 +119,57 @@ namespace Long {
 		raylib::Vector3 right = forward.CrossProduct(cam_up).Normalize(); 
 		raylib::Vector3 up = right.CrossProduct(forward);
 		float fov = fovy * DEG2RAD;
-		auto cal_plane = [position,forward,right,fov,up](float size) -> std::array<raylib::Vector3, 4> {
+		auto cal_plane = [position,forward,right,fov,up,&camera](float size) -> std::array<raylib::Vector3, 4> {
 			std::array<raylib::Vector3, 4> pl; 
-			float h = tanf(fov * 0.5f) * size;
-			float w = h;
 			raylib::Vector3 center = position.Add(forward.Scale(size));
-			raylib::Vector3 tl = center
-				.Add(up.Scale(h))
-				.Subtract(right.Scale(w));
-			pl[0] = tl; 
-			raylib::Vector3 tr = center
-				.Add(up.Scale(h))
-				.Add(right.Scale(w));
-			pl[1] = tr; 
-			raylib::Vector3 bl = center
-				.Subtract(up.Scale(h))
-				.Subtract(right.Scale(w));
-			pl[2] = bl; 
-			raylib::Vector3 br = center
-				.Subtract(up.Scale(h))
-				.Add(right.Scale(w));
-			pl[3] = br; 
+			if (camera.Raw().projection == ::CAMERA_ORTHOGRAPHIC) {
+				const float aspect = (float)::GetScreenWidth() / (float)::GetScreenHeight();
+				float half_height = camera.Raw().GetFovy() / 2.0 * 0.5;
+				float half_width = half_height * aspect;
+				
+				//up* halft_height 
+				raylib::Vector3 tl = center
+					.Add(up.Scale(half_height))
+					.Subtract(right.Scale(half_width));
+				pl[0] = tl;
+				raylib::Vector3 tr = center
+					.Add(up.Scale(half_height))
+					.Add(right.Scale(half_width));
+				pl[1] = tr;
+				raylib::Vector3 bl = center
+					.Subtract(up.Scale(half_height))
+					.Subtract(right.Scale(half_width));
+				pl[2] = bl;
+				raylib::Vector3 br = center
+					.Subtract(up.Scale(half_height))
+					.Add(right.Scale(half_width));
+				pl[3] = br;
+			}
+			else if (camera.Raw().projection == ::CAMERA_PERSPECTIVE) {
+				float h = tanf(fov * 0.5f) * size;
+				float w = h;
+				raylib::Vector3 tl = center
+					.Add(up.Scale(h))
+					.Subtract(right.Scale(w));
+				pl[0] = tl;
+				raylib::Vector3 tr = center
+					.Add(up.Scale(h))
+					.Add(right.Scale(w));
+				pl[1] = tr;
+				raylib::Vector3 bl = center
+					.Subtract(up.Scale(h))
+					.Subtract(right.Scale(w));
+				pl[2] = bl;
+				raylib::Vector3 br = center
+					.Subtract(up.Scale(h))
+					.Add(right.Scale(w));
+				pl[3] = br;
+			}
 			return pl; 
 		}; 
 
 		auto near_pl = cal_plane(camera.Near()); 
 		auto far_pl = cal_plane(camera.Far()); 
-
-		//float fov = fovy * DEG2RAD;
-		//float h = tanf(fov * 0.5f) * camera.Near();
-		//float w = h;
-		//raylib::Vector3 center = position.Add(forward.Scale(camera.Near()));
-		//raylib::Vector3 tl = center
-		//	.Add(up.Scale(h))
-		//	.Subtract(right.Scale(w));
-		//raylib::Vector3 tr = center
-		//	.Add(up.Scale(h))
-		//	.Add(right.Scale(w));
-		//raylib::Vector3 bl = center
-		//	.Subtract(up.Scale(h))
-		//	.Subtract(right.Scale(w));
-		//raylib::Vector3 br = center
-		//	.Subtract(up.Scale(h))
-		//	.Add(right.Scale(w));
 		return CameraHelperCommand{ camera.Raw().GetPosition(),
 			near_pl[0],
 			near_pl[1],

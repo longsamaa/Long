@@ -18,7 +18,6 @@ namespace Long {
 		void ApplyClip() const { rlSetClipPlanes(m_near, m_far); }
 		float m_near{ 0.1f };
 		float m_far{ 1000.0f };
-		float m_fov{ 45.0f };
 	};
 }
 #endif // !_BASE_CAMERA_HPP_
