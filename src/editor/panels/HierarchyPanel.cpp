@@ -87,7 +87,7 @@ namespace Long {
 	}
 
 	void HierarchyPanel::loadScene(Scene& scene)
-	{
+	{ 
 	}
 
 	void HierarchyPanel::clear()
