@@ -18,7 +18,20 @@ namespace Long {
 				if constexpr (std::is_same_v<T, GridCommand>) {
 					::DrawGrid(v.slices, v.spacing);
 				}
-				}, cmd);
+				else if constexpr (std::is_same_v<T, CameraHelperCommand>) {
+					v.pos.DrawSphere(0.1f, raylib::Color::Red());
+
+					v.pos.DrawLine3D(v.tl, raylib::Color::Green());
+					v.pos.DrawLine3D(v.tr, raylib::Color::Green());
+					v.pos.DrawLine3D(v.bl, raylib::Color::Green());
+					v.pos.DrawLine3D(v.br, raylib::Color::Green());
+
+					v.tl.DrawLine3D(v.tr, raylib::Color::Green());
+					v.tr.DrawLine3D(v.br, raylib::Color::Green());
+					v.br.DrawLine3D(v.bl, raylib::Color::Green());
+					v.bl.DrawLine3D(v.tl, raylib::Color::Green());
+				}
+			}, cmd);
 		}
 	}
 	void CommandDebugQueue::Clear()

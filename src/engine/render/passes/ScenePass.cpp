@@ -14,14 +14,12 @@ namespace Long {
 		if (!ctx.sceneTarget->IsValid()) {
 			return;
 		}
-		//update frustum
 		if (ctx.frustum)
 		{
 			ctx.frustum->update();
 		}
-		//const auto tPassStart = Time::now();
-		ctx.commandQueue->Clear();
-		ctx.commandDebugQueue->Clear();
+		//ctx.commandQueue->Clear();
+		//ctx.commandDebugQueue->Clear();
 		auto t0 = Time::now();
 		RenderSystem(*ctx.registry, *ctx.assets, *ctx.commandQueue, ctx.frustum, ctx.renderStats);
 		ctx.renderStats.msRenderSystem = Time::elapsedMs(t0);
@@ -39,7 +37,6 @@ namespace Long {
 			t0 = Time::now();
 			ctx.commandQueue->Execute(*ctx.assets, ctx.renderStats);
 			ctx.renderStats.msExecute = Time::elapsedMs(t0);
-			
 			auto tDebug = Time::now();
 			ctx.commandDebugQueue->Execute(ctx.renderStats);
 			ctx.renderStats.msDebugQueue = Time::elapsedMs(tDebug);
@@ -53,6 +50,5 @@ namespace Long {
 		auto tUnbind = Time::now();
 		ctx.sceneTarget->Unbind();
 		ctx.renderStats.msUnbind = Time::elapsedMs(tUnbind);
-		//ctx.renderStats.msScenePass = Time::elapsedMs(tPassStart);
 	}
 }
