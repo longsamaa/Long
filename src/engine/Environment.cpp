@@ -27,6 +27,9 @@ namespace Long {
 		if (!m_ready || !m_assets || !m_skyBoxMaterial) {
 			return;
 		}
+		if (camera.Raw().projection != CAMERA_PERSPECTIVE) {
+			return;
+		}
 		m_skyBoxMaterial->SetColor(topColor, bottomColor, gradientSharpness);
 		raylib::Shader& shader = m_assets->GetShader(m_gradientShaderId);
 		raylib::Material& rlMat = m_skyBoxMaterial->Apply(shader);
