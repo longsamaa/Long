@@ -4,10 +4,10 @@
 #include "BaseCamera.hpp"
 #include <raylib-cpp.hpp>
 namespace Long {
-	class MainCamera : public BaseCamera {
+	class GameCamera : public BaseCamera {
 	public:
-		MainCamera() = default;
-		~MainCamera() = default;
+		GameCamera();
+		~GameCamera() = default;
 	public:
 		raylib::Camera3D& Raw() { return m_camera; }
 	public:

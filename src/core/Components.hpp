@@ -4,6 +4,13 @@
 #include <string>
 #include <vector>
 namespace Long {
+	struct MainCamera {
+		float fov; 
+		float nearClip; 
+		float farClip; 
+		float orthoSize; 
+	};
+	
 	// LOCAL transform: position/rotation/scale RELATIVE TO THE PARENT (or to the
 	// world if the entity has no parent). This is what you edit.
 	struct Transform {

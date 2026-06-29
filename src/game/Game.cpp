@@ -31,6 +31,9 @@ namespace Long {
 		m_frustum.update();
 	}
 
+	void Game::BeginFrame(){
+	}
+
 	void Game::RenderWorld() {
 		RenderContext ctx;
 		ctx.commandQueue = &m_commandQueue;
@@ -45,6 +48,18 @@ namespace Long {
 		Execute(ctx);
 		m_renderStats = ctx.renderStats;
 	}
+
+	void Game::RenderUI()
+	{}
+
+	void Game::EndFrame(){
+		//clear command 
+		m_commandQueue.Clear(); 
+		m_commandDebugQueue.Clear(); 
+	}
+
+	void Game::OnExit()
+	{}
 
 	void Game::Execute(RenderContext& ctx) {
 		m_renderer.Render(ctx);

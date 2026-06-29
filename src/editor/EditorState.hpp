@@ -3,6 +3,7 @@
 #define _EDITOR_STATE_HPP_
 #include "engine/AppState.hpp"
 #include "engine/camera/EditorCamera.hpp"
+#include "engine/camera/GameCamera.hpp"
 #include "core/Scene.hpp"
 #include "editor/IPanel.hpp"
 #include "system/RenderStats.hpp"
@@ -24,8 +25,11 @@ namespace Long {
 		explicit EditorState(Application& app) : m_app(app) { m_state = State::EDITOR; }
 		void OnEnter() override;
 		void Update(float dt) override;
+		void BeginFrame() override; 
 		void RenderWorld() override;
+		void EndFrame() override; 
 		void RenderUI() override;
+		void OnExit() override; 
 		void Execute(RenderContext& ctx) override;
 	private:
 		void createGround();
@@ -39,15 +43,20 @@ namespace Long {
 		void GameModeUpdate(float t);
 		void EditorModeRenderWorld();
 		void GameModeRenderWorld();
+		void AddDebug(); 
 		IPanel* getPanel(const std::string& name);
 	private:
 		Application& m_app;
 		std::vector<std::unique_ptr<IPanel>> m_panels;
 		Scene m_scene;
 		Environment m_environment;
+		//Command Queue
 		CommandQueue m_commandQueue;
 		CommandDebugQueue m_commandDebugQueue;
+		//Camera 
 		EditorCamera m_camera;
+		GameCamera m_gameCamera; 
+
 		EditorGizmo m_gizmo;
 		Renderer m_renderer;
 		RenderStats m_renderStats;

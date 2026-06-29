@@ -20,8 +20,9 @@
 #include "engine/render/passes/BloomPass.hpp"
 #include "engine/render/passes/BloomCompositePass.hpp"
 #include "engine/render/passes/TonemapPass.hpp"
+#include "helpers/draw_debug_helper.hpp"
 #include "imgui.h"
-#include "imgui_internal.h" // DockBuilderGetCentralNode
+#include "imgui_internal.h"
 #include "raylib-cpp.hpp"
 #include "helpers/TimerHelper.hpp"
 #include "engine/Logger.hpp"
@@ -130,6 +131,10 @@ namespace Long {
 
 	void EditorState::EditorModeRenderWorld()
 	{
+		//Add Debug command
+		AddDebug(); 
+
+		//Build Context 
 		RenderContext ctx;
 		ctx.commandQueue = &m_commandQueue;
 		ctx.commandDebugQueue = &m_commandDebugQueue;
@@ -141,6 +146,8 @@ namespace Long {
 		ctx.frustum->setCamera(&m_camera.Raw());
 		ctx.width = (uint32_t)::GetRenderWidth();
 		ctx.height = (uint32_t)::GetRenderHeight();
+
+		//Draw outline pass 
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
 			ctx.selectedEntities = { m_selectedEntity };
 			auto& reg = m_scene.Registry();
@@ -160,6 +167,11 @@ namespace Long {
 		m_game->RenderWorld(); 
 	}
 
+	void EditorState::AddDebug()
+	{
+		m_commandDebugQueue.Submit(BuildCameraHelperCommand(m_gameCamera.Raw()));
+	}
+
 	IPanel* EditorState::getPanel(const std::string& name)
 	{
 		auto it = std::find_if(m_panels.begin(), m_panels.end(), [name](const std::unique_ptr<IPanel>& panel) {
@@ -170,6 +182,15 @@ namespace Long {
 
 	void EditorState::RenderWorld() {
 		!m_game ? EditorModeRenderWorld() : GameModeRenderWorld(); 
+	}
+
+	void EditorState::BeginFrame() {
+		m_commandQueue.Clear();
+		m_commandDebugQueue.Clear();
+	}
+
+	void EditorState::EndFrame(){
+	
 	}
 
 	void EditorState::Execute(RenderContext& ctx)
@@ -191,7 +212,7 @@ namespace Long {
 		entt::entity parent = m_scene.CreateEntity("ground");
 		reg.emplace<Transform>(parent, Transform{});
 		std::vector<entt::entity> children;
-		const int N = 100;
+		const int N = 5;
 		const float spacing = 4.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {
@@ -391,4 +412,6 @@ namespace Long {
 		// Each panel decides whether to draw based on its own open flag.
 		RenderPanels();
 	}
+	void EditorState::OnExit()
+	{}
 }

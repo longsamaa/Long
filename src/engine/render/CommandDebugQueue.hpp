@@ -4,12 +4,23 @@
 #include <vector>
 #include <variant>
 #include <system/RenderStats.hpp>
+#include <raylib-cpp.hpp>
+
 namespace Long {
 	struct GridCommand {
 		uint32_t slices{ 0 };
 		float_t spacing{ 0.0 };
+	}; 
+	struct CameraHelperCommand {
+		raylib::Vector3 pos; 
+		raylib::Vector3 tl; 
+		raylib::Vector3 tr; 
+		raylib::Vector3 bl; 
+		raylib::Vector3 br; 
 	};
-	using DebugCommand = std::variant<GridCommand>;
+	using DebugCommand = std::variant<GridCommand,CameraHelperCommand>;
+
+
 	class CommandDebugQueue {
 	public:
 		CommandDebugQueue() = default;

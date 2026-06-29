@@ -18,7 +18,11 @@ namespace Long {
 		explicit Game(Application& app) : m_app(app) { m_state = State::GAME; }
 		void OnEnter() override;
 		void Update(float dt) override;
+		void BeginFrame() override; 
 		void RenderWorld() override;
+		void RenderUI() override; 
+		void EndFrame() override; 
+		void OnExit() override; 
 		Scene& GetScene() { return m_scene; }
 		EditorCamera& GetCamera() { return m_camera; }
 		void Execute(RenderContext& ctx) override;

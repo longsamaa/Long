@@ -32,8 +32,13 @@ namespace Long {
 		return raylib::BoundingBox(worldMin, worldMax);
 	}
 
-	void DrawCircle3D(raylib::Vector3 center, raylib::Vector3 u, raylib::Vector3 v,
-		float radius, raylib::Color color, float thickness, int segments) {
+	void DrawCircle3D(raylib::Vector3 center,
+		raylib::Vector3 u,
+		raylib::Vector3 v,
+		float radius,
+		raylib::Color color,
+		float thickness, 
+		int segments) {
 		rlSetLineWidth(thickness);
 		raylib::Vector3 prev = center.Add(u.Scale(radius));
 		for (int s = 1; s <= segments; ++s) {
@@ -47,7 +52,9 @@ namespace Long {
 		rlSetLineWidth(1.0f); // restore default
 	}
 
-	void DrawRing3D(raylib::Vector3 center, raylib::Vector3 u, raylib::Vector3 v,
+	void DrawRing3D(raylib::Vector3 center, 
+		raylib::Vector3 u,
+		raylib::Vector3 v,
 		float radius, float width, raylib::Color color, int segments) {
 		float inner = radius - width * 0.5f;
 		float outer = radius + width * 0.5f;
@@ -68,9 +75,14 @@ namespace Long {
 		rlEnd();
 	}
 
-	void DrawTorus3D(raylib::Vector3 center, raylib::Vector3 u, raylib::Vector3 v,
-		float radius, float tube, raylib::Color color,
-		int ringSegments, int tubeSegments) {
+	void DrawTorus3D(raylib::Vector3 center,
+		raylib::Vector3 u, 
+		raylib::Vector3 v,
+		float radius,
+		float tube, 
+		raylib::Color color,
+		int ringSegments,
+		int tubeSegments) {
 		Vector3 n = Vector3Normalize(Vector3CrossProduct(u, v));
 		auto point = [&](int i, int j) -> Vector3 {
 			float a = (float)i / ringSegments * 2.0f * PI; // around the main ring
@@ -94,5 +106,38 @@ namespace Long {
 			}
 		}
 		rlEnd();
+	}
+	CameraHelperCommand BuildCameraHelperCommand(const raylib::Camera3D& camera, float nearDist)
+	{
+		const raylib::Vector3& target = camera.GetTarget(); 
+		const raylib::Vector3& position = camera.GetPosition(); 
+		const raylib::Vector3& cam_up = camera.GetUp(); 
+		const float fovy = camera.GetFovy(); 
+		//forward 
+		raylib::Vector3 forward = target.Subtract(position).Normalize(); 
+		//right up 
+		raylib::Vector3 right = forward.CrossProduct(cam_up).Normalize(); 
+		raylib::Vector3 up = right.CrossProduct(forward);
+		float fov = fovy * DEG2RAD;
+		float h = tanf(fov * 0.5f) * nearDist;
+		float w = h;
+		raylib::Vector3 center = position.Add(forward.Scale(nearDist));
+		raylib::Vector3 tl = center
+			.Add(up.Scale(h))
+			.Subtract(right.Scale(w));
+		raylib::Vector3 tr = center
+			.Add(up.Scale(h))
+			.Add(right.Scale(w));
+		raylib::Vector3 bl = center
+			.Subtract(up.Scale(h))
+			.Subtract(right.Scale(w));
+		raylib::Vector3 br = center
+			.Subtract(up.Scale(h))
+			.Add(right.Scale(w));
+		return CameraHelperCommand{ camera.GetPosition(),
+			tl,
+			tr,
+			bl,
+			br }; 
 	}
 } // namespace Long
