@@ -3,8 +3,8 @@
 #define _GAME_HPP_
 #include "engine/AppState.hpp"
 #include "core/Scene.hpp"
-#include "engine/camera/EditorCamera.hpp"
 #include "engine/render/Renderer.hpp"
+#include "engine/camera/GameCamera.hpp"
 #include "engine/render/CommandQueue.hpp"
 #include "engine/render/CommandDebugQueue.hpp"
 #include "engine/Environment.hpp"
@@ -16,6 +16,7 @@ namespace Long {
 	class Game : public AppState {
 	public:
 		explicit Game(Application& app) : m_app(app) { m_state = State::GAME; }
+		void setCamera(GameCamera camera); 
 		void OnEnter() override;
 		void Update(float dt) override;
 		void BeginFrame() override; 
@@ -24,7 +25,7 @@ namespace Long {
 		void EndFrame() override; 
 		void OnExit() override; 
 		Scene& GetScene() { return m_scene; }
-		EditorCamera& GetCamera() { return m_camera; }
+		GameCamera& GetCamera() { return m_camera; }
 		void Execute(RenderContext& ctx) override;
 		void copyhierarchy(const Scene& scene);
 	private:
@@ -34,7 +35,7 @@ namespace Long {
 		Environment m_environment;
 		CommandQueue m_commandQueue;
 		CommandDebugQueue m_commandDebugQueue;
-		EditorCamera m_camera;
+		GameCamera m_camera;
 		Renderer m_renderer;
 		FrustumCulling m_frustum;
 		RenderStats m_renderStats;

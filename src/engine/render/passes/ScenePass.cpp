@@ -18,8 +18,6 @@ namespace Long {
 		{
 			ctx.frustum->update();
 		}
-		//ctx.commandQueue->Clear();
-		//ctx.commandDebugQueue->Clear();
 		auto t0 = Time::now();
 		RenderSystem(*ctx.registry, *ctx.assets, *ctx.commandQueue, ctx.frustum, ctx.renderStats);
 		ctx.renderStats.msRenderSystem = Time::elapsedMs(t0);
@@ -33,7 +31,6 @@ namespace Long {
 		{
 			raylib::Color::DarkGray().ClearBackground();
 			ctx.camera->BeginMode();
-
 			t0 = Time::now();
 			ctx.commandQueue->Execute(*ctx.assets, ctx.renderStats);
 			ctx.renderStats.msExecute = Time::elapsedMs(t0);

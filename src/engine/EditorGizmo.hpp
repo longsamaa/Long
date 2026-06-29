@@ -5,7 +5,9 @@
 #include "raylib-cpp.hpp"
 #include "core/Components.hpp"
 #include "core/Scene.hpp"
+#include "engine/camera/BaseCamera.hpp"
 #include <vector>
+
 namespace Long {
 	class EditorGizmo {
 	public:
@@ -26,9 +28,9 @@ namespace Long {
 		bool IsLocal() const { return m_local; }
 		// Drag the gizmo for entity `e`. On change it edits the entity's Transform and
 		// marks it dirty via the scene, so TransformSystem recomputes only this entity.
-		bool Update(const raylib::Camera3D& camera, Scene& scene, entt::entity e);
-		void Draw(const raylib::Camera3D& camera, const Transform& target);
-		void DrawScreenGuide(const raylib::Camera3D& camera, const Transform& target);
+		bool Update(const BaseCamera& camera, Scene& scene, entt::entity e);
+		void Draw(const BaseCamera& camera, const Transform& target);
+		void DrawScreenGuide(const BaseCamera& camera, const Transform& target);
 		bool IsActive() const { return m_dragging != Handle::None; }
 		bool IsHot() const { return m_hot != Handle::None; }
 		// True while dragging a rotate ring; `outDeg` gets the angle delta (degrees).
@@ -41,7 +43,7 @@ namespace Long {
 		}
 		void drawDebugGizmo(const Transform& target, const float& scale);
 	private:
-		float GizmoScale(const raylib::Camera3D& camera, raylib::Vector3 pos) const;
+		float GizmoScale(const BaseCamera& camera, raylib::Vector3 pos) const;
 		// Orientation the handles are drawn/picked with: the target's rotation when
 		// in local mode (and during a rotate drag, the orientation latched at drag
 		// start so the ring planes don't drift), identity in world mode.

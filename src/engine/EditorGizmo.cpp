@@ -19,9 +19,9 @@ namespace Long {
 		return raylib::Vector3{ std::fabsf(v.x), std::fabsf(v.y), std::fabsf(v.z) };
 	}
 
-	float EditorGizmo::GizmoScale(const raylib::Camera3D& camera, raylib::Vector3 pos) const {
+	float EditorGizmo::GizmoScale(const BaseCamera& camera, raylib::Vector3 pos) const {
 		// Constant on-screen size: scale by distance to the camera.
-		return m_viewSize * pos.Distance(camera.position);
+		return m_viewSize * pos.Distance(camera.Raw().GetPosition());
 	}
 
 	void EditorGizmo::SetGizmoToLocal()
@@ -54,12 +54,12 @@ namespace Long {
 		return raylib::Vector3(Vector3RotateByQuaternion(ax2[i], HandleOrientation(target)));
 	}
 
-	bool EditorGizmo::Update(const raylib::Camera3D& camera, Scene& scene, entt::entity e) {
+	bool EditorGizmo::Update(const BaseCamera& camera, Scene& scene, entt::entity e) {
 		auto& reg = scene.Registry();
 		const Transform& target = reg.get<Transform>(e); // read-only view for hit-tests
 		raylib::Vector3 center = target.getPos();
 		float r = GizmoScale(camera, center);
-		raylib::Ray ray = camera.GetScreenToWorldRay(raylib::Mouse::GetPosition());
+		raylib::Ray ray = camera.Raw().GetScreenToWorldRay(raylib::Mouse::GetPosition());
 		if (!raylib::Mouse::IsButtonDown(MOUSE_BUTTON_LEFT)) {
 			m_dragging = Handle::None;
 		}
@@ -216,7 +216,7 @@ namespace Long {
 		return m_hot != Handle::None;
 	}
 
-	void EditorGizmo::Draw(const raylib::Camera3D& camera, const Transform& target) {
+	void EditorGizmo::Draw(const BaseCamera& camera, const Transform& target) {
 		const raylib::Vector3& center = target.getPos();
 		float r = GizmoScale(camera, center);
 		rlDisableDepthTest(); // gizmo always on top
@@ -297,11 +297,11 @@ namespace Long {
 		rlEnableDepthTest();
 	}
 
-	void EditorGizmo::DrawScreenGuide(const raylib::Camera3D& camera, const Transform& target) {
+	void EditorGizmo::DrawScreenGuide(const BaseCamera& camera, const Transform& target) {
 		if ((m_dragging >= Handle::PlaneXY && m_dragging <= Handle::PlaneYZ) || m_dragging == Handle::None) {
 			return;
 		}
-		raylib::Vector2 centerScreen = camera.GetWorldToScreen(target.getPos());
+		raylib::Vector2 centerScreen = camera.Raw().GetWorldToScreen(target.getPos());
 		raylib::Vector2 mouse = raylib::Mouse::GetPosition();
 		::DrawLineEx(centerScreen, mouse, 1.5f, raylib::Color::White());
 	}

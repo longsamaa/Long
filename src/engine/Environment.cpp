@@ -23,7 +23,7 @@ namespace Long {
 		m_ready = true;
 	}
 
-	void Environment::DrawSkybox(const raylib::Camera3D& camera) {
+	void Environment::DrawSkybox(BaseCamera& camera) {
 		if (!m_ready || !m_assets || !m_skyBoxMaterial) {
 			return;
 		}
@@ -32,7 +32,7 @@ namespace Long {
 		raylib::Material& rlMat = m_skyBoxMaterial->Apply(shader);
 		rlDisableBackfaceCulling();
 		rlDisableDepthMask();
-		m_skybox.Draw(rlMat, MatrixTranslate(camera.position.x, camera.position.y, camera.position.z));
+		m_skybox.Draw(rlMat, MatrixTranslate(camera.Raw().GetPosition().x, camera.Raw().GetPosition().y, camera.Raw().GetPosition().z));
 		rlEnableBackfaceCulling();
 		rlEnableDepthMask();
 	}

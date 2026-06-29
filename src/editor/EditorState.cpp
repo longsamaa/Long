@@ -116,7 +116,7 @@ namespace Long {
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
 			&& m_scene.Registry().all_of<Transform>(m_selectedEntity)
 			&& !ImGui::GetIO().WantCaptureMouse) {
-			m_gizmo.Update(m_camera.Raw(), m_scene, m_selectedEntity);
+			m_gizmo.Update(m_camera, m_scene, m_selectedEntity);
 			gizmoHasInput = m_gizmo.IsActive() || m_gizmo.IsHot();
 		}
 		if (!gizmoHasInput) {
@@ -141,9 +141,9 @@ namespace Long {
 		ctx.environment = &m_environment;
 		ctx.registry = &m_scene.Registry();
 		ctx.assets = &m_app.GetAssets();
-		ctx.camera = &m_camera.Raw();
+		ctx.camera = &m_camera;
 		ctx.frustum = &m_frustum;
-		ctx.frustum->setCamera(&m_camera.Raw());
+		ctx.frustum->setCamera(&m_camera);
 		ctx.width = (uint32_t)::GetRenderWidth();
 		ctx.height = (uint32_t)::GetRenderHeight();
 
@@ -169,7 +169,7 @@ namespace Long {
 
 	void EditorState::AddDebug()
 	{
-		m_commandDebugQueue.Submit(BuildCameraHelperCommand(m_gameCamera.Raw()));
+		m_commandDebugQueue.Submit(BuildCameraHelperCommand(m_gameCamera));
 	}
 
 	IPanel* EditorState::getPanel(const std::string& name)
@@ -392,7 +392,8 @@ namespace Long {
 				else {
 					m_game = std::make_unique<Game>(m_app);
 					Logger::TraceLog(LOG_TRACE, "[Game] Swap Game Playing mode");
-					m_game->OnEnter(); 
+					m_game->OnEnter();
+					m_game->setCamera(m_gameCamera); 
 					m_game->copyhierarchy(m_scene);
 					Logger::TraceLog(LOG_TRACE, "[Game] Copy hierarchy");
 				}

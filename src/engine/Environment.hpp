@@ -5,6 +5,7 @@
 #include "raylib-cpp.hpp"
 #include <optional>
 #include <memory>
+#include "engine/camera/BaseCamera.hpp"
 namespace Long {
 	class SkyboxMaterial;
 	class Environment {
@@ -12,7 +13,7 @@ namespace Long {
 		Environment();
 		~Environment();
 		void Init(class AssetManager& assets);
-		void DrawSkybox(const raylib::Camera3D& camera);
+		void DrawSkybox(BaseCamera& camera);
 		raylib::Vector3 topColor    = { 0.18f, 0.38f, 0.60f };
 		raylib::Vector3 bottomColor = { 0.02f, 0.05f, 0.10f };
 		float gradientSharpness = 1.0f; 

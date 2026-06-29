@@ -1,7 +1,7 @@
 #include "FrustumCulling.hpp"
 #include "rcamera.h"
 namespace Long {
-	void FrustumCulling::setCamera(raylib::Camera3D* _camera)
+	void FrustumCulling::setCamera(BaseCamera* _camera)
 	{
 		camera = _camera; 
 	}
@@ -12,9 +12,20 @@ namespace Long {
 	void FrustumCulling::buildPlane()
 	{
 		if (!camera) return;
-		raylib::Matrix view_matrix = camera->GetMatrix();
+		const raylib::Camera3D& cam = camera->Raw();
+		raylib::Matrix view_matrix = cam.GetMatrix();
 		const float aspect = (float)::GetScreenWidth() / (float)::GetScreenHeight();
-		raylib::Matrix proj_matrix(::GetCameraProjectionMatrix(camera, aspect));
+		raylib::Matrix proj_matrix;
+		if (cam.projection == CAMERA_PERSPECTIVE) {
+			proj_matrix = MatrixPerspective(camera->Raw().GetFovy() * DEG2RAD, aspect,
+				camera->Near(), camera->Far());
+		}
+		else { // CAMERA_ORTHOGRAPHIC: fovy is the full vertical world height
+			double top = camera->Raw().GetFovy() / 2.0;
+			double right = top * aspect;
+			proj_matrix = MatrixOrtho(-right, right, -top, top,
+				camera->Near(), camera->Far());
+		}
 		raylib::Matrix m = view_matrix.Multiply(proj_matrix); 
 		auto setPlane = [&](int i, float a, float b, float c, float d) {
 			raylib::Vector3 n{ a, b, c };

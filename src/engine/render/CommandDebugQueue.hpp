@@ -13,10 +13,14 @@ namespace Long {
 	}; 
 	struct CameraHelperCommand {
 		raylib::Vector3 pos; 
-		raylib::Vector3 tl; 
-		raylib::Vector3 tr; 
-		raylib::Vector3 bl; 
-		raylib::Vector3 br; 
+		raylib::Vector3 n_tl; 
+		raylib::Vector3 n_tr; 
+		raylib::Vector3 n_bl; 
+		raylib::Vector3 n_br; 
+		raylib::Vector3 f_tl; 
+		raylib::Vector3 f_tr; 
+		raylib::Vector3 f_bl; 
+		raylib::Vector3 f_br; 
 	};
 	using DebugCommand = std::variant<GridCommand,CameraHelperCommand>;
 

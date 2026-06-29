@@ -19,17 +19,27 @@ namespace Long {
 					::DrawGrid(v.slices, v.spacing);
 				}
 				else if constexpr (std::is_same_v<T, CameraHelperCommand>) {
-					v.pos.DrawSphere(0.1f, raylib::Color::Red());
+					v.pos.DrawSphere(0.3f, raylib::Color::Red());
 
-					v.pos.DrawLine3D(v.tl, raylib::Color::Green());
-					v.pos.DrawLine3D(v.tr, raylib::Color::Green());
-					v.pos.DrawLine3D(v.bl, raylib::Color::Green());
-					v.pos.DrawLine3D(v.br, raylib::Color::Green());
+					v.pos.DrawLine3D(v.n_tl, raylib::Color::Green());
+					v.pos.DrawLine3D(v.n_tr, raylib::Color::Green());
+					v.pos.DrawLine3D(v.n_bl, raylib::Color::Green());
+					v.pos.DrawLine3D(v.n_br, raylib::Color::Green());
 
-					v.tl.DrawLine3D(v.tr, raylib::Color::Green());
-					v.tr.DrawLine3D(v.br, raylib::Color::Green());
-					v.br.DrawLine3D(v.bl, raylib::Color::Green());
-					v.bl.DrawLine3D(v.tl, raylib::Color::Green());
+					v.n_tl.DrawLine3D(v.n_tr, raylib::Color::Green());
+					v.n_tr.DrawLine3D(v.n_br, raylib::Color::Green());
+					v.n_br.DrawLine3D(v.n_bl, raylib::Color::Green());
+					v.n_bl.DrawLine3D(v.n_tl, raylib::Color::Green());
+
+					v.n_tl.DrawLine3D(v.f_tl, raylib::Color::Green());
+					v.n_tr.DrawLine3D(v.f_tr, raylib::Color::Green());
+					v.n_br.DrawLine3D(v.f_br, raylib::Color::Green());
+					v.n_bl.DrawLine3D(v.f_bl, raylib::Color::Green());
+
+					v.f_tl.DrawLine3D(v.f_tr, raylib::Color::Green());
+					v.f_tr.DrawLine3D(v.f_br, raylib::Color::Green());
+					v.f_br.DrawLine3D(v.f_bl, raylib::Color::Green());
+					v.f_bl.DrawLine3D(v.f_tl, raylib::Color::Green());
 				}
 			}, cmd);
 		}

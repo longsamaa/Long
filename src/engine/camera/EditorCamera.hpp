@@ -10,9 +10,9 @@ namespace Long {
 		void Update(float dt) override;
 		void ZoomToward(float wheel, const raylib::Vector3& pivot);
 		void FocusOn(const raylib::Vector3& point);
-		void Begin3D() override { m_camera.BeginMode(); };
-		void End3D() override { m_camera.EndMode(); }
-		raylib::Camera3D& Raw() { return m_camera; }
+		void BeginMode() override { ApplyClip(); m_camera.BeginMode(); };
+		void EndMode() override { m_camera.EndMode(); }
+		const raylib::Camera3D& Raw() const override { return m_camera; }
 	private:
 		void UpdateCameraVectors();
 		raylib::Camera3D m_camera;

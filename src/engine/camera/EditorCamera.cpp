@@ -2,9 +2,11 @@
 
 namespace Long {
 	EditorCamera::EditorCamera() {
+		static const float fov = 45.0f; 
 		m_camera.up = { 0.0f, 1.0f, 0.0f };
-		m_camera.fovy = 45.0f;
+		m_camera.fovy = fov;
 		m_camera.projection = ::CAMERA_PERSPECTIVE;
+		SetClip(0.1, 1000.0f); 
 		UpdateCameraVectors();
 	}
 

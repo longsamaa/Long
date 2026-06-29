@@ -12,6 +12,10 @@
 #include "raylib-cpp.hpp"
 
 namespace Long {
+	void Game::setCamera(GameCamera camera)
+	{
+		m_camera = camera; 
+	}
 	void Game::OnEnter() {
 		m_renderer.AddPass(std::make_unique<ScenePass>());
 		m_renderer.AddPass(std::make_unique<BrightPass>());
@@ -19,7 +23,7 @@ namespace Long {
 		m_renderer.AddPass(std::make_unique<BloomCompositePass>());
 		m_renderer.AddPass(std::make_unique<TonemapPass>());
 		m_environment.Init(m_app.GetAssets());
-		m_frustum.setCamera(&m_camera.Raw());
+		m_frustum.setCamera(&m_camera);
 		//buildDefaultScene();
 	}
 
@@ -32,6 +36,8 @@ namespace Long {
 	}
 
 	void Game::BeginFrame(){
+		m_commandDebugQueue.Clear(); 
+		m_commandQueue.Clear(); 
 	}
 
 	void Game::RenderWorld() {
@@ -41,7 +47,7 @@ namespace Long {
 		ctx.environment = &m_environment;
 		ctx.registry = &m_scene.Registry();
 		ctx.assets = &m_app.GetAssets();
-		ctx.camera = &m_camera.Raw();
+		ctx.camera = &m_camera;
 		ctx.frustum = &m_frustum;
 		ctx.width = (uint32_t)GetRenderWidth();
 		ctx.height = (uint32_t)GetRenderHeight();

@@ -9,11 +9,11 @@ namespace Long {
 		GameCamera();
 		~GameCamera() = default;
 	public:
-		raylib::Camera3D& Raw() { return m_camera; }
-	public:
+		const raylib::Camera3D& Raw() const override { return m_camera; }
 		void Update(float dt) override;
-		void Begin3D() override { m_camera.BeginMode(); };
-		void End3D() override { m_camera.EndMode(); };
+		void BeginMode() override { ApplyClip(); m_camera.BeginMode(); }
+		void EndMode() override { m_camera.EndMode(); }
+	private:
 		raylib::Camera3D m_camera;
 	};
 }

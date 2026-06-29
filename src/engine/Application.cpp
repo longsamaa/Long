@@ -92,15 +92,15 @@ namespace Long {
 			const float dt = m_window.GetFrameTime();
 			double msUpdate = 0.0;
 			if (m_state) {
-				auto tu = Time::now();
 				m_state->Update(dt);
-				msUpdate = Time::elapsedMs(tu);
 			}
+
 			m_window.BeginDrawing();
 			m_window.ClearBackground(raylib::Color::White());
-			double msRenderWorld = 0.0, msRenderUI = 0.0;
 			if (m_state) {
+				m_state->BeginFrame(); 
 				m_state->RenderWorld();
+				m_state->EndFrame(); 
 				rlImGuiBegin();
 #ifdef IMGUI_HAS_DOCK
 				m_dockspaceId = ImGui::DockSpaceOverViewport(0, NULL, ImGuiDockNodeFlags_PassthruCentralNode);
@@ -108,6 +108,7 @@ namespace Long {
 				m_state->RenderUI();
 				rlImGuiEnd();
 			}
+
 			m_window.EndDrawing();             // SwapBuffers + waits for vsync
 		}
 		TraceLog(LOG_INFO, "Application::Run() loop exit");

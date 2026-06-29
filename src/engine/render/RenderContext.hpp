@@ -9,7 +9,8 @@
 #include "RenderTarget.hpp"
 #include "CommandQueue.hpp"
 #include "CommandDebugQueue.hpp"
-#include "core/Components.hpp"   // Long::Transform
+#include "core/Components.hpp"   
+#include "engine/camera/BaseCamera.hpp"
 namespace Long {
 	class AssetManager;
 	class Environment;
@@ -20,7 +21,7 @@ namespace Long {
 		CommandDebugQueue* commandDebugQueue{ nullptr }; 
 		entt::registry* registry{ nullptr };
 		AssetManager* assets{ nullptr };     // ScenePass needs meshes/materials
-		raylib::Camera3D* camera{ nullptr };
+		BaseCamera* camera{ nullptr };
 		FrustumCulling* frustum{ nullptr };  // visibility: cull entities outside view
 		uint32_t width{ 0 };
 		uint32_t height{ 0 };

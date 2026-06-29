@@ -1,7 +1,7 @@
 #include "helpers/draw_debug_helper.hpp"
 #include "raymath.h"
 #include "rlgl.h"
-
+#include <array>
 namespace Long {
 	raylib::BoundingBox MakeWorldBoundingBox(const raylib::BoundingBox& localBox,
 		const raylib::Matrix& world) {
@@ -107,37 +107,70 @@ namespace Long {
 		}
 		rlEnd();
 	}
-	CameraHelperCommand BuildCameraHelperCommand(const raylib::Camera3D& camera, float nearDist)
+	CameraHelperCommand BuildCameraHelperCommand(const BaseCamera& camera)
 	{
-		const raylib::Vector3& target = camera.GetTarget(); 
-		const raylib::Vector3& position = camera.GetPosition(); 
-		const raylib::Vector3& cam_up = camera.GetUp(); 
-		const float fovy = camera.GetFovy(); 
+		const raylib::Vector3& target = camera.Raw().GetTarget(); 
+		const raylib::Vector3& position = camera.Raw().GetPosition(); 
+		const raylib::Vector3& cam_up = camera.Raw().GetUp(); 
+		const float fovy = camera.Raw().GetFovy(); 
 		//forward 
 		raylib::Vector3 forward = target.Subtract(position).Normalize(); 
 		//right up 
 		raylib::Vector3 right = forward.CrossProduct(cam_up).Normalize(); 
 		raylib::Vector3 up = right.CrossProduct(forward);
 		float fov = fovy * DEG2RAD;
-		float h = tanf(fov * 0.5f) * nearDist;
-		float w = h;
-		raylib::Vector3 center = position.Add(forward.Scale(nearDist));
-		raylib::Vector3 tl = center
-			.Add(up.Scale(h))
-			.Subtract(right.Scale(w));
-		raylib::Vector3 tr = center
-			.Add(up.Scale(h))
-			.Add(right.Scale(w));
-		raylib::Vector3 bl = center
-			.Subtract(up.Scale(h))
-			.Subtract(right.Scale(w));
-		raylib::Vector3 br = center
-			.Subtract(up.Scale(h))
-			.Add(right.Scale(w));
-		return CameraHelperCommand{ camera.GetPosition(),
-			tl,
-			tr,
-			bl,
-			br }; 
+		auto cal_plane = [position,forward,right,fov,up](float size) -> std::array<raylib::Vector3, 4> {
+			std::array<raylib::Vector3, 4> pl; 
+			float h = tanf(fov * 0.5f) * size;
+			float w = h;
+			raylib::Vector3 center = position.Add(forward.Scale(size));
+			raylib::Vector3 tl = center
+				.Add(up.Scale(h))
+				.Subtract(right.Scale(w));
+			pl[0] = tl; 
+			raylib::Vector3 tr = center
+				.Add(up.Scale(h))
+				.Add(right.Scale(w));
+			pl[1] = tr; 
+			raylib::Vector3 bl = center
+				.Subtract(up.Scale(h))
+				.Subtract(right.Scale(w));
+			pl[2] = bl; 
+			raylib::Vector3 br = center
+				.Subtract(up.Scale(h))
+				.Add(right.Scale(w));
+			pl[3] = br; 
+			return pl; 
+		}; 
+
+		auto near_pl = cal_plane(camera.Near()); 
+		auto far_pl = cal_plane(camera.Far()); 
+
+		//float fov = fovy * DEG2RAD;
+		//float h = tanf(fov * 0.5f) * camera.Near();
+		//float w = h;
+		//raylib::Vector3 center = position.Add(forward.Scale(camera.Near()));
+		//raylib::Vector3 tl = center
+		//	.Add(up.Scale(h))
+		//	.Subtract(right.Scale(w));
+		//raylib::Vector3 tr = center
+		//	.Add(up.Scale(h))
+		//	.Add(right.Scale(w));
+		//raylib::Vector3 bl = center
+		//	.Subtract(up.Scale(h))
+		//	.Subtract(right.Scale(w));
+		//raylib::Vector3 br = center
+		//	.Subtract(up.Scale(h))
+		//	.Add(right.Scale(w));
+		return CameraHelperCommand{ camera.Raw().GetPosition(),
+			near_pl[0],
+			near_pl[1],
+			near_pl[2],
+			near_pl[3],
+			far_pl[0],
+			far_pl[1],
+			far_pl[2],
+			far_pl[3]
+		};
 	}
 } // namespace Long

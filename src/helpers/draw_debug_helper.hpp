@@ -3,6 +3,7 @@
 #define _DRAW_DEBUG_HELPER_HPP_
 
 #include "raylib-cpp.hpp"
+#include "engine/camera/BaseCamera.hpp"
 #include "engine/render/CommandDebugQueue.hpp"
 
 namespace Long {
@@ -20,7 +21,7 @@ namespace Long {
 		float radius, float tube, raylib::Color color,
 		int ringSegments = 48, int tubeSegments = 10);
 
-	CameraHelperCommand BuildCameraHelperCommand(const raylib::Camera3D& camera, float nearDist =5.0f); 
+	CameraHelperCommand BuildCameraHelperCommand(const BaseCamera& camera); 
 
 } // namespace Long
 
