@@ -7,7 +7,7 @@ namespace Long {
 		static const float fov = 45.0f; 
 		m_camera.position = { 6.0f,6.0f,6.0f }; 
 		m_camera.fovy = fov; 
-		m_camera.projection = ::CAMERA_ORTHOGRAPHIC;
+		m_camera.projection = ::CAMERA_PERSPECTIVE;
 		m_camera.SetTarget(default_target); 
 		SetClip(0.3f, 50.0f);
 	}

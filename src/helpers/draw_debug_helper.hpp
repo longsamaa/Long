@@ -21,7 +21,7 @@ namespace Long {
 		float radius, float tube, raylib::Color color,
 		int ringSegments = 48, int tubeSegments = 10);
 
-	CameraHelperCommand BuildCameraHelperCommand(const BaseCamera& camera); 
+	CameraHelperCommand BuildCameraHelperCommand(const BaseCamera& camera, float helper_size = 2.0f); 
 
 } // namespace Long
 

@@ -107,7 +107,7 @@ namespace Long {
 		}
 		rlEnd();
 	}
-	CameraHelperCommand BuildCameraHelperCommand(const BaseCamera& camera)
+	CameraHelperCommand BuildCameraHelperCommand(const BaseCamera& camera, float helper_size)
 	{
 		const raylib::Vector3& target = camera.Raw().GetTarget(); 
 		const raylib::Vector3& position = camera.Raw().GetPosition(); 
@@ -169,7 +169,8 @@ namespace Long {
 		}; 
 
 		auto near_pl = cal_plane(camera.Near()); 
-		auto far_pl = cal_plane(camera.Far()); 
+		auto far_pl = cal_plane(camera.Far());
+		raylib::Vector3 up_p = position.Add(up.Scale(helper_size)); 
 		return CameraHelperCommand{ camera.Raw().GetPosition(),
 			near_pl[0],
 			near_pl[1],
@@ -178,7 +179,10 @@ namespace Long {
 			far_pl[0],
 			far_pl[1],
 			far_pl[2],
-			far_pl[3]
+			far_pl[3],
+			position.Add(up.Scale(helper_size)),
+			position.Add(forward.Scale(helper_size)),
+			position.Add(right.Scale(helper_size))
 		};
 	}
 } // namespace Long

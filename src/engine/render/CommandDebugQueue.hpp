@@ -21,6 +21,9 @@ namespace Long {
 		raylib::Vector3 f_tr; 
 		raylib::Vector3 f_bl; 
 		raylib::Vector3 f_br; 
+		raylib::Vector3 up_p; 
+		raylib::Vector3 foward_p; 
+		raylib::Vector3 right_p; 
 	};
 	using DebugCommand = std::variant<GridCommand,CameraHelperCommand>;
 

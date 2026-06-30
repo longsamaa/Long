@@ -40,6 +40,11 @@ namespace Long {
 					v.f_tr.DrawLine3D(v.f_br, raylib::Color::Green());
 					v.f_br.DrawLine3D(v.f_bl, raylib::Color::Green());
 					v.f_bl.DrawLine3D(v.f_tl, raylib::Color::Green());
+
+					//draw axis
+					v.pos.DrawLine3D(v.up_p,raylib::Color::Green()); 
+					v.pos.DrawLine3D(v.right_p,raylib::Color::Red()); 
+					v.pos.DrawLine3D(v.foward_p,raylib::Color::Blue());
 				}
 			}, cmd);
 		}
