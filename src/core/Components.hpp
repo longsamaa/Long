@@ -5,14 +5,9 @@
 #include <vector>
 namespace Long {
 	struct MainCamera {
-		float fov; 
-		float nearClip; 
-		float farClip; 
-		float orthoSize; 
+		uint32_t buildFromTransformVersion{ 0 }; 
 	};
-	
-	// LOCAL transform: position/rotation/scale RELATIVE TO THE PARENT (or to the
-	// world if the entity has no parent). This is what you edit.
+	//Transform component
 	struct Transform {
 	public:
 		const raylib::Vector3& setPos(const raylib::Vector3& _position) {
@@ -47,24 +42,17 @@ namespace Long {
 		raylib::Vector3 position = { 0, 0, 0 };
 		raylib::Quaternion quaternion = { 0, 0, 0, 1 };
 		raylib::Vector3 scale = { 1, 1, 1 };
-		// Start at 1 so a freshly-created Transform is != MatrixTransform's
-		// buildFromTransformVersion (0) -> it always gets built on the first pass,
-		// even if no setter was ever called.
 		uint32_t version{ 1 };
 	};
 
-	// WORLD transform: the absolute model matrix, computed by the TransformSystem
-	// as  parent.world * local.  RenderSystem draws with THIS. Do not edit by hand.
+	//Matrix transform component
 	struct MatrixTransform {
 		raylib::Matrix world_matrix = MatrixIdentity();
 		raylib::Matrix local_matrix = MatrixIdentity();
 		uint32_t buildFromTransformVersion{ 0 };
 	};
 
-	// Cached world-space AABB, recomputed only when the transform changes (see
-	// TransformSystem). Lets frustum culling read bounds without re-transforming the
-	// collider's 8 corners every frame. `builtVersion` mirrors the Transform version
-	// the AABB was built from.
+	//World aabb component 
 	struct WorldAABB {
 		raylib::Vector3 min{ 0, 0, 0 };
 		raylib::Vector3 max{ 0, 0, 0 };
@@ -105,6 +93,7 @@ namespace Long {
 
 	struct BoxCollider3D {
 		raylib::BoundingBox box = raylib::BoundingBox({ -0.5f, -0.5f, -0.5f }, { 0.5f, 0.5f, 0.5f });
+		uint32_t buildFromMatrixTransformVersion{ 0 }; 
 	};
 
 	// Human-readable name (handy in the editor's entity list / inspector).

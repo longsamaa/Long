@@ -10,6 +10,7 @@
 #include "system/TransformSystem.hpp"
 #include "system/RayCastSystem.hpp"
 #include "system/WorldBoundSystem.hpp"
+#include "system/GameCameraSystem.hpp"
 #include "engine/render/passes/ScenePass.hpp"
 #include "engine/render/passes/MaskPass.hpp"
 #include "engine/render/passes/CompositePass.hpp"
@@ -20,7 +21,9 @@
 #include "engine/render/passes/BloomPass.hpp"
 #include "engine/render/passes/BloomCompositePass.hpp"
 #include "engine/render/passes/TonemapPass.hpp"
+#include "engine/render/passes/RenderDebugPass.hpp"
 #include "helpers/draw_debug_helper.hpp"
+#include "core/math/transform.hpp"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "raylib-cpp.hpp"
@@ -49,17 +52,38 @@ namespace Long {
 		m_renderer.AddPass(std::make_unique<TonemapPass>());        // HDR -> screen (tonemap + FXAA)
 		m_renderer.AddPass(std::make_unique<OutlinePass>());        // overlay, straight to screen
 		m_renderer.AddPass(std::make_unique<GizmoPass>());          // overlay, straight to screen
+		m_renderer.AddPass(std::make_unique<RenderDebugPass>());          // overlay, render debug
 
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: passes added, init environment");
 		m_environment.Init(m_app.GetAssets());
 		m_panels.push_back(std::make_unique<EnvironmentPanel>(m_environment));
 		m_panels.back()->close();
-		//init camera
+		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter : create main camera"); 
+		createComponentCamera(); 
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround begin");
 		createGround();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround done, createEmissiveBoxes begin");
 		createEmissiveBoxes();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createEmissiveBoxes done");
+	}
+
+	void EditorState::createComponentCamera()
+	{
+		//Create transform component camera 
+		auto& reg = m_scene.Registry();
+		entt::entity main_camera = m_scene.CreateEntity("MainCamera");
+		const raylib::Vector3& camera_pos = m_gameCamera.Raw().GetPosition();
+		Transform transform_component;
+		transform_component.setPos(camera_pos);
+		transform_component.setQuaternion(CameraToQuaternion(m_gameCamera));
+		reg.emplace<Transform>(main_camera, transform_component);
+		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f); 
+		uint32_t meshId = m_app.GetAssets().AddMesh(std::move(cube));
+		raylib::BoundingBox box_collider(cube);
+		reg.emplace<MeshFilter>(main_camera, MeshFilter{ meshId }); 
+		reg.emplace<BoxCollider3D>(main_camera, box_collider);
+		reg.emplace<Hierarchy>(main_camera, Hierarchy{ entt::null, {} });
+		reg.emplace<MainCamera>(main_camera); // empty tag: emplace takes no value
 	}
 
 	void EditorState::Update(float dt) {
@@ -110,6 +134,7 @@ namespace Long {
 		auto t0 = Time::now();
 		TransformSystem(m_scene.Registry());
 		WorldBoundsSystem(m_scene.Registry(), m_app.GetAssets());
+		GameCameraSystem(m_scene.Registry(), m_gameCamera); 
 		m_msTransformSystem = Time::elapsedSecond(t0);
 		
 		bool gizmoHasInput = false;

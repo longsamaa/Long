@@ -6,12 +6,10 @@ namespace Long {
 	RaycastHit RaycastSystem(entt::registry& registry, const raylib::Ray& ray) {
 		RaycastHit best;
 		float bestDist = 0.0f;
-
-		auto view = registry.view<BoxCollider3D, MatrixTransform>();
+		auto view = registry.view<WorldAABB>();
 		for (entt::entity e : view) {
-			const auto& [box, wt] = view.get<BoxCollider3D, MatrixTransform>(e);
-			raylib::BoundingBox aabb = MakeWorldBoundingBox(box.box, wt.world_matrix);
-			RayCollision col = raylib::Ray(ray).GetCollision(aabb);
+			const auto& world_aabb = view.get<WorldAABB>(e);
+			RayCollision col = raylib::Ray(ray).GetCollision({world_aabb.min,world_aabb.max});
 			if (col.hit && (!best.hit || col.distance < bestDist)) {
 				best.hit = true;
 				best.entity = e;

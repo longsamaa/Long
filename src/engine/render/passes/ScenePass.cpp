@@ -34,9 +34,6 @@ namespace Long {
 			t0 = Time::now();
 			ctx.commandQueue->Execute(*ctx.assets, ctx.renderStats);
 			ctx.renderStats.msExecute = Time::elapsedMs(t0);
-			auto tDebug = Time::now();
-			ctx.commandDebugQueue->Execute(ctx.renderStats);
-			ctx.renderStats.msDebugQueue = Time::elapsedMs(tDebug);
 			auto tSky = Time::now();
 			if (ctx.environment) {
 				ctx.environment->DrawSkybox(*ctx.camera);

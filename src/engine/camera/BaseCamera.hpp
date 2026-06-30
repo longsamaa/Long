@@ -14,6 +14,8 @@ namespace Long {
 		float Near() const { return m_near; }
 		float Far()  const { return m_far; }
 		void SetClip(float n, float f) { m_near = n; m_far = f; }
+		virtual void ApplyTransform(const raylib::Quaternion& quaternion,
+			const raylib::Vector3& pos) = 0; 
 	protected:
 		void ApplyClip() const { rlSetClipPlanes(m_near, m_far); }
 		float m_near{ 0.1f };

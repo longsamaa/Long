@@ -22,7 +22,7 @@ namespace Long {
 		const bool hasChildren = hier && !hier->children.empty();
 		ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
 			ImGuiTreeNodeFlags_SpanAvailWidth;
-		if (m_selected == e && !bCameraSelected) {
+		if (m_selected == e) {
 			flags |= ImGuiTreeNodeFlags_Selected;
 		}
 		if (!hasChildren) {
@@ -33,7 +33,6 @@ namespace Long {
 			flags, "%s", label.c_str());
 		if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
 			m_selected = e;
-			bCameraSelected = false;
 		}
 		if (open && hasChildren) {
 			for (entt::entity child : hier->children) {
@@ -56,18 +55,6 @@ namespace Long {
 				ImGuiTreeNodeFlags_OpenOnArrow |
 				ImGuiTreeNodeFlags_SpanAvailWidth, "%s", label_scene.c_str());
 			if (sceneOpen) {
-				//Draw main camera  
-				std::string label = "MainCamera"; 
-				ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-				if (bCameraSelected) {
-					flags |= ImGuiTreeNodeFlags_Selected;
-				}
-				const bool open = ImGui::TreeNodeEx(
-					"test",
-					flags, "%s", label.c_str());
-				if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-					bCameraSelected = true; 
-				}
 				const entt::registry& reg = m_scene.Registry();
 				reg.view<entt::entity>().each([&](entt::entity e) {
 					const Hierarchy* hier = reg.try_get<Hierarchy>(e);

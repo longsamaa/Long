@@ -4,14 +4,14 @@
 #include "engine/Logger.hpp"
 namespace Long {
 	void WorldBoundsSystem(entt::registry& registry, AssetManager& asset_manager) {
-		auto view = registry.view<DirtyTransform,MeshFilter, Transform, Name>();
+		auto view = registry.view<DirtyTransform,MeshFilter,MatrixTransform,Transform, Name>();
 		for (entt::entity e : view) {
 			//lay AABB component neu ko co thi create
 			WorldAABB& aabb = registry.get_or_emplace<WorldAABB>(e);
-			const MatrixTransform& world_matrix = registry.get<MatrixTransform>(e);
+			const MatrixTransform& world_matrix = view.get<MatrixTransform>(e);
 			if (aabb.builtVersion != world_matrix.buildFromTransformVersion) {
 				//tao aabb moi
-				const MeshFilter& mesh_filter = registry.get<MeshFilter>(e);
+				const MeshFilter& mesh_filter = view.get<MeshFilter>(e);
 				if (!asset_manager.IsValidMesh(mesh_filter.meshId))
 				{
 					const Name& name = registry.get<Name>(e);

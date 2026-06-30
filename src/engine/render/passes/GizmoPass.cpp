@@ -10,6 +10,7 @@ namespace Long {
 		}
 		ctx.camera->BeginMode();
 		ctx.gizmo->Draw(*ctx.camera, *ctx.gizmoTarget);
+		//ctx.commandDebugQueue->Execute(ctx.renderStats);
 		ctx.camera->EndMode();
 		ctx.gizmo->DrawScreenGuide(*ctx.camera, *ctx.gizmoTarget);
 	}

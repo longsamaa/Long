@@ -47,6 +47,10 @@ namespace Long {
 		UpdateCameraVectors();
 	}
 
+	void EditorCamera::ApplyTransform(const raylib::Quaternion& quaternion, const raylib::Vector3& pos)
+	{
+	}
+
 	void EditorCamera::ZoomToward(float wheel, const raylib::Vector3& pivot) {
 		if (wheel == 0.0f) {
 			return;

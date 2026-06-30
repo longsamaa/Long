@@ -43,6 +43,7 @@ namespace Long {
 		void GameModeUpdate(float t);
 		void EditorModeRenderWorld();
 		void GameModeRenderWorld();
+		void createComponentCamera(); 
 		void AddDebug(); 
 		IPanel* getPanel(const std::string& name);
 	private:

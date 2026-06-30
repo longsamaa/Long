@@ -3,6 +3,7 @@
 #include "core/Components.hpp"
 #include "system/TransformSystem.hpp"
 #include "system/WorldBoundSystem.hpp"
+#include "system/GameCameraSystem.hpp"
 #include "engine/render/RenderContext.hpp"
 #include "engine/render/passes/ScenePass.hpp"
 #include "engine/render/passes/BrightPass.hpp"
@@ -28,11 +29,10 @@ namespace Long {
 	}
 
 	void Game::Update(float dt) {
-		m_commandQueue.Clear();
 		m_camera.Update(dt);
 		TransformSystem(m_scene.Registry());
 		WorldBoundsSystem(m_scene.Registry(), m_app.GetAssets());
-		m_frustum.update();
+		GameCameraSystem(m_scene.Registry(), m_camera);
 	}
 
 	void Game::BeginFrame(){
