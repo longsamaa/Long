@@ -2,6 +2,7 @@
 #include "helpers/MathHelper.hpp"
 #include "helpers/draw_debug_helper.hpp"
 #include "core/Components.hpp"
+#include "core/math/transform.hpp" // DecomposeToTransform, LocalMatrix
 #include "rlgl.h"
 #include "raymath.h"
 #include <limits>
@@ -56,7 +57,16 @@ namespace Long {
 
 	bool EditorGizmo::Update(const BaseCamera& camera, Scene& scene, entt::entity e) {
 		auto& reg = scene.Registry();
-		const Transform& target = reg.get<Transform>(e); 
+		raylib::Matrix parentWorld = raylib::Matrix::Identity();
+		if (const Hierarchy* h = reg.try_get<Hierarchy>(e)) {
+			if (h->parent != entt::null) {
+				if (const MatrixTransform* pm = reg.try_get<MatrixTransform>(h->parent)) {
+					parentWorld = pm->world_matrix;
+				}
+			}
+		}
+		Transform target = DecomposeToTransform(reg.get<MatrixTransform>(e).world_matrix);
+
 		raylib::Vector3 center = target.position;
 		float r = GizmoScale(camera, center);
 		raylib::Ray ray = camera.Raw().GetScreenToWorldRay(raylib::Mouse::GetPosition());
@@ -65,8 +75,6 @@ namespace Long {
 		}
 
 		if (m_dragging != Handle::None) {
-			bool consumed = true;
-			reg.patch<Transform>(e, [&](Transform& target) {
 			if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
 				// Rotate around the ring's axis by the change in cursor angle.
 				int i = (int)m_dragging - (int)Handle::RingX;
@@ -82,9 +90,8 @@ namespace Long {
 					Quaternion dq = QuaternionFromAxisAngle(n, delta);
 					target.quaternion = raylib::Quaternion(QuaternionMultiply(dq, m_rotStart));
 				}
-				return; // done with this drag branch (inside the patch lambda)
 			}
-			if (m_dragging >= Handle::AxisX && m_dragging <= Handle::AxisZ) {
+			else if (m_dragging >= Handle::AxisX && m_dragging <= Handle::AxisZ) {
 				int i = (int)m_dragging - (int)Handle::AxisX;
 				raylib::Vector3 axis = Axis(target, i);
 				float t = ClosestAxisParam(ray, center, axis);
@@ -109,7 +116,6 @@ namespace Long {
 				}
 			}
 			else {
-				int planeIdx = (int)m_dragging - (int)Handle::PlaneXY; // 0,1,2
 				raylib::Vector3 n = (m_dragging == Handle::PlaneXY) ? Axis(target, 2)
 					: (m_dragging == Handle::PlaneXZ) ? Axis(target, 1) : Axis(target, 0);
 				bool ok;
@@ -119,10 +125,18 @@ namespace Long {
 					target.position = target.position.Add(delta);
 					m_dragStartHit = hit;
 				}
-				(void)planeIdx;
 			}
-			}); // end reg.patch lambda -> fires on_update -> auto DirtyTransform
-			(void)consumed;
+
+			// `target` is the edited WORLD transform. Convert to LOCAL and store it;
+			// TransformSystem will rebuild world = local * parent next frame.
+			//   localMatrix = worldMatrix * inverse(parentWorld)   (column-major)
+			raylib::Matrix localM = LocalMatrix(target) * MatrixInvert(parentWorld);
+			Transform localT = DecomposeToTransform(localM);
+			reg.patch<Transform>(e, [&](Transform& t) {
+				t.position = localT.position;
+				t.quaternion = localT.quaternion;
+				t.scale = localT.scale;
+			}); // on_update -> auto DirtyTransform
 			return true;
 		}
 

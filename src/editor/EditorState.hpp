@@ -67,6 +67,7 @@ namespace Long {
 		double m_msUpdate = 0.0;
 		RaycastHit m_hoverHit;                       // entity under the cursor this frame
 		entt::entity m_selectedEntity = entt::null;  // entity clicked/selected (persists)
+		Transform m_gizmoWorldT;
 		std::unique_ptr<Game> m_game{ nullptr }; //game state
 	};
 }

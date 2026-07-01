@@ -177,9 +177,11 @@ namespace Long {
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
 			ctx.selectedEntities = { m_selectedEntity };
 			auto& reg = m_scene.Registry();
-			if (reg.all_of<Transform>(m_selectedEntity)) {
+			if (reg.all_of<Transform, MatrixTransform>(m_selectedEntity)) {
 				ctx.gizmo = &m_gizmo;
-				ctx.gizmoTarget = &reg.get<Transform>(m_selectedEntity);
+				m_gizmoWorldT = DecomposeToTransform(
+					reg.get<MatrixTransform>(m_selectedEntity).world_matrix);
+				ctx.gizmoTarget = &m_gizmoWorldT;
 			}
 		}
 		Execute(ctx);
