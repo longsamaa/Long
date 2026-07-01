@@ -19,7 +19,9 @@ namespace Long {
 			ctx.frustum->update();
 		}
 		auto t0 = Time::now();
-		RenderSystem(*ctx.registry, *ctx.assets, *ctx.commandQueue, ctx.frustum, ctx.renderStats);
+		m_visibility->gatherVisible(*ctx.registry, ctx.frustum, m_visible,
+			ctx.renderStats.culledEntities);
+		RenderSystem(*ctx.registry, *ctx.assets, *ctx.commandQueue, m_visible, ctx.renderStats);
 		ctx.renderStats.msRenderSystem = Time::elapsedMs(t0);
 		t0 = Time::now();
 		ctx.commandQueue->Sort();

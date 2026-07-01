@@ -5,24 +5,34 @@
 #include <vector>
 namespace Long {
 	struct MainCamera {
-		uint32_t buildFromTransformVersion{ 0 }; 
-		uint32_t buildFromCameraParameterVersion{ 0 }; 
+		uint32_t buildFromTransformVersion{ 0 };
+		uint32_t buildFromCameraParameterVersion{ 0 };
 	};
-	//Game camera parameter 
+
 	struct GameCameraParameter {
 		float fov{ 45.0f };
 		float near{ 0.1f };
 		float far{ 50.0f };
 		raylib::Vector3 target{ 0.0f,0.0f,0.0f };
 		uint32_t projection{ ::CAMERA_PERSPECTIVE };
-		uint32_t version{ 1 }; 
+		uint32_t version{ 1 };
 	};
-	// Transform component: plain data. Edit the fields directly, then commit the
-	// change through the registry (patch/replace) so Scene's on_update<Transform>
-	// observer bumps `version`. TransformSystem compares that version against the
-	// one it last built from to decide whether to recompute the world matrix.
-	// `version` starts at 1 so it differs from MatrixTransform's initial 0 -> a
-	// freshly-created Transform is always built on the first pass.
+
+	enum class LightType : uint32_t {
+		Directional = 0,
+		Point = 1,
+		Spot = 2
+	};
+
+	struct LightComponent {
+		LightType type;
+		raylib::Vector3 direction{ 0.0f, -1.0f, 0.0f };
+		raylib::Color color{ 255, 255, 255, 255 };
+		float intensity{ 1.0f };
+		uint32_t version{ 1 };
+		bool castsShadows{ true };
+	};
+
 	struct Transform {
 		raylib::Vector3 position = { 0, 0, 0 };
 		raylib::Quaternion quaternion = { 0, 0, 0, 1 };
@@ -34,20 +44,25 @@ namespace Long {
 	struct MatrixTransform {
 		raylib::Matrix world_matrix = MatrixIdentity();
 		raylib::Matrix local_matrix = MatrixIdentity();
+		// Snapshot of the source Transform::version the last time we rebuilt -- lets
+		// TransformSystem detect a LOCAL change.
+		uint32_t builtLocalVersion{ 0 };
+		// Monotonic counter bumped whenever world_matrix is recomputed (local OR parent
+		// change). WorldBoundsSystem compares its aabb.builtVersion against this.
 		uint32_t buildFromTransformVersion{ 0 };
 	};
 
-	//World aabb component 
+	//World aabb component
 	struct WorldAABB {
 		raylib::Vector3 min{ 0, 0, 0 };
 		raylib::Vector3 max{ 0, 0, 0 };
+		raylib::Vector3 local_min{ 0,0,0 };
+		raylib::Vector3 local_max{ 0,0,0 };
 		uint32_t builtVersion{ 0 };
 	};
 
-	// Tag: this entity's Transform changed this frame and its world matrix (and its
-	// children's) must be recomputed. TransformSystem only walks tagged roots, so
-	// static entities (the vast majority) are skipped entirely instead of version-
-	// checked every frame. setPos/setQuaternion/setScale should add this tag.
+	//Local AABB
+
 	struct DirtyTransform {};
 
 	// Scene-graph link. A model with many parts = one parent entity with one child
@@ -78,7 +93,7 @@ namespace Long {
 
 	struct BoxCollider3D {
 		raylib::BoundingBox box = raylib::BoundingBox({ -0.5f, -0.5f, -0.5f }, { 0.5f, 0.5f, 0.5f });
-		uint32_t buildFromMatrixTransformVersion{ 0 }; 
+		uint32_t buildFromMatrixTransformVersion{ 0 };
 	};
 
 	// Human-readable name (handy in the editor's entity list / inspector).

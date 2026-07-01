@@ -5,42 +5,37 @@
 #include "engine/Material.hpp"
 #include "raylib-cpp.hpp"
 #include "engine/Logger.hpp"
-#include "engine/visibility/FrustumCulling.hpp"
-#include "helpers/draw_debug_helper.hpp"
 namespace Long {
 	void RenderSystem(entt::registry& registry, AssetManager& assets, CommandQueue& queue,
-		const FrustumCulling* frustum, RenderStats& stats)
+		const std::vector<entt::entity>& visible, RenderStats& stats)
 	{
-		auto view = registry.view<MatrixTransform, MeshFilter, MeshRenderer>();
-		queue.Reserve(view.size_hint());
-		for (auto e : view) {
-			const auto& [wt, mf, mr] = view.get<MatrixTransform, MeshFilter, MeshRenderer>(e);
-			if (!assets.IsValidMesh(mf.meshId) || !assets.IsValidMaterial(mr.materialId)) {
+		queue.Reserve(visible.size());
+		for (entt::entity e : visible) {
+			// `visible` already passed culling; still validate the entity has the
+			// components and valid assets before submitting a draw.
+			const MatrixTransform* wt = registry.try_get<MatrixTransform>(e);
+			const MeshFilter* mf = registry.try_get<MeshFilter>(e);
+			const MeshRenderer* mr = registry.try_get<MeshRenderer>(e);
+			if (!wt || !mf || !mr) {
+				continue;
+			}
+			if (!assets.IsValidMesh(mf->meshId) || !assets.IsValidMaterial(mr->materialId)) {
 				Logger::TraceLog(LOG_WARNING,
 					std::format("RenderSystem: Entity {} has invalid mesh or material.", entt::to_integral(e)));
 				continue;
 			}
-			if (frustum) {
-				if (const WorldAABB* aabb = registry.try_get<WorldAABB>(e)) {
-					if (!frustum->isVisible(aabb->min,aabb->max)) {
-						stats.culledEntities++;
-						continue;
-					}
-				}
-			}
-			raylib::Mesh& mesh = assets.GetMesh(mf.meshId);
-			BaseMaterial& material = assets.GetMaterial(mr.materialId);
+			raylib::Mesh& mesh = assets.GetMesh(mf->meshId);
+			BaseMaterial& material = assets.GetMaterial(mr->materialId);
 			if (!assets.IsValidShader(material.GetShaderId())) {
 				Logger::TraceLog(LOG_WARNING,
 					std::format("RenderSystem: Entity {} has invalid shader in material.", entt::to_integral(e)));
 				continue;
 			}
-			//Push to queue instead of drawing directly
 			queue.Submit({
-				wt.world_matrix,
+				wt->world_matrix,
 				&mesh,
 				&material,
-				!mr.visible
+				!mr->visible
 				});
 		}
 	}

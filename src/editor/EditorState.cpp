@@ -40,7 +40,7 @@ namespace Long {
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene, m_selectedEntity));
 		m_panels.push_back(std::make_unique<InspectorPanel>(m_scene, m_selectedEntity));
 		for (auto& panel : m_panels) {
-			if (!(panel->title() == "Scene hierarchy") 
+			if (!(panel->title() == "Scene hierarchy")
 				&& !(panel->title() == "Inspector")) {
 				panel->close();
 			}
@@ -61,8 +61,8 @@ namespace Long {
 		m_environment.Init(m_app.GetAssets());
 		m_panels.push_back(std::make_unique<EnvironmentPanel>(m_environment));
 		m_panels.back()->close();
-		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter : create main camera"); 
-		createComponentCamera(); 
+		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter : create main camera");
+		createComponentCamera();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround begin");
 		createGround();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround done, createEmissiveBoxes begin");
@@ -72,26 +72,23 @@ namespace Long {
 
 	void EditorState::createComponentCamera()
 	{
-		//Create transform component camera 
+		//Create transform component camera
 		auto& reg = m_scene.Registry();
 		entt::entity main_camera = m_scene.CreateEntity("MainCamera");
 		const raylib::Vector3& camera_pos = m_gameCamera.Raw().GetPosition();
 		Transform transform;
-		//transform_component.position = camera_pos;
-		//transform_component.quaternion = CameraToQuaternion(m_gameCamera);
 		reg.emplace<Transform>(main_camera, transform);
-		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f); 
+		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
 		uint32_t meshId = m_app.GetAssets().AddMesh(std::move(cube));
 		raylib::BoundingBox box_collider(cube);
-		reg.emplace<MeshFilter>(main_camera, MeshFilter{ meshId }); 
-		reg.emplace<BoxCollider3D>(main_camera, box_collider);
+		reg.emplace<MeshFilter>(main_camera, MeshFilter{ meshId });
 		reg.emplace<Hierarchy>(main_camera, Hierarchy{ entt::null, {} });
-		reg.emplace<GameCameraParameter>(main_camera, GameCameraParameter{}); 
+		reg.emplace<GameCameraParameter>(main_camera, GameCameraParameter{});
 		reg.emplace<MainCamera>(main_camera); // empty tag: emplace takes no value
 	}
 
 	void EditorState::Update(float dt) {
-		!m_game ? EditorModeUpdate(dt) : GameModeUpdate(dt); 
+		!m_game ? EditorModeUpdate(dt) : GameModeUpdate(dt);
 	}
 
 	void EditorState::UpdatePicking() {
@@ -134,13 +131,13 @@ namespace Long {
 			m_camera.Update(dt);
 		}
 		m_commandQueue.Clear();
-		
+
 		auto t0 = Time::now();
 		TransformSystem(m_scene.Registry());
 		WorldBoundsSystem(m_scene.Registry(), m_app.GetAssets());
-		GameCameraSystem(m_scene.Registry(), m_gameCamera); 
+		GameCameraSystem(m_scene.Registry(), m_gameCamera);
 		m_msTransformSystem = Time::elapsedSecond(t0);
-		
+
 		bool gizmoHasInput = false;
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)
 			&& m_scene.Registry().all_of<Transform>(m_selectedEntity)
@@ -155,15 +152,15 @@ namespace Long {
 
 	void EditorState::GameModeUpdate(float dt)
 	{
-		m_game->Update(dt); 
+		m_game->Update(dt);
 	}
 
 	void EditorState::EditorModeRenderWorld()
 	{
 		//Add Debug command
-		AddDebug(); 
+		AddDebug();
 
-		//Build Context 
+		//Build Context
 		RenderContext ctx;
 		ctx.commandQueue = &m_commandQueue;
 		ctx.commandDebugQueue = &m_commandDebugQueue;
@@ -176,7 +173,7 @@ namespace Long {
 		ctx.width = (uint32_t)::GetRenderWidth();
 		ctx.height = (uint32_t)::GetRenderHeight();
 
-		//Draw outline pass 
+		//Draw outline pass
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
 			ctx.selectedEntities = { m_selectedEntity };
 			auto& reg = m_scene.Registry();
@@ -193,7 +190,7 @@ namespace Long {
 
 	void EditorState::GameModeRenderWorld()
 	{
-		m_game->RenderWorld(); 
+		m_game->RenderWorld();
 	}
 
 	void EditorState::AddDebug()
@@ -210,7 +207,7 @@ namespace Long {
 	}
 
 	void EditorState::RenderWorld() {
-		!m_game ? EditorModeRenderWorld() : GameModeRenderWorld(); 
+		!m_game ? EditorModeRenderWorld() : GameModeRenderWorld();
 	}
 
 	void EditorState::BeginFrame() {
@@ -218,8 +215,7 @@ namespace Long {
 		m_commandDebugQueue.Clear();
 	}
 
-	void EditorState::EndFrame(){
-	
+	void EditorState::EndFrame() {
 	}
 
 	void EditorState::Execute(RenderContext& ctx)
@@ -241,7 +237,7 @@ namespace Long {
 		entt::entity parent = m_scene.CreateEntity("ground");
 		reg.emplace<Transform>(parent, Transform{});
 		std::vector<entt::entity> children;
-		const int N = 5;
+		const int N = 500;
 		const float spacing = 4.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {
@@ -414,7 +410,7 @@ namespace Long {
 			if (ImGui::Button(playing ? "Stop" : "Run Game")) {
 				if (playing) {
 					Logger::TraceLog(LOG_TRACE, "[Editor] Swap Editor mode");
-					m_game->OnExit(); 
+					m_game->OnExit();
 					m_game.reset();
 					m_game = nullptr;
 				}
@@ -422,7 +418,7 @@ namespace Long {
 					m_game = std::make_unique<Game>(m_app);
 					Logger::TraceLog(LOG_TRACE, "[Game] Swap Game Playing mode");
 					m_game->OnEnter();
-					m_game->setCamera(m_gameCamera); 
+					m_game->setCamera(m_gameCamera);
 					m_game->copyhierarchy(m_scene);
 					Logger::TraceLog(LOG_TRACE, "[Game] Copy hierarchy");
 				}
@@ -443,5 +439,6 @@ namespace Long {
 		RenderPanels();
 	}
 	void EditorState::OnExit()
-	{}
+	{
+	}
 }
