@@ -5,7 +5,7 @@
 #include <string>
 
 namespace Long {
-	HierarchyPanel::HierarchyPanel(Scene& scene) : m_scene(scene) {
+	HierarchyPanel::HierarchyPanel(Scene& scene, entt::entity& selected) : m_scene(scene), m_selected(selected) {
 		m_title = "Scene hierarchy";
 		m_isOpen = true;
 	}
@@ -49,7 +49,7 @@ namespace Long {
 		if (ImGui::Begin(m_title.c_str(), &m_isOpen)) {
 			std::string label_scene = m_scene.getSceneName();
 			m_scene.getSceneName().empty() ? label_scene = "SampleScene" : label_scene = m_scene.getSceneName();
-			ImGui::SetNextItemOpen(true, ImGuiCond_FirstUseEver);
+			ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 			const bool sceneOpen = ImGui::TreeNodeEx(
 				static_cast<void*>(&m_scene),
 				ImGuiTreeNodeFlags_OpenOnArrow |

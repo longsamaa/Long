@@ -38,10 +38,13 @@ namespace Long {
 				}
 			}
 			if (Transform* transform = reg.try_get<Transform>(m_selected)) {
-				if (ImGui::CollapsingHeader("Transform",
-					ImGuiTreeNodeFlags_DefaultOpen)) {
-					TransformInspector::Draw(*transform);
-				}
+				reg.patch<Transform>(m_selected, [&](Transform& transform) {
+					if (ImGui::CollapsingHeader("Transform",
+						ImGuiTreeNodeFlags_DefaultOpen)) {
+						TransformInspector::Draw(transform);
+					}
+				}); 
+				
 			}
 		}
 		ImGui::End();

@@ -38,7 +38,7 @@ namespace Long {
 		if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
 			return m_rotStart;
 		}
-		return target.getQuaternion();
+		return target.quaternion;
 	}
 
 	raylib::Vector3 EditorGizmo::Axis(const Transform& target, int i) const {
@@ -56,8 +56,8 @@ namespace Long {
 
 	bool EditorGizmo::Update(const BaseCamera& camera, Scene& scene, entt::entity e) {
 		auto& reg = scene.Registry();
-		const Transform& target = reg.get<Transform>(e); // read-only view for hit-tests
-		raylib::Vector3 center = target.getPos();
+		const Transform& target = reg.get<Transform>(e); 
+		raylib::Vector3 center = target.position;
 		float r = GizmoScale(camera, center);
 		raylib::Ray ray = camera.Raw().GetScreenToWorldRay(raylib::Mouse::GetPosition());
 		if (!raylib::Mouse::IsButtonDown(MOUSE_BUTTON_LEFT)) {
@@ -80,7 +80,7 @@ namespace Long {
 					float delta = angle - m_rotStartAngle;
 					m_rotDelta = delta;             // remember for the HUD text
 					Quaternion dq = QuaternionFromAxisAngle(n, delta);
-					target.setQuaternion(raylib::Quaternion(QuaternionMultiply(dq, m_rotStart)));
+					target.quaternion = raylib::Quaternion(QuaternionMultiply(dq, m_rotStart));
 				}
 				return; // done with this drag branch (inside the patch lambda)
 			}
@@ -94,17 +94,17 @@ namespace Long {
 				if (m_mode == Mode::Scale) {
 					float factor = (fabsf(m_scaleStartParam) > 1e-4f)
 						? (t / m_scaleStartParam) : 1.0f;
-					raylib::Vector3 s = target.getScale();
+					raylib::Vector3 s = target.scale;
 					if (i == 0) s.x = m_scaleStart.x * factor;
 					else if (i == 1) s.y = m_scaleStart.y * factor;
 					else s.z = m_scaleStart.z * factor;
-					target.setScale(s);
+					target.scale = s;
 				}
 				else {
 					raylib::Vector3 hit = center.Add(axis.Scale(t));
 					raylib::Vector3 delta = hit.Subtract(m_dragStartHit);
 					delta = axis.Scale(delta.DotProduct(axis)); // keep only along axis
-					target.setPos(target.getPos().Add(delta));
+					target.position = target.position.Add(delta);
 					m_dragStartHit = m_dragStartHit.Add(delta);
 				}
 			}
@@ -116,7 +116,7 @@ namespace Long {
 				raylib::Vector3 hit = RayPlane(ray, center, n, ok);
 				if (ok) {
 					raylib::Vector3 delta = hit.Subtract(m_dragStartHit);
-					target.setPos(target.getPos().Add(delta));
+					target.position = target.position.Add(delta);
 					m_dragStartHit = hit;
 				}
 				(void)planeIdx;
@@ -190,7 +190,7 @@ namespace Long {
 			m_dragging = m_hot;
 			if (m_dragging >= Handle::RingX && m_dragging <= Handle::RingZ) {
 				int i = (int)m_dragging - (int)Handle::RingX;
-				m_rotStart = target.getQuaternion();  // orientation at drag start
+				m_rotStart = target.quaternion;  // orientation at drag start
 				raylib::Vector3 n = Axis(target, i);
 				raylib::Vector3 u, v;
 				PlaneBasis(n, u, v);
@@ -204,7 +204,7 @@ namespace Long {
 				float t = ClosestAxisParam(ray, center, axis);
 				m_dragStartHit = center.Add(axis.Scale(t));
 				m_scaleStartParam = t;          // for scale-ratio
-				m_scaleStart = target.getScale();    // scale at drag start
+				m_scaleStart = target.scale;    // scale at drag start
 			}
 			else {
 				raylib::Vector3 n = (m_dragging == Handle::PlaneXY) ? Axis(target, 2)
@@ -217,7 +217,7 @@ namespace Long {
 	}
 
 	void EditorGizmo::Draw(const BaseCamera& camera, const Transform& target) {
-		const raylib::Vector3& center = target.getPos();
+		const raylib::Vector3& center = target.position;
 		float r = GizmoScale(camera, center);
 		rlDisableDepthTest(); // gizmo always on top
 		rlDisableBackfaceCulling();
@@ -301,13 +301,13 @@ namespace Long {
 		if ((m_dragging >= Handle::PlaneXY && m_dragging <= Handle::PlaneYZ) || m_dragging == Handle::None) {
 			return;
 		}
-		raylib::Vector2 centerScreen = camera.Raw().GetWorldToScreen(target.getPos());
+		raylib::Vector2 centerScreen = camera.Raw().GetWorldToScreen(target.position);
 		raylib::Vector2 mouse = raylib::Mouse::GetPosition();
 		::DrawLineEx(centerScreen, mouse, 1.5f, raylib::Color::White());
 	}
 
 	void EditorGizmo::drawDebugGizmo(const Transform& target, const float& scale) {
-		const raylib::Vector3& center = target.getPos();
+		const raylib::Vector3& center = target.position;
 		center.DrawSphere(0.1f, raylib::Color::Red());
 		for (int i = 0; i < 3; ++i) {
 			raylib::Vector3 tip = center.Add(ax[i].Scale((1.0f + cylinder_length) * AXIS_LEN * scale));

@@ -6,9 +6,9 @@ namespace Long {
 		auto view = registry.view<MainCamera, Transform, GameCameraParameter>();
 		for (entt::entity e : view) {
 			const auto& [camera,transform, parameter]  = view.get<MainCamera, Transform, GameCameraParameter>(e);
-			if (camera.buildFromTransformVersion != transform.getVersion()) {
-				game_camera.ApplyTransform(transform.getQuaternion(), transform.getPos());
-				camera.buildFromTransformVersion = transform.getVersion(); 
+			if (camera.buildFromTransformVersion != transform.version) {
+				game_camera.ApplyTransform(transform.quaternion, transform.position);
+				camera.buildFromTransformVersion = transform.version; 
 			}
 			if (camera.buildFromCameraParameterVersion != parameter.version) {
 				game_camera.ApplyParameter(parameter.projection,

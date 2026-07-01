@@ -3,6 +3,7 @@
 #include <unordered_map>
 namespace Long {
 	static void markTransformDirty(entt::registry& reg, entt::entity e) {
+		++reg.get<Transform>(e).version;
 		reg.emplace_or_replace<DirtyTransform>(e);
 	}
 

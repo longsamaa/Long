@@ -17,38 +17,13 @@ namespace Long {
 		uint32_t projection{ ::CAMERA_PERSPECTIVE };
 		uint32_t version{ 1 }; 
 	};
-	//Transform component
+	// Transform component: plain data. Edit the fields directly, then commit the
+	// change through the registry (patch/replace) so Scene's on_update<Transform>
+	// observer bumps `version`. TransformSystem compares that version against the
+	// one it last built from to decide whether to recompute the world matrix.
+	// `version` starts at 1 so it differs from MatrixTransform's initial 0 -> a
+	// freshly-created Transform is always built on the first pass.
 	struct Transform {
-	public:
-		const raylib::Vector3& setPos(const raylib::Vector3& _position) {
-			position = _position;
-			MarkDirty();
-			return position;
-		};
-		const raylib::Quaternion& setQuaternion(const raylib::Quaternion& _quaternion) {
-			quaternion = _quaternion;
-			MarkDirty();
-			return quaternion;
-		};
-		const raylib::Vector3& setScale(const raylib::Vector3& _scale) {
-			scale = _scale;
-			MarkDirty();
-			return scale;
-		};
-		void MarkDirty() { ++version; }
-		const raylib::Vector3& getPos() const {
-			return position;
-		}
-		const raylib::Vector3& getScale() const {
-			return scale;
-		}
-		const raylib::Quaternion& getQuaternion() const {
-			return quaternion;
-		}
-		const uint32_t& getVersion() const {
-			return version;
-		}
-	private:
 		raylib::Vector3 position = { 0, 0, 0 };
 		raylib::Quaternion quaternion = { 0, 0, 0, 1 };
 		raylib::Vector3 scale = { 1, 1, 1 };

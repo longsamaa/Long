@@ -7,7 +7,7 @@ namespace Long {
 	class Scene;
 	class HierarchyPanel : public IPanel {
 	public:
-		explicit HierarchyPanel(Scene& scene);
+		explicit HierarchyPanel(Scene& scene, entt::entity& selected);
 		~HierarchyPanel() = default;
 		void render() override;
 		void loadScene(Scene& scene); 
@@ -17,7 +17,7 @@ namespace Long {
 	private:
 		void drawEntityNode(entt::entity e);
 		Scene& m_scene;
-		entt::entity m_selected = entt::null;
+		entt::entity& m_selected;
 	};
 }
 #endif // !_HIERARCHY_PANEL_HPP_

@@ -37,7 +37,7 @@ namespace Long {
 		m_panels.push_back(std::make_unique<GpuInfoPanel>());
 		m_panels.push_back(std::make_unique<ProfilerPanel>(m_renderStats));
 		m_panels.push_back(std::make_unique<ConsolePanel>());
-		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene));
+		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene, m_selectedEntity));
 		m_panels.push_back(std::make_unique<InspectorPanel>(m_scene, m_selectedEntity));
 		for (auto& panel : m_panels) {
 			if (!(panel->title() == "Scene hierarchy") 
@@ -76,10 +76,10 @@ namespace Long {
 		auto& reg = m_scene.Registry();
 		entt::entity main_camera = m_scene.CreateEntity("MainCamera");
 		const raylib::Vector3& camera_pos = m_gameCamera.Raw().GetPosition();
-		Transform transform_component;
-		transform_component.setPos(camera_pos);
-		transform_component.setQuaternion(CameraToQuaternion(m_gameCamera));
-		reg.emplace<Transform>(main_camera, transform_component);
+		Transform transform;
+		//transform_component.position = camera_pos;
+		//transform_component.quaternion = CameraToQuaternion(m_gameCamera);
+		reg.emplace<Transform>(main_camera, transform);
 		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f); 
 		uint32_t meshId = m_app.GetAssets().AddMesh(std::move(cube));
 		raylib::BoundingBox box_collider(cube);
@@ -247,7 +247,7 @@ namespace Long {
 			for (int z = 0; z < N; ++z) {
 				entt::entity tile = m_scene.CreateEntity("tile");
 				Transform t;
-				t.setPos({ (x - N / 2) * spacing, -2.0f, (z - N / 2) * spacing });
+				t.position = { (x - N / 2) * spacing, -2.0f, (z - N / 2) * spacing };
 				reg.emplace<Transform>(tile, t);
 				reg.emplace<Hierarchy>(tile, Hierarchy{ parent, {} });
 				reg.emplace<MeshFilter>(tile, MeshFilter{ meshId });
@@ -278,8 +278,8 @@ namespace Long {
 			uint32_t emat = assets.CreateEmissiveMaterial(emissiveId, g.color, 5.0f);
 			entt::entity e = m_scene.CreateEntity("emissive");
 			Transform t;
-			t.setPos(g.pos);
-			t.setScale({ 0.5f, 0.5f, 0.5f }); // bigger so the glow reads
+			t.position = g.pos;
+			t.scale = { 0.5f, 0.5f, 0.5f }; // bigger so the glow reads
 			reg.emplace<Transform>(e, t);
 			reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
 			reg.emplace<MeshRenderer>(e, MeshRenderer{ emat, raylib::Color::White(), true });

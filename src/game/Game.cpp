@@ -86,7 +86,7 @@ namespace Long {
 		uint32_t mat = assets.CreateEmissiveMaterial(emissiveId, raylib::Color{ 80, 180, 255, 255 }, 5.0f);
 		entt::entity e = m_scene.CreateEntity("cube");
 		Transform t;
-		t.setPos({ 0.0f, 1.0f, 0.0f });
+		t.position = { 0.0f, 1.0f, 0.0f };
 		reg.emplace<Transform>(e, t);
 		reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
 		reg.emplace<MeshRenderer>(e, MeshRenderer{ mat, raylib::Color::White(), true });

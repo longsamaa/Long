@@ -6,9 +6,9 @@
 #include "engine/camera/BaseCamera.hpp"
 namespace Long {
 	static raylib::Matrix LocalMatrix(const Transform& t) {
-		const raylib::Vector3& scale = t.getScale();
-		const raylib::Quaternion& quaternion = t.getQuaternion();
-		const raylib::Vector3& position = t.getPos();
+		const raylib::Vector3& scale = t.scale;
+		const raylib::Quaternion& quaternion = t.quaternion;
+		const raylib::Vector3& position = t.position;
 		raylib::Matrix s = raylib::Matrix::Scale(scale.x, scale.y, scale.z);
 		raylib::Matrix r = QuaternionToMatrix(quaternion);
 		raylib::Matrix tr = raylib::Matrix::Translate(position.x, position.y, position.z);
