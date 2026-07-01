@@ -12,6 +12,10 @@ namespace Long {
 		void FocusOn(const raylib::Vector3& point);
 		void BeginMode() override { ApplyClip(); m_camera.BeginMode(); };
 		void EndMode() override { m_camera.EndMode(); }
+		void ApplyParameter(const uint32_t& projection,
+			const float& fov,
+			const float& near,
+			const float& far) override;
 		void ApplyTransform(const raylib::Quaternion& quaternion, const raylib::Vector3& pos) override; 
 		const raylib::Camera3D& Raw() const override { return m_camera; }
 	private:

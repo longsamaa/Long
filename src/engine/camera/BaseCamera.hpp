@@ -16,6 +16,10 @@ namespace Long {
 		void SetClip(float n, float f) { m_near = n; m_far = f; }
 		virtual void ApplyTransform(const raylib::Quaternion& quaternion,
 			const raylib::Vector3& pos) = 0; 
+		virtual void ApplyParameter(const uint32_t& projection,
+			const float& fov,
+			const float& near, 
+			const float& far) = 0;
 	protected:
 		void ApplyClip() const { rlSetClipPlanes(m_near, m_far); }
 		float m_near{ 0.1f };

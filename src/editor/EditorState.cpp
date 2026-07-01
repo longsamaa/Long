@@ -4,6 +4,7 @@
 #include "editor/panels/ProfilerPanel.hpp"
 #include "editor/panels/ConsolePanel.hpp"
 #include "editor/panels/HierarchyPanel.hpp"
+#include "editor/panels/InspectorPanel.hpp"
 #include "editor/panels/EnvironmentPanel.hpp"
 #include "core/Components.hpp"
 #include "system/RenderSystem.hpp"
@@ -37,8 +38,10 @@ namespace Long {
 		m_panels.push_back(std::make_unique<ProfilerPanel>(m_renderStats));
 		m_panels.push_back(std::make_unique<ConsolePanel>());
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_scene));
+		m_panels.push_back(std::make_unique<InspectorPanel>(m_scene, m_selectedEntity));
 		for (auto& panel : m_panels) {
-			if (!(panel->title() == "Scene hierarchy")) {
+			if (!(panel->title() == "Scene hierarchy") 
+				&& !(panel->title() == "Inspector")) {
 				panel->close();
 			}
 		}
@@ -83,6 +86,7 @@ namespace Long {
 		reg.emplace<MeshFilter>(main_camera, MeshFilter{ meshId }); 
 		reg.emplace<BoxCollider3D>(main_camera, box_collider);
 		reg.emplace<Hierarchy>(main_camera, Hierarchy{ entt::null, {} });
+		reg.emplace<GameCameraParameter>(main_camera, GameCameraParameter{}); 
 		reg.emplace<MainCamera>(main_camera); // empty tag: emplace takes no value
 	}
 

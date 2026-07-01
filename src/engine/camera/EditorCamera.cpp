@@ -47,6 +47,13 @@ namespace Long {
 		UpdateCameraVectors();
 	}
 
+	void EditorCamera::ApplyParameter(const uint32_t& projection,
+		const float& fov,
+		const float& near,
+		const float& far){
+	
+	}
+
 	void EditorCamera::ApplyTransform(const raylib::Quaternion& quaternion, const raylib::Vector3& pos)
 	{
 	}

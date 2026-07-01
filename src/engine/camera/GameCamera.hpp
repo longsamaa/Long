@@ -14,6 +14,7 @@ namespace Long {
 		void BeginMode() override { ApplyClip(); m_camera.BeginMode(); }
 		void ApplyTransform(const raylib::Quaternion& quaternion, const raylib::Vector3& pos) override;
 		void EndMode() override { m_camera.EndMode(); }
+		void ApplyParameter(const uint32_t& projection, const float& fov, const float& near, const float& far) override; 
 	private:
 		raylib::Camera3D m_camera;
 	};

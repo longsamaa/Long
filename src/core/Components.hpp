@@ -6,6 +6,16 @@
 namespace Long {
 	struct MainCamera {
 		uint32_t buildFromTransformVersion{ 0 }; 
+		uint32_t buildFromCameraParameterVersion{ 0 }; 
+	};
+	//Game camera parameter 
+	struct GameCameraParameter {
+		float fov{ 45.0f };
+		float near{ 0.1f };
+		float far{ 50.0f };
+		raylib::Vector3 target{ 0.0f,0.0f,0.0f };
+		uint32_t projection{ ::CAMERA_PERSPECTIVE };
+		uint32_t version{ 1 }; 
 	};
 	//Transform component
 	struct Transform {
