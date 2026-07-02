@@ -107,24 +107,24 @@ namespace Long {
 		}
 		rlEnd();
 	}
-	CameraHelperCommand BuildCameraHelperCommand(const BaseCamera& camera, float helper_size)
+	CameraHelperCommand BuildCameraHelperCommand(const CameraHelperParams& p, float helper_size)
 	{
-		const raylib::Vector3& target = camera.Raw().GetTarget(); 
-		const raylib::Vector3& position = camera.Raw().GetPosition(); 
-		const raylib::Vector3& cam_up = camera.Raw().GetUp(); 
-		const float fovy = camera.Raw().GetFovy(); 
-		//forward 
-		raylib::Vector3 forward = target.Subtract(position).Normalize(); 
-		//right up 
-		raylib::Vector3 right = forward.CrossProduct(cam_up).Normalize(); 
+		const raylib::Vector3 target = p.target;
+		const raylib::Vector3 position = p.position;
+		const raylib::Vector3 cam_up = p.up;
+		const float fovy = p.fovy;
+		//forward
+		raylib::Vector3 forward = target.Subtract(position).Normalize();
+		//right up
+		raylib::Vector3 right = forward.CrossProduct(cam_up).Normalize();
 		raylib::Vector3 up = right.CrossProduct(forward);
 		float fov = fovy * DEG2RAD;
-		auto cal_plane = [position,forward,right,fov,up,&camera](float size) -> std::array<raylib::Vector3, 4> {
-			std::array<raylib::Vector3, 4> pl; 
+		auto cal_plane = [position,forward,right,fov,up,&p](float size) -> std::array<raylib::Vector3, 4> {
+			std::array<raylib::Vector3, 4> pl;
 			raylib::Vector3 center = position.Add(forward.Scale(size));
-			if (camera.Raw().projection == ::CAMERA_ORTHOGRAPHIC) {
+			if (p.projection == ::CAMERA_ORTHOGRAPHIC) {
 				const float aspect = (float)::GetScreenWidth() / (float)::GetScreenHeight();
-				float half_height = camera.Raw().GetFovy() / 2.0 * 0.5;
+				float half_height = p.fovy / 2.0f * 0.5f;
 				float half_width = half_height * aspect;
 				
 				//up* halft_height 
@@ -145,7 +145,7 @@ namespace Long {
 					.Add(right.Scale(half_width));
 				pl[3] = br;
 			}
-			else if (camera.Raw().projection == ::CAMERA_PERSPECTIVE) {
+			else if (p.projection == ::CAMERA_PERSPECTIVE) {
 				float h = tanf(fov * 0.5f) * size;
 				float w = h;
 				raylib::Vector3 tl = center
@@ -168,10 +168,10 @@ namespace Long {
 			return pl; 
 		}; 
 
-		auto near_pl = cal_plane(camera.Near()); 
-		auto far_pl = cal_plane(camera.Far());
-		raylib::Vector3 up_p = position.Add(up.Scale(helper_size)); 
-		return CameraHelperCommand{ camera.Raw().GetPosition(),
+		auto near_pl = cal_plane(p.near);
+		auto far_pl = cal_plane(p.far);
+		raylib::Vector3 up_p = position.Add(up.Scale(helper_size));
+		return CameraHelperCommand{ position,
 			near_pl[0],
 			near_pl[1],
 			near_pl[2],

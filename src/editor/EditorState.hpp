@@ -15,6 +15,7 @@
 #include "engine/Environment.hpp"
 #include "engine/EditorGizmo.hpp"
 #include "engine/visibility/FrustumCulling.hpp"
+#include "system/LightSystem.hpp"
 #include "game/game.hpp"
 #include <memory>
 #include <vector>
@@ -43,8 +44,9 @@ namespace Long {
 		void GameModeUpdate(float t);
 		void EditorModeRenderWorld();
 		void GameModeRenderWorld();
-		void createComponentCamera(); 
-		void AddDebug(); 
+		void createComponentCamera();
+		void createComponentLight();
+		void AddDebug(RenderContext& ctx);
 		IPanel* getPanel(const std::string& name);
 	private:
 		Application& m_app;
@@ -63,6 +65,7 @@ namespace Long {
 		RenderStats m_renderStats;
 		//visibility
 		FrustumCulling m_frustum;
+		SceneLights m_lights; // gathered each frame by LightSystem, passed to ctx
 		double m_msTransformSystem = 0.0;
 		double m_msUpdate = 0.0;
 		RaycastHit m_hoverHit;                       // entity under the cursor this frame

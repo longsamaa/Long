@@ -6,10 +6,11 @@
 #include <vector>
 #include <any>
 #include "system/RenderStats.hpp"
+#include "system/LightSystem.hpp"
 #include "RenderTarget.hpp"
 #include "CommandQueue.hpp"
 #include "CommandDebugQueue.hpp"
-#include "core/Components.hpp"   
+#include "core/Components.hpp"
 #include "engine/camera/BaseCamera.hpp"
 namespace Long {
 	class AssetManager;
@@ -23,6 +24,7 @@ namespace Long {
 		AssetManager* assets{ nullptr };     // ScenePass needs meshes/materials
 		BaseCamera* camera{ nullptr };
 		FrustumCulling* frustum{ nullptr };  // visibility: cull entities outside view
+		const SceneLights* lights{ nullptr }; // gathered scene lights (LightSystem)
 		uint32_t width{ 0 };
 		uint32_t height{ 0 };
 		RenderTarget* sceneTarget{ nullptr };  // 3D scene color

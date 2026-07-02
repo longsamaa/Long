@@ -40,11 +40,20 @@ namespace Long {
 					v.f_tr.DrawLine3D(v.f_br, raylib::Color::Green());
 					v.f_br.DrawLine3D(v.f_bl, raylib::Color::Green());
 					v.f_bl.DrawLine3D(v.f_tl, raylib::Color::Green());
-
-					//draw axis
-					//v.pos.DrawLine3D(v.up_p,raylib::Color::Green()); 
-					//v.pos.DrawLine3D(v.right_p,raylib::Color::Red()); 
-					//v.pos.DrawLine3D(v.foward_p,raylib::Color::Blue());
+				}
+				else if constexpr (std::is_same_v<T, LightHelperCommand>) {
+					raylib::Vector3 dir = raylib::Vector3(v.direction).Normalize();
+					raylib::Vector3 end = raylib::Vector3(v.origin).Add(dir.Scale(v.length));
+					v.origin.DrawSphere(0.2f, v.color);
+					raylib::Vector3 ref = (fabsf(dir.y) < 0.9f)
+						? raylib::Vector3{ 0, 1, 0 } : raylib::Vector3{ 1, 0, 0 };
+					raylib::Vector3 u = dir.CrossProduct(ref).Normalize().Scale(0.5f);
+					raylib::Vector3 w = dir.CrossProduct(u).Normalize().Scale(0.5f);
+					raylib::Vector3(v.origin).DrawLine3D(end, v.color);
+					for (auto off : { u, u.Scale(-1.0f), w, w.Scale(-1.0f) }) {
+						raylib::Vector3 o = raylib::Vector3(v.origin).Add(off);
+						o.DrawLine3D(o.Add(dir.Scale(v.length)), v.color);
+					}
 				}
 			}, cmd);
 		}

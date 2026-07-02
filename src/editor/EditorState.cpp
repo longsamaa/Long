@@ -12,6 +12,7 @@
 #include "system/RayCastSystem.hpp"
 #include "system/WorldBoundSystem.hpp"
 #include "system/GameCameraSystem.hpp"
+#include "system/LightSystem.hpp"
 #include "engine/render/passes/ScenePass.hpp"
 #include "engine/render/passes/MaskPass.hpp"
 #include "engine/render/passes/CompositePass.hpp"
@@ -63,6 +64,7 @@ namespace Long {
 		m_panels.back()->close();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter : create main camera");
 		createComponentCamera();
+		createComponentLight(); 
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround begin");
 		createGround();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround done, createEmissiveBoxes begin");
@@ -72,19 +74,48 @@ namespace Long {
 
 	void EditorState::createComponentCamera()
 	{
-		//Create transform component camera
 		auto& reg = m_scene.Registry();
+		auto& assets = m_app.GetAssets();
 		entt::entity main_camera = m_scene.CreateEntity("MainCamera");
 		const raylib::Vector3& camera_pos = m_gameCamera.Raw().GetPosition();
 		Transform transform;
 		reg.emplace<Transform>(main_camera, transform);
-		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
-		uint32_t meshId = m_app.GetAssets().AddMesh(std::move(cube));
-		raylib::BoundingBox box_collider(cube);
+		raylib::Mesh sphere = raylib::Mesh::Sphere(0.5f, 16, 16);
+		raylib::BoundingBox box_collider(sphere);
+		uint32_t meshId = assets.AddMesh(std::move(sphere));
+		uint32_t defaultId = assets.GetShaderId("default");
+		uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color{ 200, 200, 200, 255 });
 		reg.emplace<MeshFilter>(main_camera, MeshFilter{ meshId });
+		reg.emplace<MeshRenderer>(main_camera, MeshRenderer{ mat, raylib::Color::White(), true });
+		reg.emplace<BoxCollider3D>(main_camera, BoxCollider3D{ box_collider });
 		reg.emplace<Hierarchy>(main_camera, Hierarchy{ entt::null, {} });
 		reg.emplace<GameCameraParameter>(main_camera, GameCameraParameter{});
 		reg.emplace<MainCamera>(main_camera); // empty tag: emplace takes no value
+	}
+
+	void EditorState::createComponentLight()
+	{
+		auto& reg = m_scene.Registry();
+		auto& assets = m_app.GetAssets();
+		entt::entity light = m_scene.CreateEntity("DirectionalLight");
+		Transform transform;
+		transform.position = { 10.0f, 10.0f, 0.0f };
+		reg.emplace<Transform>(light, transform);
+		raylib::Mesh sphere = raylib::Mesh::Sphere(0.5f, 16, 16);
+		raylib::BoundingBox box_collider(sphere);
+		uint32_t meshId = m_app.GetAssets().AddMesh(std::move(sphere));
+		uint32_t defaultId = assets.GetShaderId("default");
+		uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color::Yellow());
+		reg.emplace<MeshFilter>(light, MeshFilter{ meshId });
+		reg.emplace<MeshRenderer>(light, MeshRenderer{ mat, raylib::Color::White(), true });
+		reg.emplace<Hierarchy>(light, Hierarchy{ entt::null, {} });
+		reg.emplace<LightComponent>(light, LightComponent{
+			.type = LightType::Directional,
+			.direction = { -1.0f, -1.0f, 0.0f },
+			.color = { 255, 255, 255, 255 },
+			.intensity = 1.0f,
+			.castsShadows = true,
+		});
 	}
 
 	void EditorState::Update(float dt) {
@@ -136,6 +167,7 @@ namespace Long {
 		TransformSystem(m_scene.Registry());
 		WorldBoundsSystem(m_scene.Registry(), m_app.GetAssets());
 		GameCameraSystem(m_scene.Registry(), m_gameCamera);
+		LightSystem(m_scene.Registry(), m_lights);
 		m_msTransformSystem = Time::elapsedSecond(t0);
 
 		bool gizmoHasInput = false;
@@ -157,9 +189,6 @@ namespace Long {
 
 	void EditorState::EditorModeRenderWorld()
 	{
-		//Add Debug command
-		AddDebug();
-
 		//Build Context
 		RenderContext ctx;
 		ctx.commandQueue = &m_commandQueue;
@@ -170,20 +199,10 @@ namespace Long {
 		ctx.camera = &m_camera;
 		ctx.frustum = &m_frustum;
 		ctx.frustum->setCamera(&m_camera);
+		ctx.lights = &m_lights;
 		ctx.width = (uint32_t)::GetRenderWidth();
 		ctx.height = (uint32_t)::GetRenderHeight();
-
-		//Draw outline pass
-		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
-			ctx.selectedEntities = { m_selectedEntity };
-			auto& reg = m_scene.Registry();
-			if (reg.all_of<Transform, MatrixTransform>(m_selectedEntity)) {
-				ctx.gizmo = &m_gizmo;
-				m_gizmoWorldT = DecomposeToTransform(
-					reg.get<MatrixTransform>(m_selectedEntity).world_matrix);
-				ctx.gizmoTarget = &m_gizmoWorldT;
-			}
-		}
+		AddDebug(ctx);
 		Execute(ctx);
 		m_renderStats = ctx.renderStats;
 		m_renderStats.msTransformSystem = m_msTransformSystem;
@@ -195,9 +214,36 @@ namespace Long {
 		m_game->RenderWorld();
 	}
 
-	void EditorState::AddDebug()
+	void EditorState::AddDebug(RenderContext& ctx)
 	{
-		m_commandDebugQueue.Submit(BuildCameraHelperCommand(m_gameCamera));
+		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
+			ctx.selectedEntities = { m_selectedEntity };
+			auto& reg = m_scene.Registry();
+			if (reg.all_of<Transform, MatrixTransform>(m_selectedEntity)) {
+				ctx.gizmo = &m_gizmo;
+				m_gizmoWorldT = DecomposeToTransform(
+					reg.get<MatrixTransform>(m_selectedEntity).world_matrix);
+				ctx.gizmoTarget = &m_gizmoWorldT;
+			}
+		}
+
+		if (m_scene.Registry().try_get<MainCamera>(m_selectedEntity)) {
+			auto& reg = m_scene.Registry();
+			const Transform& t = reg.get<Transform>(m_selectedEntity);
+			const raylib::Camera3D& cam = m_gameCamera.Raw();
+			CameraHelperParams params{
+				cam.GetPosition(), cam.GetTarget(), cam.GetUp(),
+				cam.GetFovy(), m_gameCamera.Near(), m_gameCamera.Far(),
+				(int)cam.projection
+			};
+			m_commandDebugQueue.Submit(BuildCameraHelperCommand(params));
+		}
+
+		if (const LightComponent* lc = m_scene.Registry().try_get<LightComponent>(m_selectedEntity)) {
+			const Transform& t = m_scene.Registry().get<Transform>(m_selectedEntity);
+			m_commandDebugQueue.Submit(LightHelperCommand{
+				t.position, lc->world_direction, lc->color, 4.0f });
+		}
 	}
 
 	IPanel* EditorState::getPanel(const std::string& name)
@@ -239,7 +285,7 @@ namespace Long {
 		entt::entity parent = m_scene.CreateEntity("ground");
 		reg.emplace<Transform>(parent, Transform{});
 		std::vector<entt::entity> children;
-		const int N = 500;
+		const int N = 100;
 		const float spacing = 4.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {
