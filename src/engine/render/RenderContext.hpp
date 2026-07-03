@@ -24,7 +24,7 @@ namespace Long {
 		AssetManager* assets{ nullptr };     // ScenePass needs meshes/materials
 		BaseCamera* camera{ nullptr };
 		FrustumCulling* frustum{ nullptr };  // visibility: cull entities outside view
-		const SceneLights* lights{ nullptr }; // gathered scene lights (LightSystem)
+		SceneLights* lights{ nullptr }; // gathered scene lights (LightSystem) + shadow inputs
 		uint32_t width{ 0 };
 		uint32_t height{ 0 };
 		RenderTarget* sceneTarget{ nullptr };  // 3D scene color
@@ -33,6 +33,7 @@ namespace Long {
 		RenderTarget* brightTarget{ nullptr };  // bright-pass output (bloom/flare read this)
 		RenderTarget* blurTarget{ nullptr };    // blur scratch / result (separable blur)
 		RenderTarget* ldrTarget{ nullptr };     // tonemapped LDR image (FXAA reads this)
+		RenderTarget* shadow_depth_target{ nullptr };   //Shadow map pass 
 		RenderStats renderStats;
 		std::vector<entt::entity> selectedEntities{};
 

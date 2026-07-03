@@ -1,6 +1,7 @@
 #include "BloomPass.hpp"
 #include "engine/AssetManager.hpp"
 #include "engine/render/RenderContext.hpp"
+#include "engine/render/RenderState.hpp"
 #include "raylib-cpp.hpp"
 #include "rlgl.h"
 
@@ -67,13 +68,14 @@ namespace Long {
 			RenderTarget& dstT = m_mips[i - 1];   // larger
 			raylib::Vector2 srcTexel{ 1.0f / (float)srcT.Width(), 1.0f / (float)srcT.Height() };
 			dstT.Bind();
-			rlSetBlendMode(RL_BLEND_ADDITIVE);
-			up.BeginMode();
-			up.SetValue(getLoc("u_srcTexel", up), &srcTexel, SHADER_UNIFORM_VEC2);
-			up.SetValue(getLoc("u_radius", up), &upsampleRadius, SHADER_UNIFORM_FLOAT);
-			drawFull(srcT, dstT);
-			up.EndMode();
-			rlSetBlendMode(RL_BLEND_ALPHA); // restore default
+			{
+				ScopedBlend blend(RL_BLEND_ADDITIVE); // auto-restored at block end
+				up.BeginMode();
+				up.SetValue(getLoc("u_srcTexel", up), &srcTexel, SHADER_UNIFORM_VEC2);
+				up.SetValue(getLoc("u_radius", up), &upsampleRadius, SHADER_UNIFORM_FLOAT);
+				drawFull(srcT, dstT);
+				up.EndMode();
+			}
 			dstT.Unbind();
 		}
 		ctx.blurTarget->Resize(m_mips[0].Width(), m_mips[0].Height());

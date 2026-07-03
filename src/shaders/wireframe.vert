@@ -15,6 +15,7 @@ uniform mat4 matModel;
 out vec2 fragTexCoord;
 out vec4 fragColor;
 out vec3 fragNormal;
+out vec3 fragPosition;  // world-space (point/spot lights need it)
 
 void main()
 {
@@ -24,9 +25,11 @@ void main()
 #if defined(INSTANCED)
     mat4 model = instanceTransform;
     fragNormal = normalize(mat3(model) * vertexNormal);
+    fragPosition = (model * vec4(vertexPosition, 1.0)).xyz;
     gl_Position = mvp * model * vec4(vertexPosition, 1.0);
 #else
     fragNormal = normalize(mat3(matModel) * vertexNormal);
+    fragPosition = (matModel * vec4(vertexPosition, 1.0)).xyz;
     gl_Position = mvp * vec4(vertexPosition, 1.0);
 #endif
 }

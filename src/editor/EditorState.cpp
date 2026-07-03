@@ -13,6 +13,9 @@
 #include "system/WorldBoundSystem.hpp"
 #include "system/GameCameraSystem.hpp"
 #include "system/LightSystem.hpp"
+#include "engine/render/passes/ScenePreparePass.hpp"
+#include "engine/render/passes/ShadowPass.hpp"
+#include "engine/render/passes/ShadowDebugPass.hpp"
 #include "engine/render/passes/ScenePass.hpp"
 #include "engine/render/passes/MaskPass.hpp"
 #include "engine/render/passes/CompositePass.hpp"
@@ -48,6 +51,8 @@ namespace Long {
 		}
 
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: panels done, adding render passes");
+		m_renderer.AddPass(std::make_unique<ScenePreparePass>());   // gather + sort + build batches (once)
+		m_renderer.AddPass(std::make_unique<ShadowPass>());         // depth-from-light -> shadow map
 		m_renderer.AddPass(std::make_unique<ScenePass>());          // scene -> sceneTarget (HDR)
 		m_renderer.AddPass(std::make_unique<MaskPass>());           // selection mask
 		m_renderer.AddPass(std::make_unique<BrightPass>());         // sceneTarget -> brightTarget
@@ -57,6 +62,7 @@ namespace Long {
 		m_renderer.AddPass(std::make_unique<OutlinePass>());        // overlay, straight to screen
 		m_renderer.AddPass(std::make_unique<GizmoPass>());          // overlay, straight to screen
 		m_renderer.AddPass(std::make_unique<RenderDebugPass>());          // overlay, render debug
+		//m_renderer.AddPass(std::make_unique<ShadowDebugPass>());          // DEBUG: blit shadow map to corner
 
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: passes added, init environment");
 		m_environment.Init(m_app.GetAssets());
@@ -282,10 +288,13 @@ namespace Long {
 		raylib::Color lightBrown{ 196, 164, 132, 255 };
 		raylib::Color faceBrown{ 120, 96, 72, 255 };
 		uint32_t mat = assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.02f);
+		// Ground only RECEIVES shadows (from the boxes); it doesn't cast onto
+		// itself -- skipping it in the depth pass avoids self-shadow acne.
+		assets.GetMaterial(mat).SetCastShadow(false);
 		entt::entity parent = m_scene.CreateEntity("ground");
 		reg.emplace<Transform>(parent, Transform{});
 		std::vector<entt::entity> children;
-		const int N = 500;
+		const int N = 50;
 		const float spacing = 4.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {

@@ -10,12 +10,14 @@ namespace Long {
 		m_finalTarget.SetFormat(RenderTarget::Format::HDR);
 		m_brightTarget.SetFormat(RenderTarget::Format::HDR);
 		m_blurTarget.SetFormat(RenderTarget::Format::HDR);
+		m_depthShadowTarget.SetFormat(RenderTarget::Format::DEPTH);
 		ctx.sceneTarget = &m_sceneTarget;
 		ctx.maskTarget = &m_maskTarget;
 		ctx.finalTarget = &m_finalTarget;
 		ctx.brightTarget = &m_brightTarget;
 		ctx.blurTarget = &m_blurTarget;
 		ctx.ldrTarget = &m_ldrTarget;
+		ctx.shadow_depth_target = &m_depthShadowTarget;
 		ctx.renderStats.Reset();
 		const auto tRender = Time::now();
 		for (auto& pass : m_passes) {

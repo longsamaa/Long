@@ -21,7 +21,10 @@ namespace Long {
 		// first Resize (or it forces a realloc on the next Resize). HDR uses a
 		// half-float RGBA buffer so values can exceed 1.0 -- required for bloom's
 		// bright-pass / tonemapping. LDR is the normal 8-bit buffer.
-		enum class Format { LDR, HDR };
+		enum class Format { 
+			LDR,
+			HDR,
+			DEPTH };
 		void SetFormat(Format fmt);
 
 		// Ensure the target is allocated at (width, height). No-op if unchanged.
@@ -37,6 +40,11 @@ namespace Long {
 
 		// The whole framebuffer (color + depth), e.g. if a pass needs the depth.
 		raylib::RenderTexture2D& GetRenderTexture() { return m_texture; }
+
+		// GL id of the depth attachment. Only sampleable in a shader when the
+		// target was created with Format::DEPTH (depth as texture, not renderbuffer)
+		// -- that's the id ShadowPass hands to SceneLights::shadowMapTexId.
+		unsigned int DepthTextureId() const { return m_texture.depth.id; }
 
 		uint32_t Width() const { return width; }
 		uint32_t Height() const { return height; }

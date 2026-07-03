@@ -5,6 +5,12 @@
 namespace Long {
 	BaseMaterial::BaseMaterial()
 	{
+		// Default: receive shadows at full strength. Pushed as uniforms so shaders
+		// can gate/scale the shadow term per material (ground receives, emissive
+		// glow may not). Must be set here: an unset GLSL uniform reads 0.0, which
+		// would make shadows vanish on materials that never touch it.
+		SetUniform("u_receiveShadow", 1);
+		SetUniform("u_shadowOpacity", 0.5f);
 	}
 
 	BaseMaterial::~BaseMaterial()
@@ -16,6 +22,38 @@ namespace Long {
 	void BaseMaterial::SetUniform(const std::string& name, const UniformValue& value)
 	{
 		maps[name] = value;
+	}
+
+	void BaseMaterial::SetColor(raylib::Color color)
+	{
+		raylib::Vector4 c{
+			color.r / 255.0f,
+			color.g / 255.0f,
+			color.b / 255.0f,
+			color.a / 255.0f
+		};
+		SetUniform("u_baseColor", c);
+	}
+
+	void BaseMaterial::SetEmissive(raylib::Vector3 color, float intensity)
+	{
+		SetUniform("u_emissive", color);
+		SetUniform("u_emissiveIntensity", intensity);
+	}
+
+	void BaseMaterial::SetMetallic(float metallic)
+	{
+		SetUniform("u_metallic", metallic);
+	}
+
+	void BaseMaterial::SetRoughness(float roughness)
+	{
+		SetUniform("u_roughness", roughness);
+	}
+
+	void BaseMaterial::SetAO(float ao)
+	{
+		SetUniform("u_ao", ao);
 	}
 
 	void BaseMaterial::ApplyUniforms(raylib::Shader& shader)

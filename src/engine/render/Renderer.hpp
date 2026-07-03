@@ -25,14 +25,13 @@ namespace Long {
 
 	private:
 		std::vector<std::unique_ptr<IRenderPass>> m_passes;
-
-		// Targets persist across frames (passes resize them as needed).
 		RenderTarget m_sceneTarget;
 		RenderTarget m_maskTarget;
 		RenderTarget m_finalTarget;
 		RenderTarget m_brightTarget;
 		RenderTarget m_blurTarget;
-		RenderTarget m_ldrTarget;  // tonemapped LDR (FXAA input)
+		RenderTarget m_depthShadowTarget;
+		RenderTarget m_ldrTarget; 
 	};
 
 } // namespace Long

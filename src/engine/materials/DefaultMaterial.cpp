@@ -3,19 +3,18 @@
 namespace Long {
 
 	DefaultMaterial::DefaultMaterial(uint32_t shaderId,
-		raylib::Color color) {
+		raylib::Color albedo,
+		raylib::Vector3 emissive,
+		float emissiveIntensity,
+		float metallic,
+		float roughness,
+		float ao) {
 		SetShaderId(shaderId);
-		SetColor(color);
-	}
-
-	void DefaultMaterial::SetColor(raylib::Color color) {
-		raylib::Vector4 c{
-			color.r / 255.0f,
-			color.g / 255.0f,
-			color.b / 255.0f,
-			color.a / 255.0f
-		};
-		SetUniform("u_baseColor", c);
+		SetColor(albedo);              // inherited from BaseMaterial
+		SetEmissive(emissive, emissiveIntensity);
+		SetMetallic(metallic);
+		SetRoughness(roughness);
+		SetAO(ao);
 	}
 
 	raylib::Material& DefaultMaterial::Apply(raylib::Shader& shader) {

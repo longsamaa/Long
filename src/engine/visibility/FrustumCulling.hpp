@@ -13,6 +13,9 @@ namespace Long {
 	public: 
 		void setCamera(BaseCamera* _camera);
 		void update();
+		// Extract the 6 planes straight from a view*projection matrix -- for
+		// culling from a LIGHT's frustum (shadow pass), where there is no camera.
+		void buildFromMatrix(const raylib::Matrix& viewProj);
 		bool isVisible(const raylib::Vector3& min, const raylib::Vector3& max) const;
 		const std::array<Plane, 6>& planes() const { return m_planes; }
 	private:

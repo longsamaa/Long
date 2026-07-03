@@ -26,7 +26,12 @@ namespace Long {
 			proj_matrix = MatrixOrtho(-right, right, -top, top,
 				camera->Near(), camera->Far());
 		}
-		raylib::Matrix m = view_matrix.Multiply(proj_matrix); 
+		buildFromMatrix(view_matrix.Multiply(proj_matrix));
+	}
+
+	void FrustumCulling::buildFromMatrix(const raylib::Matrix& viewProj)
+	{
+		const raylib::Matrix& m = viewProj;
 		auto setPlane = [&](int i, float a, float b, float c, float d) {
 			raylib::Vector3 n{ a, b, c };
 			float len = n.Length();
@@ -34,7 +39,7 @@ namespace Long {
 			m_planes[i].normal = n;
 			m_planes[i].d = d;
 		};
-		// Left, Right, Bottom, Top, Near, Far.
+		// Gribb-Hartmann: Left, Right, Bottom, Top, Near, Far.
 		setPlane(0, m.m3 + m.m0, m.m7 + m.m4, m.m11 + m.m8,  m.m15 + m.m12);
 		setPlane(1, m.m3 - m.m0, m.m7 - m.m4, m.m11 - m.m8,  m.m15 - m.m12);
 		setPlane(2, m.m3 + m.m1, m.m7 + m.m5, m.m11 + m.m9,  m.m15 + m.m13);

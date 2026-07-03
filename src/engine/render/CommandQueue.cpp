@@ -5,31 +5,14 @@
 #include "raymath.h"
 #include <algorithm>
 #include <cstring>
+#include <cstdio>   // snprintf
 #include <system/LightSystem.hpp>
 
-// Not exposed by raylib's public headers -- rmodels.c defines it privately the
-// same way (see rmodels.c: "Maximum number of maps supported").
 #ifndef MAX_MATERIAL_MAPS
 	#define MAX_MATERIAL_MAPS 12
 #endif
 
 namespace Long {
-	// ---------------------------------------------------------------------
-	// Custom draw path (replaces raylib DrawMesh / DrawMeshInstanced).
-	//
-	// raylib's DrawMesh redoes EVERYTHING per call: glUseProgram, upload
-	// view/projection, material colors, bind textures + VAO, draw, then
-	// rlDisableShader(). For a batch of N transforms that is N full state
-	// setups where only the model matrix actually changes. Here:
-	//   - shader + view/proj:      once per GL program (batches are shader-sorted)
-	//   - material colors/textures: once per batch
-	//   - per draw:                 only the model-dependent matrices
-	// DrawMeshInstanced also allocates + frees an instance VBO every call; we
-	// keep one persistent VBO and just update it (UploadInstanceTransforms).
-	// Limitations: no GPU skinning / stereo rendering (the editor uses neither).
-	// ---------------------------------------------------------------------
-
-	// Upload colDiffuse / colSpecular from the raylib material (mirrors DrawMesh).
 	static void UploadMaterialColors(const ::Material& mat) {
 		if (mat.shader.locs[SHADER_LOC_COLOR_DIFFUSE] != -1) {
 			float values[4] = {
@@ -51,12 +34,6 @@ namespace Long {
 		}
 	}
 
-	// Upload the scene light array to the CURRENTLY BOUND shader program.
-	// Called once per program change in Execute (batches are shader-sorted), so
-	// the cost is a handful of glUniform calls per shader per frame -- never per
-	// draw. Uniform names must match default.frag. Shaders that don't declare
-	// them (wireframe, emissive, ...) resolve to location -1 and are skipped.
-	// SoA layout: one rlSetUniform per attribute uploads the whole array.
 	static void BindLights(const raylib::Shader& shader, const SceneLights& lights) {
 		const int count = (int)lights.size;
 		int loc = rlGetLocationUniform(shader.id, "u_lightCount");
@@ -68,40 +45,59 @@ namespace Long {
 			return;
 		}
 
-		float pos[SceneLights::kMaxLights * 3];
-		float dir[SceneLights::kMaxLights * 3];
-		float col[SceneLights::kMaxLights * 4];
-		float inten[SceneLights::kMaxLights];
-		int   type[SceneLights::kMaxLights];
+		char name[64];
 		for (int i = 0; i < count; ++i) {
 			const LightParameter& l = lights.lights[i];
-			pos[i * 3 + 0] = l.position.x;
-			pos[i * 3 + 1] = l.position.y;
-			pos[i * 3 + 2] = l.position.z;
-			dir[i * 3 + 0] = l.direction.x;
-			dir[i * 3 + 1] = l.direction.y;
-			dir[i * 3 + 2] = l.direction.z;
-			col[i * 4 + 0] = l.color.x;
-			col[i * 4 + 1] = l.color.y;
-			col[i * 4 + 2] = l.color.z;
-			col[i * 4 + 3] = l.color.w;
-			inten[i] = l.intensity;
-			type[i] = (int)l.type;
+
+			snprintf(name, sizeof(name), "u_lights[%d].position", i);
+			loc = rlGetLocationUniform(shader.id, name);
+			if (loc != -1) { float v[3]{ l.position.x, l.position.y, l.position.z }; rlSetUniform(loc, v, SHADER_UNIFORM_VEC3, 1); }
+
+			snprintf(name, sizeof(name), "u_lights[%d].direction", i);
+			loc = rlGetLocationUniform(shader.id, name);
+			if (loc != -1) { float v[3]{ l.direction.x, l.direction.y, l.direction.z }; rlSetUniform(loc, v, SHADER_UNIFORM_VEC3, 1); }
+
+			snprintf(name, sizeof(name), "u_lights[%d].color", i);
+			loc = rlGetLocationUniform(shader.id, name);
+			if (loc != -1) { float v[4]{ l.color.x, l.color.y, l.color.z, l.color.w }; rlSetUniform(loc, v, SHADER_UNIFORM_VEC4, 1); }
+
+			snprintf(name, sizeof(name), "u_lights[%d].intensity", i);
+			loc = rlGetLocationUniform(shader.id, name);
+			if (loc != -1) { float v = l.intensity; rlSetUniform(loc, &v, SHADER_UNIFORM_FLOAT, 1); }
+
+			snprintf(name, sizeof(name), "u_lights[%d].type", i);
+			loc = rlGetLocationUniform(shader.id, name);
+			if (loc != -1) { int v = (int)l.type; rlSetUniform(loc, &v, SHADER_UNIFORM_INT, 1); }
 		}
-		// Querying an array uniform by name returns the location of element [0].
-		loc = rlGetLocationUniform(shader.id, "u_lightPos");
-		if (loc != -1) rlSetUniform(loc, pos, SHADER_UNIFORM_VEC3, count);
-		loc = rlGetLocationUniform(shader.id, "u_lightDir");
-		if (loc != -1) rlSetUniform(loc, dir, SHADER_UNIFORM_VEC3, count);
-		loc = rlGetLocationUniform(shader.id, "u_lightColor");
-		if (loc != -1) rlSetUniform(loc, col, SHADER_UNIFORM_VEC4, count);
-		loc = rlGetLocationUniform(shader.id, "u_lightIntensity");
-		if (loc != -1) rlSetUniform(loc, inten, SHADER_UNIFORM_FLOAT, count);
-		loc = rlGetLocationUniform(shader.id, "u_lightType");
-		if (loc != -1) rlSetUniform(loc, type, SHADER_UNIFORM_INT, count);
 	}
 
-	// Bind/unbind the material's texture maps to their slots (mirrors DrawMesh).
+	// Bind the shadow map + its light-space matrix to the current shader. Uses a
+	// high texture slot (10) to stay clear of material maps (0..MAX_MATERIAL_MAPS).
+	// Shaders without u_shadowMap resolve to -1 and skip. Called once per program.
+	static constexpr int kShadowTexSlot = 10;
+	static void BindShadow(const raylib::Shader& shader, const SceneLights& lights) {
+		int enabledLoc = rlGetLocationUniform(shader.id, "u_shadowEnabled");
+		if (enabledLoc == -1) {
+			return; // shader doesn't support shadows
+		}
+		int enabled = (lights.shadowsEnabled && lights.shadowMapTexId != 0) ? 1 : 0;
+		rlSetUniform(enabledLoc, &enabled, SHADER_UNIFORM_INT, 1);
+		if (!enabled) {
+			return;
+		}
+		int mvpLoc = rlGetLocationUniform(shader.id, "u_lightViewProj");
+		if (mvpLoc != -1) {
+			rlSetUniformMatrix(mvpLoc, lights.lightViewProj);
+		}
+		int mapLoc = rlGetLocationUniform(shader.id, "u_shadowMap");
+		if (mapLoc != -1) {
+			rlActiveTextureSlot(kShadowTexSlot);
+			rlEnableTexture(lights.shadowMapTexId);
+			int slot = kShadowTexSlot;
+			rlSetUniform(mapLoc, &slot, SHADER_UNIFORM_INT, 1);
+		}
+	}
+
 	static void BindMaterialMaps(const ::Material& mat) {
 		for (int i = 0; i < MAX_MATERIAL_MAPS; i++) {
 			if (mat.maps[i].texture.id > 0) {
@@ -126,8 +122,6 @@ namespace Long {
 		}
 	}
 
-	// Wire the instance-transform VBO into the currently bound VAO as 4 vec4
-	// attributes with divisor 1 (mirrors DrawMeshInstanced's attribute setup).
 	static void SetupInstanceAttributes(const ::Shader& shader, unsigned int vbo) {
 		int loc = shader.locs[SHADER_LOC_VERTEX_INSTANCETRANSFORM];
 		if (loc == -1) {
@@ -154,9 +148,13 @@ namespace Long {
 	{
 		const size_t count = transforms.size();
 		m_instanceStaging.resize(count * 16);
-		for (size_t i = 0; i < count; ++i) {
-			float16 f = MatrixToFloatV(transforms[i]);
-			std::memcpy(&m_instanceStaging[i * 16], f.v, sizeof(f.v));
+		float* dst = m_instanceStaging.data();
+		for (size_t i = 0; i < count; ++i, dst += 16) {
+			const ::Matrix& m = transforms[i];
+			dst[0]  = m.m0;  dst[1]  = m.m1;  dst[2]  = m.m2;  dst[3]  = m.m3;
+			dst[4]  = m.m4;  dst[5]  = m.m5;  dst[6]  = m.m6;  dst[7]  = m.m7;
+			dst[8]  = m.m8;  dst[9]  = m.m9;  dst[10] = m.m10; dst[11] = m.m11;
+			dst[12] = m.m12; dst[13] = m.m13; dst[14] = m.m14; dst[15] = m.m15;
 		}
 		const int bytes = (int)(count * 16 * sizeof(float));
 		if (m_instanceVbo == 0 || count > m_instanceCapacity) {
@@ -205,7 +203,7 @@ namespace Long {
 				uint32_t sb = b.material ? b.material->GetShaderId() : 0;
 				if (sa != sb) return sa < sb;
 				if (a.material != b.material) return a.material < b.material;
-				return a.mesh < b.mesh; 
+				return a.mesh < b.mesh;
 			});
 	}
 
@@ -227,7 +225,7 @@ namespace Long {
 				current = &m_batches[m_batchCount++];
 				current->mesh = cmd.mesh;
 				current->material = cmd.material;
-				current->transforms.clear(); 
+				current->transforms.clear();
 			}
 			current->transforms.emplace_back(cmd.worldMatrix);
 		}
@@ -237,12 +235,15 @@ namespace Long {
 	{
 		stats.materialCount = assets.materialCount();
 		constexpr size_t kInstanceThreshold = 4;
+		
+		const raylib::Matrix matView(rlGetMatrixModelview());
+		const raylib::Matrix matProjection(rlGetMatrixProjection());
+		const raylib::Matrix matStack(rlGetMatrixTransform()); // rlPushMatrix stack, normally identity
 
-		// Camera matrices are fixed for the whole queue (set by BeginMode3D):
-		// read them once instead of per draw like DrawMesh does.
-		const ::Matrix matView = rlGetMatrixModelview();
-		const ::Matrix matProjection = rlGetMatrixProjection();
-		const ::Matrix matStack = rlGetMatrixTransform(); // rlPushMatrix stack, normally identity
+		// World-space camera position = translation of the inverse view matrix.
+		// Fixed for the whole queue; specular in the shader needs it (u_viewPos).
+		const ::Matrix invView = MatrixInvert(matView);
+		const float camPos[3] = { invView.m12, invView.m13, invView.m14 };
 
 		uint32_t activeProgram = 0; // GL program currently bound (0 = none yet)
 
@@ -258,14 +259,9 @@ namespace Long {
 				(count >= kInstanceThreshold && instShaderId != AssetManager::Invalid);
 
 			raylib::Shader& shader = assets.GetShader(instanced ? instShaderId : baseShaderId);
-
-			// Custom per-material uniforms (u_baseColor etc). SetShaderValue inside
-			// binds the program itself, so the program is active after this.
 			raylib::Material& rlMat = batch.material->Apply(shader);
 			const ::Shader sh = rlMat.shader;
-
-			// Batches are shader-sorted: only rebind + re-upload camera matrices
-			// when the GL program actually changes.
+			
 			if (sh.id != activeProgram) {
 				rlEnableShader(sh.id);
 				activeProgram = sh.id;
@@ -276,13 +272,20 @@ namespace Long {
 				if (sh.locs[SHADER_LOC_MATRIX_PROJECTION] != -1) {
 					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_PROJECTION], matProjection);
 				}
-				// Global per-shader uniforms: the scene light array.
+				// Camera position for specular. u_* so raylib never overwrites it;
+				// unlit shaders resolve it to -1 and skip.
+				int viewPosLoc = rlGetLocationUniform(sh.id, "u_viewPos");
+				if (viewPosLoc != -1) {
+					rlSetUniform(viewPosLoc, camPos, SHADER_UNIFORM_VEC3, 1);
+				}
+				// Global per-shader uniforms: the scene light array + shadow map.
 				if (lights != nullptr) {
 					BindLights(shader, *lights);
+					BindShadow(shader, *lights);
 				}
 			}
 
-			// Per-batch material state (colors + texture maps).
+	
 			UploadMaterialColors(rlMat);
 			BindMaterialMaps(rlMat);
 
@@ -297,13 +300,11 @@ namespace Long {
 					stats.triangles += (uint32_t)mesh.triangleCount;
 					stats.vertices += (uint32_t)mesh.vertexCount;
 				}
-				activeProgram = 0; // DrawMesh disables the shader on exit
+				activeProgram = 0; 
 				continue;
 			}
 
 			if (instanced) {
-				// Model matrix comes from the per-instance vertex attribute; the
-				// MVP uniform only carries stack*view*proj (mirrors DrawMeshInstanced).
 				UploadInstanceTransforms(batch.transforms);
 				SetupInstanceAttributes(sh, m_instanceVbo);
 				if (sh.locs[SHADER_LOC_MATRIX_NORMAL] != -1) {
@@ -324,7 +325,7 @@ namespace Long {
 			else {
 				// Only the model-dependent matrices change per draw.
 				for (const raylib::Matrix& t : batch.transforms) {
-					const ::Matrix matModel = MatrixMultiply(t, matStack);
+					const raylib::Matrix matModel = t.Multiply(matStack); 
 					if (sh.locs[SHADER_LOC_MATRIX_MODEL] != -1) {
 						rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MODEL], matModel);
 					}
@@ -332,8 +333,8 @@ namespace Long {
 						rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_NORMAL],
 							MatrixTranspose(MatrixInvert(matModel)));
 					}
-					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP],
-						MatrixMultiply(MatrixMultiply(matModel, matView), matProjection));
+					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], matModel.Multiply(matView).Multiply(matProjection)); 
+						//MatrixMultiply(MatrixMultiply(matModel, matView), matProjection));
 					if (mesh.indices != NULL) {
 						rlDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
 					}
@@ -352,6 +353,69 @@ namespace Long {
 		}
 
 		// One unbind for the whole queue instead of one per draw.
+		rlDisableShader();
+	}
+
+	void CommandQueue::ExecuteDepth(AssetManager& assets, const raylib::Matrix& lightViewProj,
+		uint32_t depthShaderId)
+	{
+		if (!assets.IsValidShader(depthShaderId)) {
+			return;
+		}
+		constexpr size_t kInstanceThreshold = 4;
+		const ::Matrix lvp = lightViewProj;
+
+		// The instanced depth variant (if registered) for large batches.
+		const uint32_t instDepthId = assets.GetInstancedShaderId(depthShaderId);
+
+		uint32_t activeProgram = 0;
+		for (size_t b = 0; b < m_batchCount; ++b) {
+			const Batch& batch = m_batches[b];
+			if (!batch.mesh || !batch.material || !batch.material->CastsShadow()) {
+				continue; // non-casters don't write to the shadow map
+			}
+			const size_t count = batch.transforms.size();
+			const bool instanced =
+				(count >= kInstanceThreshold && instDepthId != AssetManager::Invalid);
+
+			const ::Shader sh = assets.GetShader(instanced ? instDepthId : depthShaderId);
+			if (sh.id != activeProgram) {
+				rlEnableShader(sh.id);
+				activeProgram = sh.id;
+			}
+
+			raylib::Mesh& mesh = *batch.mesh;
+			if (!rlEnableVertexArray(mesh.vaoId)) {
+				continue; // depth pass skips meshes without a VAO
+			}
+
+			if (instanced) {
+				// mvp = lightViewProj only; per-instance model from the attribute.
+				UploadInstanceTransforms(batch.transforms);
+				SetupInstanceAttributes(sh, m_instanceVbo);
+				rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], lvp);
+				if (mesh.indices != NULL) {
+					rlDrawVertexArrayElementsInstanced(0, mesh.triangleCount * 3, 0, (int)count);
+				}
+				else {
+					rlDrawVertexArrayInstanced(0, mesh.vertexCount, (int)count);
+				}
+			}
+			else {
+				for (const raylib::Matrix& t : batch.transforms) {
+					// mvp already folds the model matrix for the single-draw path.
+					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP],
+						MatrixMultiply(t, lvp));
+					if (mesh.indices != NULL) {
+						rlDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
+					}
+					else {
+						rlDrawVertexArray(0, mesh.vertexCount);
+					}
+				}
+			}
+			rlDisableVertexArray();
+		}
 		rlDisableShader();
 	}
 }

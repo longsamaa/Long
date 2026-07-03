@@ -49,6 +49,12 @@ namespace Long {
 		void BuildBatches();
 		//Queue render
 		void Execute(AssetManager& assets, RenderStats& stats, const SceneLights* lights);
+		// Draw the SAME batches as Execute but depth-only, from a light's view, into
+		// the currently bound framebuffer (a ShadowMap). Uses the shadow_depth shader
+		// (and its instanced variant) instead of each material's shader; lightViewProj
+		// replaces the camera matrices. Call after BuildBatches().
+		void ExecuteDepth(AssetManager& assets, const raylib::Matrix& lightViewProj,
+			uint32_t depthShaderId);
 	private:
 		// Upload a batch's transforms into the persistent instance VBO (grown as
 		// needed). raylib's DrawMeshInstanced allocates and frees a fresh VBO on

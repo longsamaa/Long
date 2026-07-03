@@ -2,10 +2,6 @@
 #include "rlgl.h"
 
 namespace Long {
-	// Build a RenderTexture whose color attachment is a half-float RGBA buffer
-	// (HDR). raylib's LoadRenderTexture only makes 8-bit targets, so we assemble
-	// the framebuffer with rlgl directly. Mirrors raylib's own LoadRenderTexture
-	// but swaps the color format to PIXELFORMAT_UNCOMPRESSED_R16G16B16A16.
 	static raylib::RenderTexture2D LoadRenderTextureHDR(int w, int h) {
 		raylib::RenderTexture2D target(::RenderTexture2D(0));
 		target.id = rlLoadFramebuffer();
@@ -42,6 +38,50 @@ namespace Long {
 		return target;
 	}
 
+	static raylib::RenderTexture2D LoadDepthTexture(int w, int h)
+	{
+		raylib::RenderTexture2D target(::RenderTexture2D(0));
+
+		target.id = rlLoadFramebuffer();
+		if (target.id == 0)
+		{
+			TRACELOG(LOG_WARNING, "RenderTarget: failed to create depth framebuffer");
+			return target;
+		}
+
+		rlEnableFramebuffer(target.id);
+
+		// No color attachment, but BeginTextureMode sets the viewport from
+		// texture.width/height -- leave them 0 and NOTHING rasterizes. Set the
+		// size even though texture.id stays 0.
+		target.texture.width = w;
+		target.texture.height = h;
+
+		// Create depth texture (not renderbuffer!)
+		target.depth.id = rlLoadTextureDepth(w, h, false);
+		target.depth.width = w;
+		target.depth.height = h;
+		target.depth.format = 19;      // DEPTH_COMPONENT
+		target.depth.mipmaps = 1;
+
+		rlFramebufferAttach(target.id,
+			target.depth.id,
+			RL_ATTACHMENT_DEPTH,
+			RL_ATTACHMENT_TEXTURE2D,
+			0);
+
+		rlActiveDrawBuffers(0);
+		if (!rlFramebufferComplete(target.id))
+		{
+			TRACELOG(LOG_WARNING,
+				"RenderTarget: depth framebuffer %u incomplete",
+				target.id);
+		}
+		rlDisableFramebuffer();
+		return target;
+	}
+
+
 	void RenderTarget::SetFormat(Format fmt) {
 		if (fmt == m_format) {
 			return;
@@ -66,10 +106,26 @@ namespace Long {
 			m_texture.Unload();
 			m_texture = raylib::RenderTexture2D(LoadRenderTextureHDR((int)width, (int)height));
 		}
+		else if (m_format == Format::DEPTH) {
+			m_texture.Unload();
+			m_texture = raylib::RenderTexture2D(LoadDepthTexture((int)width, (int)height));
+		}
 		else {
 			m_texture.Load((int)width, (int)height);
 		}
-		SetTextureWrap(m_texture.texture, TEXTURE_WRAP_CLAMP);
-		SetTextureFilter(m_texture.texture, TEXTURE_FILTER_BILINEAR);
+		if (m_format == Format::DEPTH) {
+			// No color texture; clamp the DEPTH texture so shadow samples outside
+			// the light frustum read edge depth instead of wrapping. NEAREST filter:
+			// the shader does bilinear PCF itself (it interpolates comparison
+			// RESULTS, so it must read raw per-texel depth).
+			rlTextureParameters(m_texture.depth.id, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_CLAMP);
+			rlTextureParameters(m_texture.depth.id, RL_TEXTURE_WRAP_T, RL_TEXTURE_WRAP_CLAMP);
+			rlTextureParameters(m_texture.depth.id, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_FILTER_NEAREST);
+			rlTextureParameters(m_texture.depth.id, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_FILTER_NEAREST);
+		}
+		else {
+			SetTextureWrap(m_texture.texture, TEXTURE_WRAP_CLAMP);
+			SetTextureFilter(m_texture.texture, TEXTURE_FILTER_BILINEAR);
+		}
 	}
 } // namespace Long

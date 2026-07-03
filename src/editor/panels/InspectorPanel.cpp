@@ -1,6 +1,7 @@
 #include "InspectorPanel.hpp"
 #include "editor/inspector/CameraParameterInspector.hpp"
 #include "editor/inspector/TransformInspector.hpp"
+#include "editor/inspector/LightInspector.hpp"
 #include "core/Scene.hpp"
 #include "core/Components.hpp"
 #include "imgui.h"
@@ -43,8 +44,14 @@ namespace Long {
 						ImGuiTreeNodeFlags_DefaultOpen)) {
 						TransformInspector::Draw(transform);
 					}
-				}); 
-				
+				});
+
+			}
+			if (LightComponent* light = reg.try_get<LightComponent>(m_selected)) {
+				if (ImGui::CollapsingHeader("Light",
+					ImGuiTreeNodeFlags_DefaultOpen)) {
+					LightInspector::Draw(*light);
+				}
 			}
 		}
 		ImGui::End();

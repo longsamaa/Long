@@ -3,6 +3,7 @@
 #include "helpers/draw_debug_helper.hpp"
 #include "core/Components.hpp"
 #include "core/math/transform.hpp" // DecomposeToTransform, LocalMatrix
+#include "engine/render/RenderState.hpp"
 #include "rlgl.h"
 #include "raymath.h"
 #include <limits>
@@ -233,8 +234,8 @@ namespace Long {
 	void EditorGizmo::Draw(const BaseCamera& camera, const Transform& target) {
 		const raylib::Vector3& center = target.position;
 		float r = GizmoScale(camera, center);
-		rlDisableDepthTest(); // gizmo always on top
-		rlDisableBackfaceCulling();
+		ScopedDepthTest depth(false);      // gizmo always on top
+		ScopedBackfaceCull cull(false);    // draw both sides of planes/torus
 		const bool scaleMode = (m_mode == Mode::Scale);
 		const bool rotateMode = (m_mode == Mode::Rotate);
 		if (!rotateMode) {
@@ -308,7 +309,7 @@ namespace Long {
 		if (debug) {
 			drawDebugGizmo(target, r);
 		}
-		rlEnableDepthTest();
+		// depth test + backface culling restored by scope guards
 	}
 
 	void EditorGizmo::DrawScreenGuide(const BaseCamera& camera, const Transform& target) {
