@@ -51,6 +51,56 @@ namespace Long {
 		}
 	}
 
+	// Upload the scene light array to the CURRENTLY BOUND shader program.
+	// Called once per program change in Execute (batches are shader-sorted), so
+	// the cost is a handful of glUniform calls per shader per frame -- never per
+	// draw. Uniform names must match default.frag. Shaders that don't declare
+	// them (wireframe, emissive, ...) resolve to location -1 and are skipped.
+	// SoA layout: one rlSetUniform per attribute uploads the whole array.
+	static void BindLights(const raylib::Shader& shader, const SceneLights& lights) {
+		const int count = (int)lights.size;
+		int loc = rlGetLocationUniform(shader.id, "u_lightCount");
+		if (loc == -1) {
+			return; // shader is unlit -> skip the rest
+		}
+		rlSetUniform(loc, &count, SHADER_UNIFORM_INT, 1);
+		if (count <= 0) {
+			return;
+		}
+
+		float pos[SceneLights::kMaxLights * 3];
+		float dir[SceneLights::kMaxLights * 3];
+		float col[SceneLights::kMaxLights * 4];
+		float inten[SceneLights::kMaxLights];
+		int   type[SceneLights::kMaxLights];
+		for (int i = 0; i < count; ++i) {
+			const LightParameter& l = lights.lights[i];
+			pos[i * 3 + 0] = l.position.x;
+			pos[i * 3 + 1] = l.position.y;
+			pos[i * 3 + 2] = l.position.z;
+			dir[i * 3 + 0] = l.direction.x;
+			dir[i * 3 + 1] = l.direction.y;
+			dir[i * 3 + 2] = l.direction.z;
+			col[i * 4 + 0] = l.color.x;
+			col[i * 4 + 1] = l.color.y;
+			col[i * 4 + 2] = l.color.z;
+			col[i * 4 + 3] = l.color.w;
+			inten[i] = l.intensity;
+			type[i] = (int)l.type;
+		}
+		// Querying an array uniform by name returns the location of element [0].
+		loc = rlGetLocationUniform(shader.id, "u_lightPos");
+		if (loc != -1) rlSetUniform(loc, pos, SHADER_UNIFORM_VEC3, count);
+		loc = rlGetLocationUniform(shader.id, "u_lightDir");
+		if (loc != -1) rlSetUniform(loc, dir, SHADER_UNIFORM_VEC3, count);
+		loc = rlGetLocationUniform(shader.id, "u_lightColor");
+		if (loc != -1) rlSetUniform(loc, col, SHADER_UNIFORM_VEC4, count);
+		loc = rlGetLocationUniform(shader.id, "u_lightIntensity");
+		if (loc != -1) rlSetUniform(loc, inten, SHADER_UNIFORM_FLOAT, count);
+		loc = rlGetLocationUniform(shader.id, "u_lightType");
+		if (loc != -1) rlSetUniform(loc, type, SHADER_UNIFORM_INT, count);
+	}
+
 	// Bind/unbind the material's texture maps to their slots (mirrors DrawMesh).
 	static void BindMaterialMaps(const ::Material& mat) {
 		for (int i = 0; i < MAX_MATERIAL_MAPS; i++) {
@@ -185,7 +235,6 @@ namespace Long {
 
 	void CommandQueue::Execute(AssetManager& assets, RenderStats& stats, const SceneLights* lights)
 	{
-		(void)lights; // hook: bind the light array at the program-change point below
 		stats.materialCount = assets.materialCount();
 		constexpr size_t kInstanceThreshold = 4;
 
@@ -227,7 +276,10 @@ namespace Long {
 				if (sh.locs[SHADER_LOC_MATRIX_PROJECTION] != -1) {
 					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_PROJECTION], matProjection);
 				}
-				// (Global per-shader uniforms -- e.g. the light array -- go here.)
+				// Global per-shader uniforms: the scene light array.
+				if (lights != nullptr) {
+					BindLights(shader, *lights);
+				}
 			}
 
 			// Per-batch material state (colors + texture maps).

@@ -21,6 +21,7 @@ uniform mat4 matModel;  // model matrix (non-instanced only)
 out vec2 fragTexCoord;
 out vec4 fragColor;
 out vec3 fragNormal;
+out vec3 fragPosition;  // world-space position (point/spot lights need it)
 
 void main()
 {
@@ -31,10 +32,12 @@ void main()
     // Instanced: model matrix is per-instance; mvp is only view*projection.
     mat4 model = instanceTransform;
     fragNormal = normalize(mat3(model) * vertexNormal);
+    fragPosition = (model * vec4(vertexPosition, 1.0)).xyz;
     gl_Position = mvp * model * vec4(vertexPosition, 1.0);
 #else
     // Single draw: mvp already includes the model matrix.
     fragNormal = normalize(mat3(matModel) * vertexNormal);
+    fragPosition = (matModel * vec4(vertexPosition, 1.0)).xyz;
     gl_Position = mvp * vec4(vertexPosition, 1.0);
 #endif
 }
