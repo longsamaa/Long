@@ -285,7 +285,7 @@ namespace Long {
 		entt::entity parent = m_scene.CreateEntity("ground");
 		reg.emplace<Transform>(parent, Transform{});
 		std::vector<entt::entity> children;
-		const int N = 100;
+		const int N = 500;
 		const float spacing = 4.0f;
 		for (int x = 0; x < N; ++x) {
 			for (int z = 0; z < N; ++z) {

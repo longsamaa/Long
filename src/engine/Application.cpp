@@ -13,7 +13,7 @@ namespace Long {
 		: m_config(config),
 		m_window(config.width, config.height, config.title,
 			FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE) {
-		m_window.SetTargetFPS(m_config.targetFps);
+		//m_window.SetTargetFPS(m_config.targetFps);
 		{
 			int mon = GetCurrentMonitor();
 			int mw = GetMonitorWidth(mon);
