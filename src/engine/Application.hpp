@@ -20,7 +20,7 @@ namespace Long {
 			int width = 1280;
 			int height = 800;
 			std::string title = "long";
-			int targetFps = 144;
+			int targetFps = 60;
 			bool high_dpi = true;
 			EditorStyle editorMode = EditorStyle::Dark;
 		};

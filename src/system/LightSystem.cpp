@@ -3,10 +3,10 @@
 
 namespace Long {
 	void LightSystem(entt::registry& registry, SceneLights& out) {
-		out.count = 0;
+		out.size = 0; 
 		auto view = registry.view<Transform, LightComponent>();
 		for (entt::entity e : view) {
-			if (out.count >= SceneLights::kMaxLights) {
+			if (out.size >= SceneLights::kMaxLights) {
 				break;
 			}
 			auto [t, lc] = view.get<Transform, LightComponent>(e); 
@@ -16,13 +16,14 @@ namespace Long {
 					.Normalize();
 				lc.buildFromTransformVersion = t.version;
 			}
-			GpuLight& g = out.lights[out.count++];
+			LightParameter& g = out.lights[out.size++];
+			g.source = e;
 			g.position = t.position;
 			g.direction = lc.world_direction;
 			g.color = { lc.color.r / 255.0f, lc.color.g / 255.0f,
 						lc.color.b / 255.0f, lc.color.a / 255.0f };
 			g.intensity = lc.intensity;
-			g.type = (int)lc.type;
+			g.type = (uint32_t)lc.type;
 		}
 	}
 }

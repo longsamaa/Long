@@ -5,9 +5,11 @@
 #include <raylib-cpp.hpp>
 #include "engine/Material.hpp"
 #include "system/RenderStats.hpp"
+
+
 namespace Long {
 	class AssetManager;
-
+	struct SceneLights; 
 	enum class CommandType {
 		Mesh,
 		Grid
@@ -31,7 +33,7 @@ namespace Long {
 	class CommandQueue {
 	public:
 		CommandQueue() = default;
-		~CommandQueue() = default;
+		~CommandQueue(); // releases the persistent instance-transform VBO
 		//No copy
 		CommandQueue(const CommandQueue&) = delete;
 		CommandQueue& operator=(const CommandQueue&) = delete;
@@ -46,16 +48,20 @@ namespace Long {
 		// Group sorted commands into batches by (mesh, material). Call after Sort().
 		void BuildBatches();
 		//Queue render
-		void Execute(AssetManager& assets, RenderStats& stats);
+		void Execute(AssetManager& assets, RenderStats& stats, const SceneLights* lights);
 	private:
+		// Upload a batch's transforms into the persistent instance VBO (grown as
+		// needed). raylib's DrawMeshInstanced allocates and frees a fresh VBO on
+		// EVERY call; we keep one alive across frames and just update it.
+		void UploadInstanceTransforms(const std::vector<raylib::Matrix>& transforms);
+
 		std::vector<Command> m_commands;
 		std::vector<Batch> m_batches;
-		// Reusable index buffer: Sort() orders these instead of swapping the heavy
-		// Command structs, and BuildBatches()/Execute() walk commands through it.
 		std::vector<uint32_t> m_order;
-		// Pool of Batch objects kept alive across frames so their transforms vectors
-		// retain capacity (BuildBatches reuses them instead of reallocating).
 		size_t m_batchCount{ 0 };
+		unsigned int m_instanceVbo{ 0 };    // persistent instance-transform VBO
+		size_t m_instanceCapacity{ 0 };     // capacity of m_instanceVbo, in instances
+		std::vector<float> m_instanceStaging; // CPU staging: 16 floats per instance
 	};
 }
 #endif // !_COMMAND_QUEUE_HPP_

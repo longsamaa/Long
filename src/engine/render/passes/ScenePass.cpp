@@ -10,6 +10,7 @@ namespace Long {
 		if (!ctx.sceneTarget || !ctx.registry || !ctx.assets || !ctx.camera) {
 			return;
 		}
+
 		ctx.sceneTarget->Resize(ctx.width, ctx.height);
 		if (!ctx.sceneTarget->IsValid()) {
 			return;
@@ -34,7 +35,7 @@ namespace Long {
 			raylib::Color::DarkGray().ClearBackground();
 			ctx.camera->BeginMode();
 			t0 = Time::now();
-			ctx.commandQueue->Execute(*ctx.assets, ctx.renderStats);
+			ctx.commandQueue->Execute(*ctx.assets, ctx.renderStats,ctx.lights);
 			ctx.renderStats.msExecute = Time::elapsedMs(t0);
 			auto tSky = Time::now();
 			if (ctx.environment) {

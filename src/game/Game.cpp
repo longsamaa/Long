@@ -33,6 +33,8 @@ namespace Long {
 		TransformSystem(m_scene.Registry());
 		WorldBoundsSystem(m_scene.Registry(), m_app.GetAssets());
 		GameCameraSystem(m_scene.Registry(), m_camera);
+		//Update m_light nap lại vào context render
+		LightSystem(m_scene.Registry(), m_lights);
 	}
 
 	void Game::BeginFrame(){

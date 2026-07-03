@@ -21,6 +21,7 @@ namespace Long {
 		virtual raylib::Material& Apply(raylib::Shader& shader) = 0;
 		void SetUniform(const std::string& name, const UniformValue& value);
 		void SetShaderId(uint32_t id) { shaderId = id; map_locations.clear(); }
+		void ApplyShader(uint32_t id) {};
 		uint32_t GetShaderId() const { return shaderId; }
 	protected:
 		void ApplyUniforms(raylib::Shader& shader);

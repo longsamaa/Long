@@ -5,18 +5,20 @@
 #include <array>
 #include <raylib-cpp.hpp>
 namespace Long {
-	struct GpuLight {
+	//Light paramater de nap vo context 
+	struct LightParameter {
+		entt::entity source{ entt::null };
 		raylib::Vector3 position{ 0, 0, 0 };
 		raylib::Vector3 direction{ 0, -1, 0 };
-		raylib::Vector4 color{ 1, 1, 1, 1 }; 
+		raylib::Vector4 color{ 1, 1, 1, 1 };
 		float intensity{ 1.0f };
-		int type{ 0 };                     
+		uint32_t type{ 0 };
 	};
 
 	struct SceneLights {
 		static constexpr int kMaxLights = 8;
-		std::array<GpuLight, kMaxLights> lights{};
-		int count{ 0 };
+		std::array<LightParameter, kMaxLights> lights{};
+		uint32_t size{ 0 }; 
 	};
 
 	void LightSystem(entt::registry& registry, SceneLights& out);

@@ -10,6 +10,7 @@
 #include "engine/Environment.hpp"
 #include "engine/visibility/FrustumCulling.hpp"
 #include "system/RenderStats.hpp"
+#include "system/LightSystem.hpp"
 
 namespace Long {
 	class Application;
@@ -32,6 +33,7 @@ namespace Long {
 		void buildDefaultScene();
 		Application& m_app;
 		Scene m_scene;
+		SceneLights m_lights;
 		Environment m_environment;
 		CommandQueue m_commandQueue;
 		CommandDebugQueue m_commandDebugQueue;

@@ -13,6 +13,7 @@ namespace Long {
 		uint32_t vertices = 0;      // total vertices submitted
 		uint32_t culledEntities = 0; // entities skipped (invisible / invalid)
 		uint32_t stageCount = 0; //number of state changes (shader/material switches)
+		uint32_t shaderBinds = 0; //number of glUseProgram calls issued by Execute
 		uint32_t materialCount = 0; //number of material (shader/material)
 		uint32_t renderPassCalls = 0; //number of render pass
 		// Per-stage CPU timings (milliseconds), filled by ScenePass each frame.
