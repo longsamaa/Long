@@ -1,8 +1,9 @@
 #version 430
 
-// Default lit surface -- PBR (same shading as pbr.frag): Cook-Torrance GGX
-// specular + Lambert diffuse + hemisphere ambient from the gradient skybox.
-// HDR output; ACES tonemap happens later in the pipeline.
+// Physically-based shading: Cook-Torrance specular (GGX distribution, Smith
+// geometry, Schlick fresnel) + Lambert diffuse, in HDR (tonemap happens later
+// in the pipeline). SAME light/shadow uniform interface as default.frag, so
+// CommandQueue::BindLights/BindShadow feed this shader with no C++ changes.
 
 in vec2 fragTexCoord;
 in vec4 fragColor;
@@ -19,7 +20,7 @@ uniform float u_metallic;           // 0 = dielectric, 1 = metal
 uniform float u_roughness;          // 0 = mirror, 1 = matte
 uniform float u_ao;                 // ambient occlusion factor
 
-// ---- Lights (uploaded by CommandQueue::BindLights) ----
+// ---- Lights: identical layout to default.frag ----
 #define MAX_LIGHTS 8
 #define LIGHT_DIRECTIONAL 0
 #define LIGHT_POINT 1
@@ -41,12 +42,13 @@ uniform int   u_lightCount;
 uniform Light u_lights[MAX_LIGHTS];
 uniform vec3  u_viewPos;
 
-// Hemisphere ambient from the gradient skybox (bound by BindLights).
+// Hemisphere ambient from the gradient skybox (bound by BindLights): the sky
+// color lights up-facing surfaces, the ground color down-facing ones.
 uniform vec3  u_ambientSky;
 uniform vec3  u_ambientGround;
 uniform float u_ambientIntensity;
 
-// ---- Shadows (uploaded by CommandQueue::BindShadow) ----
+// ---- Shadows: identical layout to default.frag ----
 #define MAX_SHADOWS 4
 uniform int       u_shadowCount;
 uniform int       u_receiveShadow;
@@ -58,8 +60,7 @@ out vec4 finalColor;
 
 const float PI = 3.14159265359;
 
-// 0 = fully shadowed, 1 = fully lit. 3x3 bilinear PCF + slope-scaled bias.
-// Keep in sync with pbr.frag / wireframe.frag.
+// Same as default.frag: 0 = shadowed, 1 = lit. 3x3 bilinear PCF + slope bias.
 float ShadowFactor(int idx, vec3 worldPos, vec3 N, vec3 L)
 {
     if (idx < 0 || idx >= u_shadowCount || u_receiveShadow == 0) return 1.0;
@@ -91,39 +92,50 @@ float ShadowFactor(int idx, vec3 worldPos, vec3 N, vec3 L)
     return mix(1.0, shadow / 9.0, clamp(u_shadowOpacity, 0.0, 1.0));
 }
 
-// ---- Cook-Torrance BRDF terms (keep in sync with pbr.frag) ----
+// GGX/Trowbridge-Reitz normal distribution: how many microfacets face H.
 float DistributionGGX(float ndh, float roughness)
 {
-    float a  = roughness * roughness;
+    float a  = roughness * roughness; // Disney remap: perceptually linear
     float a2 = a * a;
     float d  = ndh * ndh * (a2 - 1.0) + 1.0;
     return a2 / max(PI * d * d, 1e-6);
 }
+
+// Smith height-correlated visibility (Schlick-GGX approximation).
 float GeometrySmith(float ndv, float ndl, float roughness)
 {
     float r = roughness + 1.0;
-    float k = (r * r) / 8.0;
+    float k = (r * r) / 8.0; // direct-lighting remap
     float gv = ndv / (ndv * (1.0 - k) + k);
     float gl = ndl / (ndl * (1.0 - k) + k);
     return gv * gl;
 }
+
+// Schlick fresnel: reflectance grows toward 1 at grazing angles.
 vec3 FresnelSchlick(float hdv, vec3 F0)
 {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - hdv, 0.0, 1.0), 5.0);
 }
+
+// Fresnel for AMBIENT: rough surfaces can't reach full grazing reflectance,
+// so the "ceiling" is pulled down by roughness (standard IBL trick).
 vec3 FresnelSchlickRoughness(float ndv, vec3 F0, float roughness)
 {
     vec3 Fmax = max(vec3(1.0 - roughness), F0);
     return F0 + (Fmax - F0) * pow(clamp(1.0 - ndv, 0.0, 1.0), 5.0);
 }
 
-// Direct + ambient PBR lighting for one surface point.
-vec3 ComputePBR(vec3 albedo, float alpha_unused, vec3 N, vec3 worldPos)
+void main()
 {
+    vec4 baseTex = texture(texture0, fragTexCoord) * u_baseColor * fragColor;
+    vec3 albedo = baseTex.rgb;
     float metallic  = clamp(u_metallic, 0.0, 1.0);
-    float roughness = clamp(u_roughness, 0.04, 1.0);
-    vec3 V = normalize(u_viewPos - worldPos);
+    float roughness = clamp(u_roughness, 0.04, 1.0); // 0 breaks the NDF
+    vec3 N = normalize(fragNormal);
+    vec3 V = normalize(u_viewPos - fragPosition);
     float ndv = max(dot(N, V), 1e-4);
+
+    // Base reflectance: dielectrics ~4%, metals reflect with their albedo.
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
     vec3 Lo = vec3(0.0);
@@ -135,7 +147,7 @@ vec3 ComputePBR(vec3 albedo, float alpha_unused, vec3 N, vec3 worldPos)
             L = normalize(-lt.direction);
         }
         else {
-            vec3 toLight = lt.position - worldPos;
+            vec3 toLight = lt.position - fragPosition;
             float dist = length(toLight);
             L = toLight / max(dist, 1e-4);
             float falloff = clamp(1.0 - dist / max(lt.range, 1e-3), 0.0, 1.0);
@@ -148,10 +160,14 @@ vec3 ComputePBR(vec3 albedo, float alpha_unused, vec3 N, vec3 worldPos)
         float ndl = max(dot(N, L), 0.0);
         if (ndl <= 0.0 || atten <= 0.0) continue;
 
-        // Punctual-light convention: PI folded into the light (see pbr.frag).
+        // Punctual-light convention: fold PI into the light so intensity 1 gives
+        // peak diffuse = albedo (the BRDF's albedo/PI would otherwise make PBR
+        // lights 3x dimmer than the engine's Blinn-Phong shaders at the same
+        // intensity, letting ambient wash everything flat).
         vec3 radiance = lt.color.rgb * (lt.intensity * atten * PI)
-                      * ShadowFactor(lt.shadowIndex, worldPos, N, L);
+                      * ShadowFactor(lt.shadowIndex, fragPosition, N, L);
 
+        // Cook-Torrance specular term.
         vec3  H   = normalize(V + L);
         float ndh = max(dot(N, H), 0.0);
         float hdv = max(dot(H, V), 0.0);
@@ -159,27 +175,32 @@ vec3 ComputePBR(vec3 albedo, float alpha_unused, vec3 N, vec3 worldPos)
         float G   = GeometrySmith(ndv, ndl, roughness);
         vec3  F   = FresnelSchlick(hdv, F0);
         vec3 specular = (NDF * G * F) / max(4.0 * ndv * ndl, 1e-4);
+
+        // Energy conservation: what reflects specularly can't diffuse; metals
+        // have no diffuse at all.
         vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
         Lo += (kD * albedo / PI + specular) * radiance * ndl;
     }
 
-    // Hemisphere ambient (gradient skybox).
+    // --- Hemisphere ambient (poor man's IBL, follows the gradient skybox) ---
+    // Diffuse irradiance: blend ground->sky by how much the normal faces up.
     vec3 irradiance = mix(u_ambientGround, u_ambientSky, N.y * 0.5 + 0.5);
-    vec3 Famb = FresnelSchlickRoughness(ndv, F0, roughness);
-    vec3 kD_amb = (vec3(1.0) - Famb) * (1.0 - metallic);
+    vec3 kD_amb = (vec3(1.0) - FresnelSchlickRoughness(ndv, F0, roughness))
+                * (1.0 - metallic);
     vec3 diffuseAmb = kD_amb * irradiance * albedo;
+
+    // Specular ambient: sky color along the reflection vector, blurred toward
+    // plain irradiance as roughness grows (a rough mirror reflects "everything").
     vec3 R = reflect(-V, N);
     vec3 reflectedSky = mix(u_ambientGround, u_ambientSky, R.y * 0.5 + 0.5);
-    vec3 specAmb = mix(reflectedSky, irradiance, roughness) * Famb;
+    vec3 specAmb = mix(reflectedSky, irradiance, roughness)
+                 * FresnelSchlickRoughness(ndv, F0, roughness);
+
     vec3 ambient = (diffuseAmb + specAmb)
                  * clamp(u_ao, 0.0, 1.0) * u_ambientIntensity;
 
-    return ambient + Lo + u_emissive * u_emissiveIntensity;
-}
+    // Emissive is HDR: intensity > 1 feeds the bloom pipeline.
+    vec3 emissive = u_emissive * u_emissiveIntensity;
 
-void main()
-{
-    vec4 base = texture(texture0, fragTexCoord) * u_baseColor * fragColor;
-    vec3 N = normalize(fragNormal);
-    finalColor = vec4(ComputePBR(base.rgb, base.a, N, fragPosition), base.a);
+    finalColor = vec4(ambient + Lo + emissive, baseTex.a);
 }

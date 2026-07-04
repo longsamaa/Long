@@ -7,6 +7,13 @@ namespace Long {
 	{
 		SetUniform("u_receiveShadow", 1);
 		SetUniform("u_shadowOpacity", 0.8f);
+		// PBR surface defaults for EVERY material: an unset GLSL uniform reads
+		// 0.0, which would mean mirror-smooth (roughness 0), zero ambient (ao 0).
+		// Matte dielectric is the safe baseline; subclasses override as needed.
+		SetMetallic(0.0f);
+		SetRoughness(0.8f);
+		SetAO(1.0f);
+		SetEmissive({ 0.0f, 0.0f, 0.0f }, 0.0f);
 	}
 
 	BaseMaterial::~BaseMaterial()

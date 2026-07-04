@@ -36,8 +36,8 @@ namespace Long {
 			raylib::Mesh cubeMesh = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
 			raylib::BoundingBox box_collider(cubeMesh);
 			uint32_t meshId = assets.AddMesh(std::move(cubeMesh));
-			uint32_t defaultId = assets.GetShaderId("default");
-			uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color::White());
+			uint32_t pbrId = assets.GetShaderId("pbr");
+			uint32_t mat = assets.CreateDefaultMaterial(pbrId, raylib::Color::White());
 			m_registry.emplace<Transform>(cube, Transform{});
 			m_registry.emplace<MeshFilter>(cube, MeshFilter{ meshId });
 			m_registry.emplace<MeshRenderer>(cube, MeshRenderer{ mat, raylib::Color::White(), true });
@@ -53,8 +53,8 @@ namespace Long {
 			raylib::Mesh sphereMesh = raylib::Mesh::Sphere(1,16,16);
 			raylib::BoundingBox box_collider(sphereMesh);
 			uint32_t meshId = assets.AddMesh(std::move(sphereMesh));
-			uint32_t defaultId = assets.GetShaderId("default");
-			uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color::White());
+			uint32_t pbrId = assets.GetShaderId("pbr");
+			uint32_t mat = assets.CreateDefaultMaterial(pbrId, raylib::Color::White());
 			m_registry.emplace<Transform>(sphere, Transform{});
 			m_registry.emplace<MeshFilter>(sphere, MeshFilter{ meshId });
 			m_registry.emplace<MeshRenderer>(sphere, MeshRenderer{ mat, raylib::Color::White(), true });
@@ -64,14 +64,14 @@ namespace Long {
 		}
 		case CreateObjectType::Cylinder: {
 			auto& assets = m_app->GetAssets();
-			static const std::string name = "Sphere";
+			static const std::string name = "Cylinder";
 			entt::entity cylinder = m_registry.create();
 			m_registry.emplace<Name>(cylinder, name);
 			raylib::Mesh cylinderMesh = raylib::Mesh::Cylinder(1, 1, 16);
 			raylib::BoundingBox box_collider(cylinderMesh);
 			uint32_t meshId = assets.AddMesh(std::move(cylinderMesh));
-			uint32_t defaultId = assets.GetShaderId("default");
-			uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color::White());
+			uint32_t pbrId = assets.GetShaderId("pbr");
+			uint32_t mat = assets.CreateDefaultMaterial(pbrId, raylib::Color::White());
 			m_registry.emplace<Transform>(cylinder, Transform{});
 			m_registry.emplace<MeshFilter>(cylinder, MeshFilter{ meshId });
 			m_registry.emplace<MeshRenderer>(cylinder, MeshRenderer{ mat, raylib::Color::White(), true });

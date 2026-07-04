@@ -49,6 +49,7 @@ namespace Long {
 		m_assets.LoadInstancedVariant(shaderDir, "wireframe");
 		m_assets.LoadInstancedVariant(shaderDir, "emissive");
 		m_assets.LoadInstancedVariant(shaderDir, "shadow_depth");
+		m_assets.LoadInstancedVariant(shaderDir, "pbr");
 	}
 
 	Application::~Application() {

@@ -41,6 +41,23 @@ namespace Long {
 			return; // shader is unlit -> skip the rest
 		}
 		rlSetUniform(loc, &count, SHADER_UNIFORM_INT, 1);
+
+		// Hemisphere ambient (PBR shaders; others resolve to -1 and skip).
+		loc = rlGetLocationUniform(shader.id, "u_ambientSky");
+		if (loc != -1) {
+			float v[3]{ lights.ambientSky.x, lights.ambientSky.y, lights.ambientSky.z };
+			rlSetUniform(loc, v, SHADER_UNIFORM_VEC3, 1);
+		}
+		loc = rlGetLocationUniform(shader.id, "u_ambientGround");
+		if (loc != -1) {
+			float v[3]{ lights.ambientGround.x, lights.ambientGround.y, lights.ambientGround.z };
+			rlSetUniform(loc, v, SHADER_UNIFORM_VEC3, 1);
+		}
+		loc = rlGetLocationUniform(shader.id, "u_ambientIntensity");
+		if (loc != -1) {
+			rlSetUniform(loc, &lights.ambientIntensity, SHADER_UNIFORM_FLOAT, 1);
+		}
+
 		if (count <= 0) {
 			return;
 		}

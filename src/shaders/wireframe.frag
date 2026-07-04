@@ -1,8 +1,8 @@
 #version 430
 
-// Lit cube (same lighting as default.frag) PLUS a box-edge wireframe on top.
-// Each cube face has UV in [0,1], so fragments near a UV border lie on a face
-// edge -- painting those gives the 12 box edges (no face diagonals).
+// PBR-lit cube (same shading as pbr.frag / default.frag) PLUS a box-edge
+// wireframe on top. Each cube face has UV in [0,1], so fragments near a UV
+// border lie on a face edge -- painting those gives the 12 box edges.
 
 in vec2 fragTexCoord;
 in vec4 fragColor;
@@ -12,13 +12,16 @@ in vec3 fragPosition;   // world-space
 uniform sampler2D texture0;   // diffuse map (raylib sets this)
 
 // Our uniforms (raylib doesn't touch the u_ prefix).
-uniform vec4  u_faceColor;  // cube tint (like default's u_baseColor)
+uniform vec4  u_faceColor;  // cube tint (albedo, like default's u_baseColor)
 uniform vec4  u_lineColor;  // edge color
 uniform float u_thickness;  // edge width in UV space (0..0.5), e.g. 0.03
 
-// Scene lights -- SAME interface as default.frag, so CommandQueue::BindLights
-// uploads them here too (matching uniform names). MAX_LIGHTS must match
-// SceneLights::kMaxLights on the C++ side.
+// Surface params (BaseMaterial).
+uniform float u_metallic;
+uniform float u_roughness;
+uniform float u_ao;
+
+// ---- Lights: identical layout to pbr.frag/default.frag ----
 #define MAX_LIGHTS 8
 #define LIGHT_DIRECTIONAL 0
 #define LIGHT_POINT 1
@@ -30,21 +33,22 @@ struct Light {
     vec4  color;
     float intensity;
     int   type;
-    float innerCos;   // spot cone (see default.frag)
+    float innerCos;
     float outerCos;
-    float range;      // point/spot reach
-    int   shadowIndex; // entry in u_shadowMaps, or -1
+    float range;
+    int   shadowIndex;
 };
 
 uniform int   u_lightCount;
 uniform Light u_lights[MAX_LIGHTS];
-
-// Specular params -- same as default.frag (u_viewPos uploaded per-shader).
 uniform vec3  u_viewPos;
-uniform float u_roughness;
-uniform float u_metallic;
 
-// Shadow mapping -- same interface as default.frag (bound by BindShadow).
+// Hemisphere ambient (gradient skybox).
+uniform vec3  u_ambientSky;
+uniform vec3  u_ambientGround;
+uniform float u_ambientIntensity;
+
+// ---- Shadows: identical layout to pbr.frag/default.frag ----
 #define MAX_SHADOWS 4
 uniform int       u_shadowCount;
 uniform int       u_receiveShadow;
@@ -54,7 +58,9 @@ uniform sampler2D u_shadowMaps[MAX_SHADOWS];
 
 out vec4 finalColor;
 
-// Same as default.frag: 0 = shadowed, 1 = lit. 3x3 bilinear PCF + slope bias.
+const float PI = 3.14159265359;
+
+// Keep in sync with default.frag.
 float ShadowFactor(int idx, vec3 worldPos, vec3 N, vec3 L)
 {
     if (idx < 0 || idx >= u_shadowCount || u_receiveShadow == 0) return 1.0;
@@ -69,7 +75,6 @@ float ShadowFactor(int idx, vec3 worldPos, vec3 N, vec3 L)
     float bias = max(0.0025 * (1.0 - dot(N, L)), 0.0005);
     float compare = proj.z - bias;
     vec2 texel = 1.0 / vec2(textureSize(u_shadowMaps[idx], 0));
-    // 3x3 bilinear PCF -- keep in sync with default.frag.
     float shadow = 0.0;
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
@@ -84,21 +89,45 @@ float ShadowFactor(int idx, vec3 worldPos, vec3 N, vec3 L)
             shadow += mix(mix(bl, br, f.x), mix(tl, tr, f.x), f.y);
         }
     }
-    // Per-material opacity -- keep in sync with default.frag.
     return mix(1.0, shadow / 9.0, clamp(u_shadowOpacity, 0.0, 1.0));
 }
 
-// Identical to default.frag's ComputeLighting (GLSL has no #include, so the
-// shared lit shaders duplicate it; keep the two in sync).
-void ComputeLighting(vec3 N, vec3 worldPos, out vec3 outDiffuse)
+// ---- Cook-Torrance BRDF terms (keep in sync with default.frag) ----
+float DistributionGGX(float ndh, float roughness)
 {
+    float a  = roughness * roughness;
+    float a2 = a * a;
+    float d  = ndh * ndh * (a2 - 1.0) + 1.0;
+    return a2 / max(PI * d * d, 1e-6);
+}
+float GeometrySmith(float ndv, float ndl, float roughness)
+{
+    float r = roughness + 1.0;
+    float k = (r * r) / 8.0;
+    float gv = ndv / (ndv * (1.0 - k) + k);
+    float gl = ndl / (ndl * (1.0 - k) + k);
+    return gv * gl;
+}
+vec3 FresnelSchlick(float hdv, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - hdv, 0.0, 1.0), 5.0);
+}
+vec3 FresnelSchlickRoughness(float ndv, vec3 F0, float roughness)
+{
+    vec3 Fmax = max(vec3(1.0 - roughness), F0);
+    return F0 + (Fmax - F0) * pow(clamp(1.0 - ndv, 0.0, 1.0), 5.0);
+}
+
+// Direct + ambient PBR lighting -- keep in sync with default.frag.
+vec3 ComputePBR(vec3 albedo, vec3 N, vec3 worldPos)
+{
+    float metallic  = clamp(u_metallic, 0.0, 1.0);
+    float roughness = clamp(u_roughness, 0.04, 1.0);
     vec3 V = normalize(u_viewPos - worldPos);
-    float shininess = mix(128.0, 4.0, clamp(u_roughness, 0.0, 1.0));
-    float specStrength = mix(0.5, 1.0, clamp(u_metallic, 0.0, 1.0));
+    float ndv = max(dot(N, V), 1e-4);
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
-    outDiffuse  = vec3(0.15); // constant ambient
-    //outSpecular = vec3(0.0);
-
+    vec3 Lo = vec3(0.0);
     for (int i = 0; i < u_lightCount; ++i) {
         Light lt = u_lights[i];
         vec3 L;
@@ -107,7 +136,6 @@ void ComputeLighting(vec3 N, vec3 worldPos, out vec3 outDiffuse)
             L = normalize(-lt.direction);
         }
         else {
-            // Range-based falloff -- keep in sync with default.frag.
             vec3 toLight = lt.position - worldPos;
             float dist = length(toLight);
             L = toLight / max(dist, 1e-4);
@@ -119,20 +147,43 @@ void ComputeLighting(vec3 N, vec3 worldPos, out vec3 outDiffuse)
             }
         }
         float ndl = max(dot(N, L), 0.0);
-        vec3  radiance = lt.color.rgb * (lt.intensity * atten);
-        radiance *= ShadowFactor(lt.shadowIndex, worldPos, N, L);
-        outDiffuse += radiance * ndl;
+        if (ndl <= 0.0 || atten <= 0.0) continue;
+
+        // Punctual-light convention: PI folded into the light (see pbr.frag).
+        vec3 radiance = lt.color.rgb * (lt.intensity * atten * PI)
+                      * ShadowFactor(lt.shadowIndex, worldPos, N, L);
+
+        vec3  H   = normalize(V + L);
+        float ndh = max(dot(N, H), 0.0);
+        float hdv = max(dot(H, V), 0.0);
+        float NDF = DistributionGGX(ndh, roughness);
+        float G   = GeometrySmith(ndv, ndl, roughness);
+        vec3  F   = FresnelSchlick(hdv, F0);
+        vec3 specular = (NDF * G * F) / max(4.0 * ndv * ndl, 1e-4);
+        vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
+        Lo += (kD * albedo / PI + specular) * radiance * ndl;
     }
+
+    // Hemisphere ambient (gradient skybox).
+    vec3 irradiance = mix(u_ambientGround, u_ambientSky, N.y * 0.5 + 0.5);
+    vec3 Famb = FresnelSchlickRoughness(ndv, F0, roughness);
+    vec3 kD_amb = (vec3(1.0) - Famb) * (1.0 - metallic);
+    vec3 diffuseAmb = kD_amb * irradiance * albedo;
+    vec3 R = reflect(-V, N);
+    vec3 reflectedSky = mix(u_ambientGround, u_ambientSky, R.y * 0.5 + 0.5);
+    vec3 specAmb = mix(reflectedSky, irradiance, roughness) * Famb;
+    vec3 ambient = (diffuseAmb + specAmb)
+                 * clamp(u_ao, 0.0, 1.0) * u_ambientIntensity;
+
+    return ambient + Lo;
 }
 
 void main()
 {
-    // --- Lit base color (same lighting as default.frag) ---
+    // --- PBR-lit face ---
     vec4 base = texture(texture0, fragTexCoord) * u_faceColor * fragColor;
     vec3 N = normalize(fragNormal);
-    vec3 diffuse;
-    ComputeLighting(N, fragPosition, diffuse);
-    vec3 litFace = base.rgb * diffuse;
+    vec3 litFace = ComputePBR(base.rgb, N, fragPosition);
 
     // --- Edge mask from UV distance to the nearest face border ---
     vec2 d = min(fragTexCoord, 1.0 - fragTexCoord);

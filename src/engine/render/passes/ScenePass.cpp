@@ -13,6 +13,12 @@ namespace Long {
 		if (!ctx.sceneTarget->IsValid()) {
 			return;
 		}
+		// Hemisphere ambient follows the skybox gradient so PBR ambient matches
+		// what surrounds the scene (updates live when the user edits the sky).
+		if (ctx.environment && ctx.lights) {
+			ctx.lights->ambientSky = ctx.environment->topColor;
+			ctx.lights->ambientGround = ctx.environment->bottomColor;
+		}
 		// Batches were built by ScenePreparePass; here we just draw them from the
 		// camera's point of view (color), sampling the shadow map ShadowPass filled.
 		ctx.sceneTarget->Bind();
