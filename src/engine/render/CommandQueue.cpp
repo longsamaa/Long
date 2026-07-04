@@ -9,7 +9,7 @@
 #include <system/LightSystem.hpp>
 
 #ifndef MAX_MATERIAL_MAPS
-	#define MAX_MATERIAL_MAPS 12
+#define MAX_MATERIAL_MAPS 12
 #endif
 
 namespace Long {
@@ -68,33 +68,54 @@ namespace Long {
 			snprintf(name, sizeof(name), "u_lights[%d].type", i);
 			loc = rlGetLocationUniform(shader.id, name);
 			if (loc != -1) { int v = (int)l.type; rlSetUniform(loc, &v, SHADER_UNIFORM_INT, 1); }
+
+			snprintf(name, sizeof(name), "u_lights[%d].innerCos", i);
+			loc = rlGetLocationUniform(shader.id, name);
+			if (loc != -1) { float v = l.innerCos; rlSetUniform(loc, &v, SHADER_UNIFORM_FLOAT, 1); }
+
+			snprintf(name, sizeof(name), "u_lights[%d].outerCos", i);
+			loc = rlGetLocationUniform(shader.id, name);
+			if (loc != -1) { float v = l.outerCos; rlSetUniform(loc, &v, SHADER_UNIFORM_FLOAT, 1); }
+
+			snprintf(name, sizeof(name), "u_lights[%d].range", i);
+			loc = rlGetLocationUniform(shader.id, name);
+			if (loc != -1) { float v = l.range; rlSetUniform(loc, &v, SHADER_UNIFORM_FLOAT, 1); }
+
+			snprintf(name, sizeof(name), "u_lights[%d].shadowIndex", i);
+			loc = rlGetLocationUniform(shader.id, name);
+			if (loc != -1) { int v = l.shadowIndex; rlSetUniform(loc, &v, SHADER_UNIFORM_INT, 1); }
 		}
 	}
 
-	// Bind the shadow map + its light-space matrix to the current shader. Uses a
-	// high texture slot (10) to stay clear of material maps (0..MAX_MATERIAL_MAPS).
-	// Shaders without u_shadowMap resolve to -1 and skip. Called once per program.
-	static constexpr int kShadowTexSlot = 10;
+	// Bind every rendered shadow map + its light-space matrix to the current
+	// shader (arrays u_shadowMaps[] / u_lightViewProj[]; each light carries its
+	// shadowIndex into them). High texture slots (10+) stay clear of material
+	// maps (0..MAX_MATERIAL_MAPS). Called once per program change.
+	static constexpr int kShadowTexSlot0 = 10;
 	static void BindShadow(const raylib::Shader& shader, const SceneLights& lights) {
-		int enabledLoc = rlGetLocationUniform(shader.id, "u_shadowEnabled");
-		if (enabledLoc == -1) {
+		int countLoc = rlGetLocationUniform(shader.id, "u_shadowCount");
+		if (countLoc == -1) {
 			return; // shader doesn't support shadows
 		}
-		int enabled = (lights.shadowsEnabled && lights.shadowMapTexId != 0) ? 1 : 0;
-		rlSetUniform(enabledLoc, &enabled, SHADER_UNIFORM_INT, 1);
-		if (!enabled) {
-			return;
-		}
-		int mvpLoc = rlGetLocationUniform(shader.id, "u_lightViewProj");
-		if (mvpLoc != -1) {
-			rlSetUniformMatrix(mvpLoc, lights.lightViewProj);
-		}
-		int mapLoc = rlGetLocationUniform(shader.id, "u_shadowMap");
-		if (mapLoc != -1) {
-			rlActiveTextureSlot(kShadowTexSlot);
-			rlEnableTexture(lights.shadowMapTexId);
-			int slot = kShadowTexSlot;
-			rlSetUniform(mapLoc, &slot, SHADER_UNIFORM_INT, 1);
+		int count = (int)lights.shadowCount;
+		rlSetUniform(countLoc, &count, SHADER_UNIFORM_INT, 1);
+
+		char name[64];
+		for (int k = 0; k < count; ++k) {
+			const ShadowCaster& sc = lights.shadows[k];
+			snprintf(name, sizeof(name), "u_lightViewProj[%d]", k);
+			int mvpLoc = rlGetLocationUniform(shader.id, name);
+			if (mvpLoc != -1) {
+				rlSetUniformMatrix(mvpLoc, sc.lightViewProj);
+			}
+			snprintf(name, sizeof(name), "u_shadowMaps[%d]", k);
+			int mapLoc = rlGetLocationUniform(shader.id, name);
+			if (mapLoc != -1 && sc.depthTexId != 0) {
+				int slot = kShadowTexSlot0 + k;
+				rlActiveTextureSlot(slot);
+				rlEnableTexture(sc.depthTexId);
+				rlSetUniform(mapLoc, &slot, SHADER_UNIFORM_INT, 1);
+			}
 		}
 	}
 
@@ -151,9 +172,9 @@ namespace Long {
 		float* dst = m_instanceStaging.data();
 		for (size_t i = 0; i < count; ++i, dst += 16) {
 			const ::Matrix& m = transforms[i];
-			dst[0]  = m.m0;  dst[1]  = m.m1;  dst[2]  = m.m2;  dst[3]  = m.m3;
-			dst[4]  = m.m4;  dst[5]  = m.m5;  dst[6]  = m.m6;  dst[7]  = m.m7;
-			dst[8]  = m.m8;  dst[9]  = m.m9;  dst[10] = m.m10; dst[11] = m.m11;
+			dst[0] = m.m0;  dst[1] = m.m1;  dst[2] = m.m2;  dst[3] = m.m3;
+			dst[4] = m.m4;  dst[5] = m.m5;  dst[6] = m.m6;  dst[7] = m.m7;
+			dst[8] = m.m8;  dst[9] = m.m9;  dst[10] = m.m10; dst[11] = m.m11;
 			dst[12] = m.m12; dst[13] = m.m13; dst[14] = m.m14; dst[15] = m.m15;
 		}
 		const int bytes = (int)(count * 16 * sizeof(float));
@@ -235,7 +256,7 @@ namespace Long {
 	{
 		stats.materialCount = assets.materialCount();
 		constexpr size_t kInstanceThreshold = 4;
-		
+
 		const raylib::Matrix matView(rlGetMatrixModelview());
 		const raylib::Matrix matProjection(rlGetMatrixProjection());
 		const raylib::Matrix matStack(rlGetMatrixTransform()); // rlPushMatrix stack, normally identity
@@ -261,7 +282,7 @@ namespace Long {
 			raylib::Shader& shader = assets.GetShader(instanced ? instShaderId : baseShaderId);
 			raylib::Material& rlMat = batch.material->Apply(shader);
 			const ::Shader sh = rlMat.shader;
-			
+
 			if (sh.id != activeProgram) {
 				rlEnableShader(sh.id);
 				activeProgram = sh.id;
@@ -285,7 +306,6 @@ namespace Long {
 				}
 			}
 
-	
 			UploadMaterialColors(rlMat);
 			BindMaterialMaps(rlMat);
 
@@ -300,7 +320,7 @@ namespace Long {
 					stats.triangles += (uint32_t)mesh.triangleCount;
 					stats.vertices += (uint32_t)mesh.vertexCount;
 				}
-				activeProgram = 0; 
+				activeProgram = 0;
 				continue;
 			}
 
@@ -325,7 +345,7 @@ namespace Long {
 			else {
 				// Only the model-dependent matrices change per draw.
 				for (const raylib::Matrix& t : batch.transforms) {
-					const raylib::Matrix matModel = t.Multiply(matStack); 
+					const raylib::Matrix matModel = t.Multiply(matStack);
 					if (sh.locs[SHADER_LOC_MATRIX_MODEL] != -1) {
 						rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MODEL], matModel);
 					}
@@ -333,8 +353,8 @@ namespace Long {
 						rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_NORMAL],
 							MatrixTranspose(MatrixInvert(matModel)));
 					}
-					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], matModel.Multiply(matView).Multiply(matProjection)); 
-						//MatrixMultiply(MatrixMultiply(matModel, matView), matProjection));
+					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], matModel.Multiply(matView).Multiply(matProjection));
+					//MatrixMultiply(MatrixMultiply(matModel, matView), matProjection));
 					if (mesh.indices != NULL) {
 						rlDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
 					}

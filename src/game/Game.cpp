@@ -5,6 +5,8 @@
 #include "system/WorldBoundSystem.hpp"
 #include "system/GameCameraSystem.hpp"
 #include "engine/render/RenderContext.hpp"
+#include "engine/render/passes/ScenePreparePass.hpp"
+#include "engine/render/passes/ShadowPass.hpp"
 #include "engine/render/passes/ScenePass.hpp"
 #include "engine/render/passes/BrightPass.hpp"
 #include "engine/render/passes/BloomPass.hpp"
@@ -18,6 +20,9 @@ namespace Long {
 		m_camera = camera; 
 	}
 	void Game::OnEnter() {
+		m_scene.SetApplication(&m_app);
+		m_renderer.AddPass(std::make_unique<ScenePreparePass>());
+		m_renderer.AddPass(std::make_unique<ShadowPass>());
 		m_renderer.AddPass(std::make_unique<ScenePass>());
 		m_renderer.AddPass(std::make_unique<BrightPass>());
 		m_renderer.AddPass(std::make_unique<BloomPass>());

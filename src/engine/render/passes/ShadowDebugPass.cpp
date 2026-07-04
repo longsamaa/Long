@@ -5,7 +5,7 @@
 
 namespace Long {
 	void ShadowDebugPass::execute(RenderContext& ctx) {
-		if (!ctx.assets || !ctx.lights || ctx.lights->shadowMapTexId == 0) {
+		if (!ctx.assets || !ctx.lights || ctx.lights->shadowCount == 0) {
 			return;
 		}
 		uint32_t shaderId = ctx.assets->GetShaderId("depth_debug");
@@ -13,28 +13,30 @@ namespace Long {
 			return;
 		}
 
-		// Wrap the raw GL depth texture id in a Texture so DrawTexturePro can use
-		// it. The depth map is square (m_resolution); we draw it scaled into a
-		// corner. format/mipmaps are cosmetic here (raylib only needs id + size).
-		int res = (int)ctx.lights->shadowMapSize;
-		if (res <= 0) res = 1;
-		::Texture2D depthTex{};
-		depthTex.id = ctx.lights->shadowMapTexId;
-		depthTex.width = res;
-		depthTex.height = res;
-		depthTex.mipmaps = 1;
-		depthTex.format = PIXELFORMAT_UNCOMPRESSED_R32; // single-channel depth
-
 		const float size = 256.0f;
 		const float margin = 10.0f;
-		float sx = (float)::GetScreenWidth() - size - margin;
-		float sy = margin;
-
 		raylib::Shader& shader = ctx.assets->GetShader(shaderId);
 		shader.BeginMode();
-		::Rectangle src{ 0, 0, (float)res, (float)res };
-		::Rectangle dst{ sx, sy, size, size };
-		DrawTexturePro(depthTex, src, dst, { 0, 0 }, 0.0f, WHITE);
+		// One tile per rendered shadow map, stacked down the right edge.
+		for (uint32_t k = 0; k < ctx.lights->shadowCount; ++k) {
+			const ShadowCaster& sc = ctx.lights->shadows[k];
+			if (sc.depthTexId == 0) {
+				continue;
+			}
+			// Wrap the raw GL depth texture id so DrawTexturePro can use it; the
+			// exact size only matters for the source rect, maps are square.
+			::Texture2D depthTex{};
+			depthTex.id = sc.depthTexId;
+			depthTex.width = 2048;
+			depthTex.height = 2048;
+			depthTex.mipmaps = 1;
+			depthTex.format = PIXELFORMAT_UNCOMPRESSED_R32; // single-channel depth
+			float sx = (float)::GetScreenWidth() - size - margin;
+			float sy = margin + (float)k * (size + margin);
+			::Rectangle src{ 0, 0, (float)depthTex.width, (float)depthTex.height };
+			::Rectangle dst{ sx, sy, size, size };
+			DrawTexturePro(depthTex, src, dst, { 0, 0 }, 0.0f, WHITE);
+		}
 		shader.EndMode();
 	}
 }

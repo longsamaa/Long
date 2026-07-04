@@ -30,6 +30,10 @@ struct Light {
     vec4  color;
     float intensity;
     int   type;
+    float innerCos;   // spot cone (see default.frag)
+    float outerCos;
+    float range;      // point/spot reach
+    int   shadowIndex; // entry in u_shadowMaps, or -1
 };
 
 uniform int   u_lightCount;
@@ -41,19 +45,20 @@ uniform float u_roughness;
 uniform float u_metallic;
 
 // Shadow mapping -- same interface as default.frag (bound by BindShadow).
-uniform int       u_shadowEnabled;
+#define MAX_SHADOWS 4
+uniform int       u_shadowCount;
 uniform int       u_receiveShadow;
 uniform float     u_shadowOpacity;
-uniform mat4      u_lightViewProj;
-uniform sampler2D u_shadowMap;
+uniform mat4      u_lightViewProj[MAX_SHADOWS];
+uniform sampler2D u_shadowMaps[MAX_SHADOWS];
 
 out vec4 finalColor;
 
-// Same as default.frag: 0 = shadowed, 1 = lit. 3x3 PCF + slope-scaled bias.
-float ShadowFactor(vec3 worldPos, vec3 N, vec3 L)
+// Same as default.frag: 0 = shadowed, 1 = lit. 3x3 bilinear PCF + slope bias.
+float ShadowFactor(int idx, vec3 worldPos, vec3 N, vec3 L)
 {
-    if (u_shadowEnabled == 0 || u_receiveShadow == 0) return 1.0;
-    vec4 lp = u_lightViewProj * vec4(worldPos, 1.0);
+    if (idx < 0 || idx >= u_shadowCount || u_receiveShadow == 0) return 1.0;
+    vec4 lp = u_lightViewProj[idx] * vec4(worldPos, 1.0);
     vec3 proj = lp.xyz / lp.w;
     proj = proj * 0.5 + 0.5;
     if (proj.z > 1.0 ||
@@ -63,7 +68,7 @@ float ShadowFactor(vec3 worldPos, vec3 N, vec3 L)
     }
     float bias = max(0.0025 * (1.0 - dot(N, L)), 0.0005);
     float compare = proj.z - bias;
-    vec2 texel = 1.0 / vec2(textureSize(u_shadowMap, 0));
+    vec2 texel = 1.0 / vec2(textureSize(u_shadowMaps[idx], 0));
     // 3x3 bilinear PCF -- keep in sync with default.frag.
     float shadow = 0.0;
     for (int x = -1; x <= 1; ++x) {
@@ -72,10 +77,10 @@ float ShadowFactor(vec3 worldPos, vec3 N, vec3 L)
             vec2 pos = uv / texel - 0.5;
             vec2 f = fract(pos);
             vec2 base = (floor(pos) + 0.5) * texel;
-            float bl = (compare > texture(u_shadowMap, base).r) ? 0.0 : 1.0;
-            float br = (compare > texture(u_shadowMap, base + vec2(texel.x, 0.0)).r) ? 0.0 : 1.0;
-            float tl = (compare > texture(u_shadowMap, base + vec2(0.0, texel.y)).r) ? 0.0 : 1.0;
-            float tr = (compare > texture(u_shadowMap, base + texel).r) ? 0.0 : 1.0;
+            float bl = (compare > texture(u_shadowMaps[idx], base).r) ? 0.0 : 1.0;
+            float br = (compare > texture(u_shadowMaps[idx], base + vec2(texel.x, 0.0)).r) ? 0.0 : 1.0;
+            float tl = (compare > texture(u_shadowMaps[idx], base + vec2(0.0, texel.y)).r) ? 0.0 : 1.0;
+            float tr = (compare > texture(u_shadowMaps[idx], base + texel).r) ? 0.0 : 1.0;
             shadow += mix(mix(bl, br, f.x), mix(tl, tr, f.x), f.y);
         }
     }
@@ -85,14 +90,14 @@ float ShadowFactor(vec3 worldPos, vec3 N, vec3 L)
 
 // Identical to default.frag's ComputeLighting (GLSL has no #include, so the
 // shared lit shaders duplicate it; keep the two in sync).
-void ComputeLighting(vec3 N, vec3 worldPos, out vec3 outDiffuse, out vec3 outSpecular)
+void ComputeLighting(vec3 N, vec3 worldPos, out vec3 outDiffuse)
 {
     vec3 V = normalize(u_viewPos - worldPos);
     float shininess = mix(128.0, 4.0, clamp(u_roughness, 0.0, 1.0));
     float specStrength = mix(0.5, 1.0, clamp(u_metallic, 0.0, 1.0));
 
     outDiffuse  = vec3(0.15); // constant ambient
-    outSpecular = vec3(0.0);
+    //outSpecular = vec3(0.0);
 
     for (int i = 0; i < u_lightCount; ++i) {
         Light lt = u_lights[i];
@@ -102,22 +107,21 @@ void ComputeLighting(vec3 N, vec3 worldPos, out vec3 outDiffuse, out vec3 outSpe
             L = normalize(-lt.direction);
         }
         else {
+            // Range-based falloff -- keep in sync with default.frag.
             vec3 toLight = lt.position - worldPos;
             float dist = length(toLight);
             L = toLight / max(dist, 1e-4);
-            atten = 1.0 / max(dist * dist, 1e-4);
+            float falloff = clamp(1.0 - dist / max(lt.range, 1e-3), 0.0, 1.0);
+            atten = falloff * falloff;
+            if (lt.type == LIGHT_SPOT) {
+                float cd = dot(-L, normalize(lt.direction));
+                atten *= smoothstep(lt.outerCos, lt.innerCos, cd);
+            }
         }
         float ndl = max(dot(N, L), 0.0);
         vec3  radiance = lt.color.rgb * (lt.intensity * atten);
-        float shadow = (lt.type == LIGHT_DIRECTIONAL)
-                       ? ShadowFactor(worldPos, N, L) : 1.0;
-        radiance *= shadow;
+        radiance *= ShadowFactor(lt.shadowIndex, worldPos, N, L);
         outDiffuse += radiance * ndl;
-        if (ndl > 0.0) {
-            vec3  H   = normalize(L + V);
-            float ndh = max(dot(N, H), 0.0);
-            outSpecular += radiance * (pow(ndh, shininess) * specStrength);
-        }
     }
 }
 
@@ -126,10 +130,9 @@ void main()
     // --- Lit base color (same lighting as default.frag) ---
     vec4 base = texture(texture0, fragTexCoord) * u_faceColor * fragColor;
     vec3 N = normalize(fragNormal);
-    vec3 diffuse, specular;
-    ComputeLighting(N, fragPosition, diffuse, specular);
-    vec3 specTint = mix(vec3(1.0), base.rgb, clamp(u_metallic, 0.0, 1.0));
-    vec3 litFace = base.rgb * diffuse + specular * specTint;
+    vec3 diffuse;
+    ComputeLighting(N, fragPosition, diffuse);
+    vec3 litFace = base.rgb * diffuse;
 
     // --- Edge mask from UV distance to the nearest face border ---
     vec2 d = min(fragTexCoord, 1.0 - fragTexCoord);

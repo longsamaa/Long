@@ -4,7 +4,7 @@ namespace Long {
 	void RenderDebugPass::execute(RenderContext& ctx)
 	{
 		if (!ctx.commandDebugQueue) {
-			return; 
+			return;
 		}
 		ctx.camera->BeginMode();
 		ctx.commandDebugQueue->Execute(ctx.renderStats);

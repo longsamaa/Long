@@ -21,6 +21,9 @@ namespace Long {
 		}
 		if (Hierarchy* h = reg.try_get<Hierarchy>(e)) {
 			raylib::Matrix world = matrix_component.world_matrix;
+			std::erase_if(h->children, [&](entt::entity child) {
+				return child != entt::null && !reg.valid(child);
+				});
 			for (entt::entity& child : h->children) {
 				if (reg.valid(child) && reg.all_of<Transform>(child)) {
 					UpdateRecursive(reg, child, world, isDirty);
@@ -32,7 +35,7 @@ namespace Long {
 	void TransformSystem(entt::registry& registry) {
 		static const raylib::Matrix identity = raylib::Matrix::Identity();
 		std::vector<entt::entity> roots(registry.view<DirtyTransform>().begin(),
-		                                registry.view<DirtyTransform>().end());
+			registry.view<DirtyTransform>().end());
 		for (entt::entity e : roots) {
 			raylib::Matrix parentWorld = identity;
 			if (const Hierarchy* h = registry.try_get<Hierarchy>(e)) {

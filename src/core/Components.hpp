@@ -26,10 +26,13 @@ namespace Long {
 
 	struct LightComponent {
 		LightType type;
-		raylib::Vector3 direction{ 0.0f, -1.0f, 0.0f };       
-		raylib::Vector3 world_direction{ 0.0f, -1.0f, 0.0f }; 
+		raylib::Vector3 direction{ 0.0f, -1.0f, 0.0f };
+		raylib::Vector3 world_direction{ 0.0f, -1.0f, 0.0f };
 		raylib::Color color{ 255, 255, 255, 255 };
 		float intensity{ 1.0f };
+		float innerAngle{ 25.0f };
+		float outerAngle{ 35.0f };
+		float range{ 30.0f };
 		uint32_t version{ 1 };
 		uint32_t buildFromTransformVersion{ 0 };
 		bool castsShadows{ true };
@@ -46,11 +49,7 @@ namespace Long {
 	struct MatrixTransform {
 		raylib::Matrix world_matrix = MatrixIdentity();
 		raylib::Matrix local_matrix = MatrixIdentity();
-		// Snapshot of the source Transform::version the last time we rebuilt -- lets
-		// TransformSystem detect a LOCAL change.
 		uint32_t builtLocalVersion{ 0 };
-		// Monotonic counter bumped whenever world_matrix is recomputed (local OR parent
-		// change). WorldBoundsSystem compares its aabb.builtVersion against this.
 		uint32_t buildFromTransformVersion{ 0 };
 	};
 
@@ -84,9 +83,6 @@ namespace Long {
 		uint32_t meshId = UINT32_MAX; // invalid by default
 	};
 
-	// How this entity is shaded. Material (shader + params) lives in the
-	// AssetManager; referenced by id so several entities can share/override it.
-	// (Like Unity's MeshRenderer.)
 	struct MeshRenderer {
 		uint32_t materialId = UINT32_MAX; // invalid -> use default material
 		raylib::Color tint = raylib::Color::White();
@@ -98,11 +94,7 @@ namespace Long {
 		uint32_t buildFromMatrixTransformVersion{ 0 };
 	};
 
-	// Human-readable name (handy in the editor's entity list / inspector).
 	struct Name {
 		std::string value;
 	};
-	//// Tag components (empty) -- used to mark entities for systems/queries.
-	//struct StaticTile {};   // part of the level geometry
-	//struct Selected {};     // currently selected in the editor
 } // namespace Long

@@ -43,7 +43,7 @@ namespace Long {
 
 		// GL id of the depth attachment. Only sampleable in a shader when the
 		// target was created with Format::DEPTH (depth as texture, not renderbuffer)
-		// -- that's the id ShadowPass hands to SceneLights::shadowMapTexId.
+		// -- that's the id ShadowPass hands to SceneLights::shadows[].depthTexId.
 		unsigned int DepthTextureId() const { return m_texture.depth.id; }
 
 		uint32_t Width() const { return width; }

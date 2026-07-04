@@ -5,12 +5,8 @@
 namespace Long {
 	BaseMaterial::BaseMaterial()
 	{
-		// Default: receive shadows at full strength. Pushed as uniforms so shaders
-		// can gate/scale the shadow term per material (ground receives, emissive
-		// glow may not). Must be set here: an unset GLSL uniform reads 0.0, which
-		// would make shadows vanish on materials that never touch it.
 		SetUniform("u_receiveShadow", 1);
-		SetUniform("u_shadowOpacity", 0.5f);
+		SetUniform("u_shadowOpacity", 0.8f);
 	}
 
 	BaseMaterial::~BaseMaterial()

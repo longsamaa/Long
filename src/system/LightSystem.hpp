@@ -5,7 +5,7 @@
 #include <array>
 #include <raylib-cpp.hpp>
 namespace Long {
-	//Light paramater de nap vo context 
+	//Light paramater de nap vo context
 	struct LightParameter {
 		entt::entity source{ entt::null };
 		raylib::Vector3 position{ 0, 0, 0 };
@@ -13,20 +13,25 @@ namespace Long {
 		raylib::Vector4 color{ 1, 1, 1, 1 };
 		float intensity{ 1.0f };
 		uint32_t type{ 0 };
+		float innerCos{ 1.0f };
+		float outerCos{ 1.0f };
+		float range{ 30.0f };
+		bool castsShadows{ false };
+		int shadowIndex{ -1 };
+	};
+
+	struct ShadowCaster {
+		raylib::Matrix lightViewProj{ MatrixIdentity() };
+		unsigned int depthTexId{ 0 };
 	};
 
 	struct SceneLights {
 		static constexpr int kMaxLights = 8;
+		static constexpr int kMaxShadows = 4;
 		std::array<LightParameter, kMaxLights> lights{};
 		uint32_t size{ 0 };
-
-		// Shadow mapping inputs, filled by ShadowPass (not LightSystem). Bound to
-		// the scene shader alongside the lights so a single struct carries all the
-		// lighting a draw needs. depthTexId == 0 disables shadow sampling.
-		raylib::Matrix lightViewProj{ MatrixIdentity() }; // world -> light clip space
-		unsigned int shadowMapTexId{ 0 };
-		uint32_t shadowMapSize{ 0 };  // resolution (square), for debug blit
-		bool shadowsEnabled{ false };
+		std::array<ShadowCaster, kMaxShadows> shadows{};
+		uint32_t shadowCount{ 0 };
 	};
 
 	void LightSystem(entt::registry& registry, SceneLights& out);

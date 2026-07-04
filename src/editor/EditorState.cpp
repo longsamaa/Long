@@ -37,6 +37,7 @@
 #include <iostream>
 namespace Long {
 	void EditorState::OnEnter() {
+		m_scene.SetApplication(&m_app);
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: begin, creating panels");
 		m_panels.push_back(std::make_unique<GpuInfoPanel>());
 		m_panels.push_back(std::make_unique<ProfilerPanel>(m_renderStats));
@@ -70,7 +71,7 @@ namespace Long {
 		m_panels.back()->close();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter : create main camera");
 		createComponentCamera();
-		createComponentLight(); 
+		createComponentLight();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround begin");
 		createGround();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround done, createEmissiveBoxes begin");
@@ -91,6 +92,9 @@ namespace Long {
 		uint32_t meshId = assets.AddMesh(std::move(sphere));
 		uint32_t defaultId = assets.GetShaderId("default");
 		uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color{ 200, 200, 200, 255 });
+		// Editor helper mesh: must not occlude light or the gizmo sphere throws
+		// stray shadows into the scene.
+		assets.GetMaterial(mat).SetCastShadow(false);
 		reg.emplace<MeshFilter>(main_camera, MeshFilter{ meshId });
 		reg.emplace<MeshRenderer>(main_camera, MeshRenderer{ mat, raylib::Color::White(), true });
 		reg.emplace<BoxCollider3D>(main_camera, BoxCollider3D{ box_collider });
@@ -121,7 +125,7 @@ namespace Long {
 			.color = { 255, 255, 255, 255 },
 			.intensity = 1.0f,
 			.castsShadows = true,
-		});
+			});
 	}
 
 	void EditorState::Update(float dt) {
@@ -288,9 +292,10 @@ namespace Long {
 		raylib::Color lightBrown{ 196, 164, 132, 255 };
 		raylib::Color faceBrown{ 120, 96, 72, 255 };
 		uint32_t mat = assets.CreateWireframeMaterial(wireId, lightBrown, faceBrown, 0.02f);
-		// Ground only RECEIVES shadows (from the boxes); it doesn't cast onto
-		// itself -- skipping it in the depth pass avoids self-shadow acne.
-		assets.GetMaterial(mat).SetCastShadow(false);
+		// NOTE: cast shadow stays ON. The material is shared by every tile --
+		// including ones the user lifts up -- and a non-casting mesh lets light
+		// pass straight through it ("bong xuyen vat the"). Self-shadow acne on
+		// the flat ground is handled by the slope-scaled bias in the shader.
 		entt::entity parent = m_scene.CreateEntity("ground");
 		reg.emplace<Transform>(parent, Transform{});
 		std::vector<entt::entity> children;

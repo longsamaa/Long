@@ -6,11 +6,10 @@ namespace Long {
 	class BloomCompositePass : public IRenderPass {
 	public:
 		void execute(RenderContext& ctx) override;
-	public: 
-		float u_bloomStrength{ 0.5f }; 
+	public:
+		float u_bloomStrength{ 1.0f };
 	private:
 		uint32_t m_shaderId{ UINT32_MAX };
 	};
-
 }
 #endif // !_BLOOM_COMPOSITE_PASS_HPP_

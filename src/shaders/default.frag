@@ -26,6 +26,10 @@ struct Light {
     vec4  color;      // rgb 0..1 (+ a)
     float intensity;
     int   type;       // LightType on the C++ side
+    float innerCos;   // spot: cos(inner half-angle), full brightness inside
+    float outerCos;   // spot: cos(outer half-angle), zero outside
+    float range;      // point/spot reach in world units
+    int   shadowIndex; // entry in u_shadowMaps/u_lightViewProj, or -1 = no shadow
 };
 
 uniform int   u_lightCount;            // defaults to 0 when nothing bound
@@ -37,26 +41,27 @@ uniform vec3  u_viewPos;               // world-space camera position
 uniform float u_roughness;             // 0 = mirror-sharp, 1 = matte
 uniform float u_metallic;              // 0 = dielectric, 1 = metal
 
-// Shadow mapping (bound by CommandQueue::BindShadow). u_shadowEnabled gates it
-// so scenes without a directional shadow caster pay nothing. u_receiveShadow is
-// a per-material flag (BaseMaterial) so a surface can opt out of shadows.
-uniform int       u_shadowEnabled;
+// Shadow mapping (bound by CommandQueue::BindShadow). Up to MAX_SHADOWS casting
+// lights (directional or spot); each light's shadowIndex picks its map below.
+// u_receiveShadow / u_shadowOpacity are per-material (BaseMaterial).
+#define MAX_SHADOWS 4
+uniform int       u_shadowCount;
 uniform int       u_receiveShadow;     // default 1 (BaseMaterial)
 uniform float     u_shadowOpacity;     // 0 = shadows invisible, 1 = full (BaseMaterial)
-uniform mat4      u_lightViewProj;     // world -> light clip space
-uniform sampler2D u_shadowMap;         // depth-from-light (slot 10)
+uniform mat4      u_lightViewProj[MAX_SHADOWS]; // world -> light clip space
+uniform sampler2D u_shadowMaps[MAX_SHADOWS];    // depth-from-light (slots 10+)
 
 out vec4 finalColor;
 
-// 0 = fully shadowed, 1 = fully lit. Projects the world position into the
-// light's clip space, compares stored vs current depth with a slope-scaled bias
-// and a 3x3 PCF blur for soft edges. N and L are used only for the bias.
-float ShadowFactor(vec3 worldPos, vec3 N, vec3 L)
+// 0 = fully shadowed, 1 = fully lit, for shadow map `idx`. Projects the world
+// position into that light's clip space and compares depths with a slope-scaled
+// bias + 3x3 bilinear PCF. N and L are used only for the bias.
+float ShadowFactor(int idx, vec3 worldPos, vec3 N, vec3 L)
 {
-    if (u_shadowEnabled == 0 || u_receiveShadow == 0) return 1.0;
+    if (idx < 0 || idx >= u_shadowCount || u_receiveShadow == 0) return 1.0;
 
-    vec4 lp = u_lightViewProj * vec4(worldPos, 1.0);
-    vec3 proj = lp.xyz / lp.w;          // ortho: w==1, but keep it general
+    vec4 lp = u_lightViewProj[idx] * vec4(worldPos, 1.0);
+    vec3 proj = lp.xyz / lp.w;          // spot is perspective: the divide matters
     proj = proj * 0.5 + 0.5;            // NDC [-1,1] -> texture [0,1]
 
     // Outside the light frustum (or behind far plane): treat as lit.
@@ -69,7 +74,7 @@ float ShadowFactor(vec3 worldPos, vec3 N, vec3 L)
     // Bias grows on grazing surfaces to fight shadow acne.
     float bias = max(0.0025 * (1.0 - dot(N, L)), 0.0005);
     float compare = proj.z - bias;
-    vec2 texel = 1.0 / vec2(textureSize(u_shadowMap, 0));
+    vec2 texel = 1.0 / vec2(textureSize(u_shadowMaps[idx], 0));
 
     // 3x3 grid of BILINEAR PCF taps. Averaging raw 0/1 comparisons stair-steps
     // at texel edges; instead each tap compares the 4 surrounding texels and
@@ -81,10 +86,10 @@ float ShadowFactor(vec3 worldPos, vec3 N, vec3 L)
             vec2 pos = uv / texel - 0.5;
             vec2 f = fract(pos);
             vec2 base = (floor(pos) + 0.5) * texel;
-            float bl = (compare > texture(u_shadowMap, base).r) ? 0.0 : 1.0;
-            float br = (compare > texture(u_shadowMap, base + vec2(texel.x, 0.0)).r) ? 0.0 : 1.0;
-            float tl = (compare > texture(u_shadowMap, base + vec2(0.0, texel.y)).r) ? 0.0 : 1.0;
-            float tr = (compare > texture(u_shadowMap, base + texel).r) ? 0.0 : 1.0;
+            float bl = (compare > texture(u_shadowMaps[idx], base).r) ? 0.0 : 1.0;
+            float br = (compare > texture(u_shadowMaps[idx], base + vec2(texel.x, 0.0)).r) ? 0.0 : 1.0;
+            float tl = (compare > texture(u_shadowMaps[idx], base + vec2(0.0, texel.y)).r) ? 0.0 : 1.0;
+            float tr = (compare > texture(u_shadowMaps[idx], base + texel).r) ? 0.0 : 1.0;
             shadow += mix(mix(bl, br, f.x), mix(tl, tr, f.x), f.y);
         }
     }
@@ -119,21 +124,30 @@ void ComputeLighting(vec3 N, vec3 worldPos, out vec3 outDiffuse, out vec3 outSpe
             L = normalize(-lt.direction);  // direction points FROM the light
         }
         else {
-            // Point (and spot until cone params exist): direction to the light
-            // plus inverse-square distance falloff.
-            // TODO(spot): cone falloff needs inner/outer angles in LightComponent.
+            // Point/spot: direction to the light + range-based falloff.
+            // NOT pure inverse-square (1/d^2): that is ~0.01 at 10 units, so a
+            // spot at intensity 1 was invisible. Smooth quadratic window instead:
+            // full near the light, fading to exactly 0 at lt.range.
             vec3 toLight = lt.position - worldPos;
             float dist = length(toLight);
             L = toLight / max(dist, 1e-4);
-            atten = 1.0 / max(dist * dist, 1e-4);
+            float falloff = clamp(1.0 - dist / max(lt.range, 1e-3), 0.0, 1.0);
+            atten = falloff * falloff;
+
+            if (lt.type == LIGHT_SPOT) {
+                // Angle between the spot axis and this fragment: -L points from
+                // the light to the surface. smoothstep fades full->zero between
+                // the inner and outer cone (cosines flip the edge order).
+                float cd = dot(-L, normalize(lt.direction));
+                atten *= smoothstep(lt.outerCos, lt.innerCos, cd);
+            }
         }
         float ndl = max(dot(N, L), 0.0);
         vec3  radiance = lt.color.rgb * (lt.intensity * atten);
 
-        // Only directional lights cast shadows (one shadow map). Others stay lit.
-        float shadow = (lt.type == LIGHT_DIRECTIONAL)
-                       ? ShadowFactor(worldPos, N, L) : 1.0;
-        radiance *= shadow;
+        // Any light with a shadow map slot darkens (directional or spot);
+        // shadowIndex == -1 means this light casts no shadow.
+        radiance *= ShadowFactor(lt.shadowIndex, worldPos, N, L);
 
         outDiffuse += radiance * ndl;
 
