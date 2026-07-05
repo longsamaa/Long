@@ -38,6 +38,25 @@ namespace Long {
 			m_rClickItem = e;
 		}
 
+		if (ImGui::BeginDragDropSource())
+		{
+			// Without a payload there is nothing for the target to accept.
+			ImGui::SetDragDropPayload("HIERARCHY_ENTITY", &e, sizeof(entt::entity));
+			ImGui::Text("%s", label.c_str());
+			ImGui::EndDragDropSource();
+		}
+
+		if (ImGui::BeginDragDropTarget())
+		{
+			if (const ImGuiPayload* payload =
+				ImGui::AcceptDragDropPayload("HIERARCHY_ENTITY"))
+			{
+				entt::entity dragged = *(const entt::entity*)payload->Data;
+				reparentEntity(dragged, e);
+			}
+			ImGui::EndDragDropTarget();
+		}
+
 		if (ImGui::BeginPopupContextItem())
 		{
 			if (ImGui::MenuItem("Rename"))
@@ -80,6 +99,38 @@ namespace Long {
 			}
 			ImGui::TreePop();
 		}
+	}
+
+	void HierarchyPanel::reparentEntity(entt::entity child, entt::entity newParent) {
+		auto& registry = m_scene.Registry();
+		if (child == newParent) {
+			return;
+		}; 
+		if (!registry.valid(child) || !registry.valid(newParent)) {
+			return;
+		}
+		Hierarchy& childHierarchy = registry.get_or_emplace<Hierarchy>(child); 
+		Hierarchy& parentHierarchy = registry.get_or_emplace<Hierarchy>(newParent);
+		if (childHierarchy.parent == newParent) {
+			return; 
+		}
+		auto it = std::find(parentHierarchy.children.begin(), parentHierarchy.children.end(), child); 
+		if (it != parentHierarchy.children.end()) {
+			return; 
+		}
+		//reupdate old parent of child 
+		entt::entity oldParent = childHierarchy.parent; 
+		if (oldParent != entt::null) {
+			//oldparent delete 
+			Hierarchy* old_parent_hierarchy = registry.try_get<Hierarchy>(oldParent);
+			auto it = std::find(old_parent_hierarchy->children.begin(),old_parent_hierarchy->children.end(),child);
+			if (it != old_parent_hierarchy->children.end()) {
+				old_parent_hierarchy->children.erase(it); 
+			}
+		}
+		childHierarchy.parent = newParent; 
+		parentHierarchy.children.emplace_back(child); 
+		m_scene.SetDirty(child);
 	}
 
 	void HierarchyPanel::render() {

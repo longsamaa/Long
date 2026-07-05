@@ -16,6 +16,7 @@ namespace Long {
 		void appendCamera();
 	private:
 		void drawEntityNode(entt::entity e);
+		void reparentEntity(entt::entity child, entt::entity newParent);
 		Scene& m_scene;
 		entt::entity& m_selected;
 		entt::entity m_rClickItem{ entt::null };
