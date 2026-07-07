@@ -4,12 +4,8 @@
 #include <vector>
 #include <raylib-cpp.hpp>
 #include "engine/Material.hpp"
-#include "system/RenderStats.hpp"
-
 
 namespace Long {
-	class AssetManager;
-	struct SceneLights; 
 	enum class CommandType {
 		Mesh,
 		Grid
@@ -23,17 +19,21 @@ namespace Long {
 	};
 
 	// A group of draws sharing the same (mesh, material) -- i.e. everything but the
-	// transform. Such a group can be drawn in a single instanced call.
+	// transform. Such a group can be drawn in a single instanced call. Consumed by
+	// GLRenderer, which turns it into GL draw calls.
 	struct Batch {
 		raylib::Mesh* mesh{ nullptr };
 		BaseMaterial* material{ nullptr };
 		std::vector<raylib::Matrix> transforms;
 	};
 
+	// Pure CPU-side draw list: collect commands, sort them for state coherence,
+	// and group them into batches. It knows NOTHING about OpenGL -- GLRenderer
+	// (or another backend) consumes batches() and issues the actual draw calls.
 	class CommandQueue {
 	public:
 		CommandQueue() = default;
-		~CommandQueue(); // releases the persistent instance-transform VBO
+		~CommandQueue() = default;
 		//No copy
 		CommandQueue(const CommandQueue&) = delete;
 		CommandQueue& operator=(const CommandQueue&) = delete;
@@ -47,30 +47,17 @@ namespace Long {
 		void Sort();
 		// Group sorted commands into batches by (mesh, material). Call after Sort().
 		void BuildBatches();
-		//Queue render
-		void Execute(AssetManager& assets, RenderStats& stats, const SceneLights* lights);
-		// Draw the SAME batches as Execute but depth-only, from a light's view, into
-		// the currently bound framebuffer (a ShadowMap). Uses the shadow_depth shader
-		// (and its instanced variant) instead of each material's shader; lightViewProj
-		// replaces the camera matrices. Call after BuildBatches().
-		void ExecuteDepth(AssetManager& assets,
-			const raylib::Matrix& lightViewProj,
-			uint32_t depthShaderId,
-			const float& range, 
-			bool linearDistance = false);
-	private:
-		// Upload a batch's transforms into the persistent instance VBO (grown as
-		// needed). raylib's DrawMeshInstanced allocates and frees a fresh VBO on
-		// EVERY call; we keep one alive across frames and just update it.
-		void UploadInstanceTransforms(const std::vector<raylib::Matrix>& transforms);
 
+		// Batches produced by BuildBatches(). Only the first batchCount() entries
+		// are valid (the vector is reused across frames, not shrunk).
+		const std::vector<Batch>& batches() const { return m_batches; }
+		size_t batchCount() const { return m_batchCount; }
+
+	private:
 		std::vector<Command> m_commands;
 		std::vector<Batch> m_batches;
 		std::vector<uint32_t> m_order;
 		size_t m_batchCount{ 0 };
-		unsigned int m_instanceVbo{ 0 };    // persistent instance-transform VBO
-		size_t m_instanceCapacity{ 0 };     // capacity of m_instanceVbo, in instances
-		std::vector<float> m_instanceStaging; // CPU staging: 16 floats per instance
 	};
 }
 #endif // !_COMMAND_QUEUE_HPP_

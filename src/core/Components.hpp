@@ -34,10 +34,11 @@ namespace Long {
 		float innerAngle{ 25.0f };
 		float outerAngle{ 35.0f };
 		float range{ 30.0f };
-		//Point light
-		float constant;
-		float linear;
-		float quadratic;
+		//Point light -- classic attenuation coeffs (unused by the range-based
+		// falloff shader, but keep defaults so they're never garbage).
+		float constant{ 1.0f };
+		float linear{ 0.09f };
+		float quadratic{ 0.032f };
 		uint32_t version{ 1 };
 		uint32_t buildFromTransformVersion{ 0 };
 		bool castsShadows{ true };

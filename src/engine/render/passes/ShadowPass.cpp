@@ -44,60 +44,49 @@ namespace Long {
 		lights.shadowCount = 0;
 
 		uint32_t depthShaderId = ctx.assets->GetShaderId("shadow_depth");
+		uint32_t pointDepthShaderId = ctx.assets->GetShaderId("shadow_depth_point");
 		if (!ctx.assets->IsValidShader(depthShaderId)) {
 			return;
 		}
+		lights.cubeShadowCount = 0;
 
 		for (uint32_t i = 0; i < lights.size; ++i) {
 			LightParameter& light = lights.lights[i];
 			light.shadowIndex = -1;
+			light.cubeShadowIndex = -1;
 			if (!light.castsShadows) {
 				continue;
 			}
-			if (lights.shadowCount >= (uint32_t)SceneLights::kMaxShadows) {
-				break;
-			}
 
-			raylib::Matrix lightViewProj;
 			const float& range = light.range;
-			if (!buildLightMatrix(light, lightViewProj, range)) {
-				//Point light
-				if (light.type == (uint32_t)LightType::Point) {
-					raylib::Vector3 eye = light.position;
-					const Vector3 directions[6] = {
-						{  1,  0,  0 }, // +X
-						{ -1,  0,  0 }, // -X
-						{  0,  1,  0 }, // +Y
-						{  0, -1,  0 }, // -Y
-						{  0,  0,  1 }, // +Z
-						{  0,  0, -1 }, // -Z
-					};
 
-					const Vector3 ups[6] = {
-						{  0, -1,  0 }, // +X
-						{  0, -1,  0 }, // -X
-						{  0,  0,  1 }, // +Y
-						{  0,  0, -1 }, // -Y
-						{  0, -1,  0 }, // +Z
-						{  0, -1,  0 }, // -Z
-					};
-
-					for (int face = 0; face < 6; face++)
-					{
-						raylib::Matrix view = raylib::Matrix(MatrixLookAt(
-							eye,
-							Vector3Add(eye, directions[face]),
-							ups[face]
-						));
-						raylib::Matrix proj = raylib::Matrix(MatrixPerspective(90 * DEG2RAD, 1.0, m_near, (double)range));
-						raylib::Matrix lightProjMatrix = view.Multiply(proj);
-						// TODO: render this face into the cube's depth attachment.
-					}
+			// ---- Point light: omnidirectional depth cube ----
+			if (light.type == (uint32_t)LightType::Point) {
+				if (lights.cubeShadowCount >= (uint32_t)SceneLights::kMaxCubeShadows) {
+					continue;
 				}
-				continue; // point/unsupported lights: no 2D shadow map this frame
+				uint32_t cubeSlot = lights.cubeShadowCount;
+				if (renderPointCube(ctx, light, cubeSlot, pointDepthShaderId)) {
+					lights.cubeShadows[cubeSlot].cubeTexId =
+						m_cubeTargets[cubeSlot].DepthTextureId();
+					lights.cubeShadows[cubeSlot].lightPos = light.position;
+					lights.cubeShadows[cubeSlot].range = range;
+					light.cubeShadowIndex = (int)cubeSlot;
+					lights.cubeShadowCount++;
+				}
+				continue;
 			}
 
+			// ---- Directional / Spot: single 2D depth map ----
+			if (lights.shadowCount >= (uint32_t)SceneLights::kMaxShadows) {
+				continue;
+			}
+			raylib::Matrix lightViewProj;
 			uint32_t slot = lights.shadowCount;
+			if (!buildLightMatrix(light, lightViewProj, range)) {
+				continue; // unsupported type
+			}
+
 			RenderTarget& target = m_targets[slot];
 			target.SetFormat(RenderTarget::Format::DEPTH);
 			target.Resize(m_resolution, m_resolution);
@@ -120,7 +109,8 @@ namespace Long {
 				ScopedBackfaceCull cull(true);
 				target.Bind();
 				raylib::Color::Black().ClearBackground(); // clears depth to 1.0 too
-				m_queue.ExecuteDepth(*ctx.assets, lightViewProj, depthShaderId,light.range);
+				ctx.glRenderer->DrawDepth(m_queue.batches(), m_queue.batchCount(),
+					*ctx.assets, lightViewProj, depthShaderId, light.range);
 				target.Unbind();
 			}
 
@@ -129,5 +119,66 @@ namespace Long {
 			light.shadowIndex = (int)slot;
 			lights.shadowCount++;
 		}
+	}
+
+	bool ShadowPass::renderPointCube(RenderContext& ctx, const LightParameter& light,
+		uint32_t slot, uint32_t pointDepthShaderId)
+	{
+		if (!ctx.assets->IsValidShader(pointDepthShaderId)) {
+			return false;
+		}
+		RenderTarget& cube = m_cubeTargets[slot];
+		cube.SetFormat(RenderTarget::Format::CUBE);
+		cube.Resize(m_cubeResolution, m_cubeResolution);
+		if (cube.DepthTextureId() == 0) {
+			return false;
+		}
+
+		// Cull once against the light's REACH (a sphere of `range` around it):
+		// a point light sees every direction, so there's no single frustum -- an
+		// AABB test against the bounding sphere is a cheap, direction-agnostic cull.
+		// (Reuse the linear gather but with a frustum that bounds the sphere.)
+		const raylib::Vector3 eye = light.position;
+		const float r = (light.range > 0.01f) ? light.range : 0.01f;
+		// Build a box-frustum around the light so gatherVisible keeps only nearby
+		// casters. MatrixOrtho centered on the light, +/- range on each axis.
+		raylib::Matrix boxView = raylib::Matrix(MatrixTranslate(-eye.x, -eye.y, -eye.z));
+		raylib::Matrix boxProj = raylib::Matrix(MatrixOrtho(-r, r, -r, r, -r, r));
+		m_lightFrustum.buildFromMatrix(boxView.Multiply(boxProj));
+		m_queue.Clear();
+		m_visibility->gatherVisible(*ctx.registry, &m_lightFrustum, m_visible,
+			ctx.renderStats.culledEntities);
+		RenderSystem(*ctx.registry, *ctx.assets, m_queue, m_visible, ctx.renderStats);
+		m_queue.Sort();
+		m_queue.BuildBatches();
+
+		// The 6 cube faces + their up vectors (standard GL cubemap convention).
+		const Vector3 dirs[6] = {
+			{  1,  0,  0 }, { -1,  0,  0 }, {  0,  1,  0 },
+			{  0, -1,  0 }, {  0,  0,  1 }, {  0,  0, -1 },
+		};
+		const Vector3 ups[6] = {
+			{  0, -1,  0 }, {  0, -1,  0 }, {  0,  0,  1 },
+			{  0,  0, -1 }, {  0, -1,  0 }, {  0, -1,  0 },
+		};
+
+		ScopedDepthTest depth(true);
+		ScopedDepthMask mask(true);
+		ScopedBackfaceCull cull(true);
+		for (int face = 0; face < 6; ++face) {
+			raylib::Matrix view = raylib::Matrix(MatrixLookAt(
+				eye, Vector3Add(eye, dirs[face]), ups[face]));
+			raylib::Matrix proj = raylib::Matrix(
+				MatrixPerspective(90.0 * DEG2RAD, 1.0, m_near, (double)r));
+			raylib::Matrix faceViewProj = view.Multiply(proj);
+
+			cube.BindFace(face);
+			rlClearScreenBuffers(); // clears this face's depth to 1.0 (= max distance)
+			ctx.glRenderer->DrawDepth(m_queue.batches(), m_queue.batchCount(),
+				*ctx.assets, faceViewProj, pointDepthShaderId, r,
+				/*linearDistance*/ true, &light.position);
+		}
+		cube.EndCubeFace();
+		return true;
 	}
 }

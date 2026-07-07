@@ -7,6 +7,7 @@ namespace Long {
 	static void UpdateRecursive(entt::registry& reg, entt::entity e, raylib::Matrix parentWorld, bool parent_change) {
 		const Transform& local = reg.get<Transform>(e);
 		auto& matrix_component = reg.get_or_emplace<MatrixTransform>(e);
+		auto& name = reg.get<Name>(e); 
 		// isDirty when THIS entity's local changed, OR a parent moved (its world does).
 		bool localChanged = matrix_component.builtLocalVersion != local.version;
 		bool isDirty = localChanged || parent_change;

@@ -90,5 +90,51 @@ namespace Long {
 		Quaternion q = QuaternionNormalize(QuaternionFromMatrix(m));
 		return raylib::Quaternion(q);
 	}
+
+	static raylib::Vector3 KelvinToRGB(float kelvin)
+	{
+		kelvin = std::clamp(kelvin, 1000.0f, 40000.0f);
+		float temp = kelvin / 100.0f;
+		float r, g, b;
+		// Red
+		if (temp <= 66.0f)
+		{
+			r = 255.0f;
+		}
+		else
+		{
+			r = 329.698727446f * std::pow(temp - 60.0f, -0.1332047592f);
+			r = std::clamp(r, 0.0f, 255.0f);
+		}
+		// Green
+		if (temp <= 66.0f)
+		{
+			g = 99.4708025861f * std::log(temp) - 161.1195681661f;
+		}
+		else
+		{
+			g = 288.1221695283f * std::pow(temp - 60.0f, -0.0755148492f);
+		}
+		g = std::clamp(g, 0.0f, 255.0f);
+		// Blue
+		if (temp >= 66.0f)
+		{
+			b = 255.0f;
+		}
+		else if (temp <= 19.0f)
+		{
+			b = 0.0f;
+		}
+		else
+		{
+			b = 138.5177312231f * std::log(temp - 10.0f) - 305.0447927307f;
+			b = std::clamp(b, 0.0f, 255.0f);
+		}
+		return {
+			r / 255.0f,
+			g / 255.0f,
+			b / 255.0f
+		};
+	}
 }
 #endif // !_MATH_HPP_

@@ -35,6 +35,7 @@ struct Light {
     float outerCos;
     float range;
     int   shadowIndex;
+    int   cubeShadowIndex;
 };
 
 uniform int   u_lightCount;
@@ -53,6 +54,23 @@ uniform int       u_receiveShadow;
 uniform float     u_shadowOpacity;
 uniform mat4      u_lightViewProj[MAX_SHADOWS];
 uniform sampler2D u_shadowMaps[MAX_SHADOWS];
+
+// Point-light omnidirectional shadows (see pbr.frag).
+#define MAX_CUBE_SHADOWS 2
+uniform int         u_cubeShadowCount;
+uniform samplerCube u_pointShadowMaps[MAX_CUBE_SHADOWS];
+uniform vec3        u_pointLightPos[MAX_CUBE_SHADOWS];
+uniform float       u_pointLightRange[MAX_CUBE_SHADOWS];
+
+float PointShadowFactor(int idx, vec3 worldPos)
+{
+    if (idx < 0 || idx >= u_cubeShadowCount || u_receiveShadow == 0) return 1.0;
+    vec3 toFrag = worldPos - u_pointLightPos[idx];
+    float current = length(toFrag) / max(u_pointLightRange[idx], 1e-4);
+    float closest = texture(u_pointShadowMaps[idx], toFrag).r;
+    float lit = (current - 0.003 > closest) ? 0.0 : 1.0;
+    return mix(1.0, lit, clamp(u_shadowOpacity, 0.0, 1.0));
+}
 
 out vec4 finalColor;
 
@@ -150,7 +168,8 @@ vec3 ComputePBR(vec3 albedo, float alpha_unused, vec3 N, vec3 worldPos)
 
         // Punctual-light convention: PI folded into the light (see pbr.frag).
         vec3 radiance = lt.color.rgb * (lt.intensity * atten * PI)
-                      * ShadowFactor(lt.shadowIndex, worldPos, N, L);
+                      * ShadowFactor(lt.shadowIndex, worldPos, N, L)
+                      * PointShadowFactor(lt.cubeShadowIndex, worldPos);
 
         vec3  H   = normalize(V + L);
         float ndh = max(dot(N, H), 0.0);

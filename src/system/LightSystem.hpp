@@ -22,7 +22,8 @@ namespace Long {
 		float linear;
 		float quadratic;
 		bool castsShadows{ false };
-		int shadowIndex{ -1 };
+		int shadowIndex{ -1 };     // index into SceneLights::shadows (2D), or -1
+		int cubeShadowIndex{ -1 }; // index into SceneLights::cubeShadows, or -1
 	};
 
 	struct ShadowCaster {
@@ -30,13 +31,24 @@ namespace Long {
 		unsigned int depthTexId{ 0 };
 	};
 
+	// A point light's omnidirectional shadow: a depth cubemap storing linear
+	// distance-to-light, sampled by direction (fragPos - lightPos).
+	struct CubeShadowCaster {
+		unsigned int cubeTexId{ 0 };
+		raylib::Vector3 lightPos{ 0, 0, 0 };
+		float range{ 1.0f };
+	};
+
 	struct SceneLights {
 		static constexpr int kMaxLights = 8;
 		static constexpr int kMaxShadows = 4;
+		static constexpr int kMaxCubeShadows = 2; // must match MAX_CUBE_SHADOWS in shaders
 		std::array<LightParameter, kMaxLights> lights{};
 		uint32_t size{ 0 };
 		std::array<ShadowCaster, kMaxShadows> shadows{};
 		uint32_t shadowCount{ 0 };
+		std::array<CubeShadowCaster, kMaxCubeShadows> cubeShadows{};
+		uint32_t cubeShadowCount{ 0 };
 
 		// Hemisphere ambient for PBR, copied from the gradient skybox (Environment)
 		// by ScenePass: up-facing normals receive the sky color, down-facing the

@@ -72,6 +72,7 @@ namespace Long {
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter : create main camera");
 		createComponentCamera();
 		createComponentLight();
+		createComponentPointLight();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround begin");
 		createGround();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround done, createEmissiveBoxes begin");
@@ -126,6 +127,36 @@ namespace Long {
 			.direction = { -1.0f, -1.0f, 0.0f },
 			.color = { 255, 255, 255, 255 },
 			.intensity = 1.0f,
+			.castsShadows = true,
+			});
+	}
+
+	void EditorState::createComponentPointLight()
+	{
+		auto& reg = m_scene.Registry();
+		auto& assets = m_app.GetAssets();
+		entt::entity light = m_scene.CreateEntity("PointLight");
+		Transform transform;
+		transform.position = { 0.0f, 6.0f, 0.0f };
+		reg.emplace<Transform>(light, transform);
+		// Small emissive-looking gizmo sphere so the light is visible/selectable.
+		raylib::Mesh sphere = raylib::Mesh::Sphere(0.4f, 16, 16);
+		raylib::BoundingBox box_collider(sphere);
+		uint32_t meshId = assets.AddMesh(std::move(sphere));
+		uint32_t defaultId = assets.GetShaderId("default");
+		uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color{ 255, 240, 200, 255 });
+		// The gizmo mesh must not shadow the very light it represents.
+		assets.GetMaterial(mat).SetCastShadow(false);
+		reg.emplace<MeshFilter>(light, MeshFilter{ meshId });
+		reg.emplace<MeshRenderer>(light, MeshRenderer{ mat, raylib::Color::White(), true });
+		reg.emplace<BoxCollider3D>(light, BoxCollider3D{ box_collider });
+		reg.emplace<Hierarchy>(light, Hierarchy{ entt::null, {} });
+		reg.emplace<LightComponent>(light, LightComponent{
+			.type = LightType::Point,
+			.color = { 255, 220, 150, 255 },
+			.intensity = 2.0f,
+			.range = 20.0f,
+			// Omnidirectional shadow via a depth cubemap (ShadowPass::renderPointCube).
 			.castsShadows = true,
 			});
 	}
@@ -356,6 +387,9 @@ namespace Long {
 		std::filesystem::path helmet_dir =
 			std::filesystem::path(GetApplicationDirectory()) / "resources/damaged_helmet.glb";
 
+		std::filesystem::path house_dir =
+			std::filesystem::path(GetApplicationDirectory()) / "resources/low_poly_winter_scene.glb";
+
 		auto fnc_import_model = [&](const std::filesystem::path& path, const std::string& parent_name) -> void {
 			auto robot = m_app.GetAssets().ImportModel(path);
 			uint32_t defaultId = assets.GetShaderId("pbr");
@@ -378,6 +412,7 @@ namespace Long {
 
 		fnc_import_model(robot_dir,"robot");
 		fnc_import_model(helmet_dir,"helmet");
+		//fnc_import_model(house_dir,"house");
 		
 		
 	}

@@ -18,6 +18,7 @@ namespace Long {
 		ctx.blurTarget = &m_blurTarget;
 		ctx.ldrTarget = &m_ldrTarget;
 		ctx.shadow_depth_target = &m_depthShadowTarget;
+		ctx.glRenderer = &m_glRenderer;
 		ctx.renderStats.Reset();
 		const auto tRender = Time::now();
 		for (auto& pass : m_passes) {

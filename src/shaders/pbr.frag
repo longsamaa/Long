@@ -36,6 +36,7 @@ struct Light {
     float outerCos;
     float range;
     int   shadowIndex;
+    int   cubeShadowIndex;
 };
 
 uniform int   u_lightCount;
@@ -55,6 +56,27 @@ uniform int       u_receiveShadow;
 uniform float     u_shadowOpacity;
 uniform mat4      u_lightViewProj[MAX_SHADOWS];
 uniform sampler2D u_shadowMaps[MAX_SHADOWS];
+
+// Point-light omnidirectional shadows: a depth cube storing linear distance/range.
+#define MAX_CUBE_SHADOWS 2
+uniform int         u_cubeShadowCount;
+uniform samplerCube u_pointShadowMaps[MAX_CUBE_SHADOWS];
+uniform vec3        u_pointLightPos[MAX_CUBE_SHADOWS];
+uniform float       u_pointLightRange[MAX_CUBE_SHADOWS];
+
+// 0 = shadowed, 1 = lit. Compares this fragment's distance-to-light against the
+// nearest occluder distance stored in the cube (sampled by that same direction).
+float PointShadowFactor(int idx, vec3 worldPos)
+{
+    if (idx < 0 || idx >= u_cubeShadowCount || u_receiveShadow == 0) return 1.0;
+    vec3 toFrag = worldPos - u_pointLightPos[idx];
+    float current = length(toFrag) / max(u_pointLightRange[idx], 1e-4);
+    float closest = texture(u_pointShadowMaps[idx], toFrag).r;
+    // Small constant bias on the normalized [0,1] distance. Too large (0.02 =
+    // 0.4 world units at range 20) inflates the occluder and the shadow balloons.
+    float lit = (current - 0.003 > closest) ? 0.0 : 1.0;
+    return mix(1.0, lit, clamp(u_shadowOpacity, 0.0, 1.0));
+}
 
 out vec4 finalColor;
 
@@ -164,8 +186,9 @@ void main()
         // peak diffuse = albedo (the BRDF's albedo/PI would otherwise make PBR
         // lights 3x dimmer than the engine's Blinn-Phong shaders at the same
         // intensity, letting ambient wash everything flat).
-        vec3 radiance = lt.color.rgb * (lt.intensity * atten * PI)
-                      * ShadowFactor(lt.shadowIndex, fragPosition, N, L);
+        float shadow = ShadowFactor(lt.shadowIndex, fragPosition, N, L)
+                     * PointShadowFactor(lt.cubeShadowIndex, fragPosition);
+        vec3 radiance = lt.color.rgb * (lt.intensity * atten * PI) * shadow;
 
         // Cook-Torrance specular term.
         vec3  H   = normalize(V + L);

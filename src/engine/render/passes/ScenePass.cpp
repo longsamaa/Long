@@ -26,7 +26,8 @@ namespace Long {
 			raylib::Color::DarkGray().ClearBackground();
 			ctx.camera->BeginMode();
 			auto t0 = Time::now();
-			ctx.commandQueue->Execute(*ctx.assets, ctx.renderStats, ctx.lights);
+			ctx.glRenderer->DrawBatches(ctx.commandQueue->batches(),
+				ctx.commandQueue->batchCount(), *ctx.assets, ctx.renderStats, ctx.lights);
 			ctx.renderStats.msExecute = Time::elapsedMs(t0);
 			auto tSky = Time::now();
 			if (ctx.environment) {

@@ -35,6 +35,13 @@ namespace Long {
 		void Bind() { m_texture.BeginMode(); }
 		void Unbind() { m_texture.EndMode(); }
 
+		// CUBE only: bind the FBO and attach cubemap face `face` (0..5, order
+		// +X,-X,+Y,-Y,+Z,-Z) as the depth attachment, set the viewport. Call once
+		// per face; render, then move to the next face. EndCubeFace() restores the
+		// screen framebuffer after the last face.
+		void BindFace(int face);
+		void EndCubeFace();
+
 		// Color texture (the image) -- sample it in a post-process pass or blit
 		// to screen. Returned by value: a Texture is just ids/ints, cheap to copy.
 		raylib::TextureUnmanaged GetTexture() { return m_texture.GetTexture(); }

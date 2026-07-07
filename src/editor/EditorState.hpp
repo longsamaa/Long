@@ -47,6 +47,7 @@ namespace Long {
 		void GameModeRenderWorld();
 		void createComponentCamera();
 		void createComponentLight();
+		void createComponentPointLight();
 		void AddDebug(RenderContext& ctx);
 		IPanel* getPanel(const std::string& name);
 	private:

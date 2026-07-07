@@ -31,7 +31,8 @@ namespace Long {
 		RenderTarget m_brightTarget;
 		RenderTarget m_blurTarget;
 		RenderTarget m_depthShadowTarget;
-		RenderTarget m_ldrTarget; 
+		RenderTarget m_ldrTarget;
+		GLRenderer m_glRenderer;   // GL backend, owns the instance VBO across frames
 	};
 
 } // namespace Long

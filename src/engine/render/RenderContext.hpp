@@ -9,6 +9,7 @@
 #include "system/LightSystem.hpp"
 #include "RenderTarget.hpp"
 #include "CommandQueue.hpp"
+#include "GLRenderer.hpp"
 #include "CommandDebugQueue.hpp"
 #include "core/Components.hpp"
 #include "engine/camera/BaseCamera.hpp"
@@ -19,7 +20,8 @@ namespace Long {
 	struct RenderContext {
 		Environment* environment{ nullptr }; // scene skybox / lighting
 		CommandQueue* commandQueue{ nullptr };
-		CommandDebugQueue* commandDebugQueue{ nullptr }; 
+		GLRenderer* glRenderer{ nullptr };   // GL backend: draws the queue's batches
+		CommandDebugQueue* commandDebugQueue{ nullptr };
 		entt::registry* registry{ nullptr };
 		AssetManager* assets{ nullptr };     // ScenePass needs meshes/materials
 		BaseCamera* camera{ nullptr };
