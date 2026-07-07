@@ -232,7 +232,7 @@ namespace Long {
 		for (uint32_t i = 0; i < (uint32_t)m_commands.size(); ++i) {
 			m_order[i] = i;
 		}
-		//const Command* cmds = m_commands.data();
+		const Command* cmds = m_commands.data();
 		std::sort(m_order.begin(), m_order.end(),
 			[cmds = m_commands.data()](const uint32_t& ia, const uint32_t& ib) {
 				const Command& a = cmds[ia];
@@ -280,8 +280,14 @@ namespace Long {
 
 		// World-space camera position = translation of the inverse view matrix.
 		// Fixed for the whole queue; specular in the shader needs it (u_viewPos).
-		const ::Matrix invView = MatrixInvert(matView);
+		const raylib::Matrix invView = raylib::Matrix(MatrixInvert(matView));
 		const float camPos[3] = { invView.m12, invView.m13, invView.m14 };
+
+		const raylib::Matrix viewProj = matView.Multiply(matProjection);
+
+		const raylib::Matrix viewProjStack = matStack.Multiply(matView).Multiply(matProjection); 
+		//MatrixMultiply(MatrixMultiply(matStack, matView), matProjection)
+
 
 		uint32_t activeProgram = 0; // GL program currently bound (0 = none yet)
 
@@ -302,6 +308,7 @@ namespace Long {
 
 			if (sh.id != activeProgram) {
 				rlEnableShader(sh.id);
+				stats.stageCount++; 
 				activeProgram = sh.id;
 				stats.shaderBinds++;
 				if (sh.locs[SHADER_LOC_MATRIX_VIEW] != -1) {
@@ -330,7 +337,7 @@ namespace Long {
 			if (!rlEnableVertexArray(mesh.vaoId)) {
 				// No VAO (unexpected on GL 4.3) -> raylib's own slow path.
 				UnbindMaterialMaps(rlMat);
-				stats.stageCount++;
+				//stats.stageCount++;
 				for (const raylib::Matrix& m : batch.transforms) {
 					mesh.Draw(rlMat, m);
 					stats.drawCalls++;
@@ -340,15 +347,15 @@ namespace Long {
 				activeProgram = 0;
 				continue;
 			}
-
 			if (instanced) {
 				UploadInstanceTransforms(batch.transforms);
 				SetupInstanceAttributes(sh, m_instanceVbo);
 				if (sh.locs[SHADER_LOC_MATRIX_NORMAL] != -1) {
 					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_NORMAL], MatrixIdentity());
 				}
-				rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP],
-					MatrixMultiply(MatrixMultiply(matStack, matView), matProjection));
+				//rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP],
+				//	MatrixMultiply(MatrixMultiply(matStack, matView), matProjection));
+				rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], viewProjStack);
 				if (mesh.indices != NULL) {
 					rlDrawVertexArrayElementsInstanced(0, mesh.triangleCount * 3, 0, (int)count);
 				}
@@ -370,8 +377,8 @@ namespace Long {
 						rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_NORMAL],
 							MatrixTranspose(MatrixInvert(matModel)));
 					}
-					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], matModel.Multiply(matView).Multiply(matProjection));
-					//MatrixMultiply(MatrixMultiply(matModel, matView), matProjection));
+					//rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], matModel.Multiply(matView).Multiply(matProjection));
+					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], matModel.Multiply(viewProj));
 					if (mesh.indices != NULL) {
 						rlDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
 					}
@@ -386,10 +393,8 @@ namespace Long {
 
 			rlDisableVertexArray();
 			UnbindMaterialMaps(rlMat);
-			stats.stageCount++;
+			//stats.stageCount++;
 		}
-
-		// One unbind for the whole queue instead of one per draw.
 		rlDisableShader();
 	}
 
@@ -400,7 +405,7 @@ namespace Long {
 			return;
 		}
 		constexpr size_t kInstanceThreshold = 4;
-		const ::Matrix lvp = lightViewProj;
+		const raylib::Matrix lvp = lightViewProj;
 
 		// The instanced depth variant (if registered) for large batches.
 		const uint32_t instDepthId = assets.GetInstancedShaderId(depthShaderId);
