@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <filesystem>
 #include "engine/Material.hpp"
+#include "import/GLTFImporter.hpp"
+
 
 namespace Long {
 	class AssetManager {
@@ -33,7 +35,6 @@ namespace Long {
 			return m_shaders[id];
 		}
 		bool IsValidShader(uint32_t id) const { return id < m_shaders.size(); }
-
 		uint32_t AddMesh(raylib::Mesh&& mesh);
 		raylib::Mesh& GetMesh(uint32_t id) { return m_meshes[id]; }
 		bool IsValidMesh(uint32_t id) const { return id < m_meshes.size(); }
@@ -50,6 +51,7 @@ namespace Long {
 			raylib::Color color = raylib::Color::White(),
 			float intensity = 4.0f);
 		size_t materialCount() { return m_materials.size(); };
+		ModelAsset ImportModel(const std::filesystem::path& path); 
 	private:
 		std::vector<raylib::Shader> m_shaders;
 		std::unordered_map<std::string, uint32_t> m_shaderNameToId;

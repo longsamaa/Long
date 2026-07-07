@@ -35,6 +35,7 @@ namespace Long {
 	private:
 		void createGround();
 		void createEmissiveBoxes(); // 4 glowing boxes spread out, to test bloom/HDR
+		void createRobot(); //create simple gltf file 
 		void RenderMenuBar();
 		void RenderPanels();
 		void RenderGizmoToolbar();

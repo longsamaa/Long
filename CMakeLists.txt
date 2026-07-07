@@ -32,6 +32,15 @@ add_library(entt INTERFACE)
 target_include_directories(entt INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/external/entt/single_include")
 
+# ---- tinygltf (glTF 2.0 loader, git submodule) ----
+# Header-only (tiny_gltf.h + bundled json.hpp / stb headers at the repo root).
+# We don't add_subdirectory (it would pull in tests/tools); the implementation
+# is compiled in the single .cpp that defines TINYGLTF_IMPLEMENTATION
+# (GLTFImporter.cpp).
+add_library(tinygltf INTERFACE)
+target_include_directories(tinygltf INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/tinygltf")
+
 # ---- Dear ImGui (git submodule) ----
 # No CMakeLists shipped; compile core sources into a static lib. Everything is
 # static, so there is a single ImGui context linked into the exe.
@@ -81,7 +90,7 @@ list(FILTER ENGINE_SOURCES EXCLUDE REGEX "/src/game_main\\.cpp$")
 add_library(LongEngineCore STATIC ${ENGINE_SOURCES})
 # PUBLIC include dir + deps: anything linking LongEngineCore inherits these.
 target_include_directories(LongEngineCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(LongEngineCore PUBLIC raylib raylib_cpp imgui rlimgui entt)
+target_link_libraries(LongEngineCore PUBLIC raylib raylib_cpp imgui rlimgui entt tinygltf)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${ENGINE_SOURCES})
 
 # ============================================================================

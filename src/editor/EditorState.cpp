@@ -77,6 +77,8 @@ namespace Long {
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround done, createEmissiveBoxes begin");
 		createEmissiveBoxes();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createEmissiveBoxes done");
+		createRobot(); 
+		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createRobot done");
 	}
 
 	void EditorState::createComponentCamera()
@@ -344,6 +346,30 @@ namespace Long {
 			reg.emplace<BoxCollider3D>(e, BoxCollider3D{ box });
 			reg.emplace<Hierarchy>(e, Hierarchy{ entt::null, {} });
 			// on_construct<Transform> already marked it dirty.
+		}
+	}
+
+	void EditorState::createRobot()
+	{
+		auto& assets = m_app.GetAssets(); 
+		auto& reg = m_scene.Registry(); 
+		std::filesystem::path robotDir =
+			std::filesystem::path(GetApplicationDirectory()) / "resources/robot.glb";
+		auto robot = m_app.GetAssets().ImportModel(robotDir); 
+		uint32_t defaultId = assets.GetShaderId("default");
+		uint32_t emat = assets.CreateDefaultMaterial(defaultId, raylib::Color{ 192, 192, 192, 255 });
+		entt::entity parent = m_scene.CreateEntity("robot");
+		reg.emplace<Transform>(parent, Transform{});
+		auto& parent_hierarchy = reg.emplace<Hierarchy>(parent, Hierarchy{ entt::null, {} });
+		for (const auto& meshId : robot.meshIds) {
+			entt::entity e = m_scene.CreateEntity(robot.meshName[meshId]);
+			auto& mesh = m_app.GetAssets().GetMesh(meshId); 
+			reg.emplace<Transform>(e, Transform{});
+			reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
+			reg.emplace<MeshRenderer>(e, MeshRenderer{ emat, raylib::Color::White(), true });
+			reg.emplace<BoxCollider3D>(e, BoxCollider3D{ raylib::BoundingBox(mesh)});
+			reg.emplace<Hierarchy>(e, Hierarchy{ parent, {} });
+			parent_hierarchy.children.push_back(e); 
 		}
 	}
 
