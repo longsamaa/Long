@@ -19,7 +19,7 @@ namespace Long {
 		void SetResolution(uint32_t res) { m_resolution = res; }
 
 	private:
-		bool buildLightMatrix(const LightParameter& light, raylib::Matrix& out) const;
+		bool buildLightMatrix(const LightParameter& light, raylib::Matrix& out, const float& range) const;
 		std::array<RenderTarget, SceneLights::kMaxShadows> m_targets;
 		FrustumCulling m_lightFrustum;
 		std::unique_ptr<IVisibility> m_visibility{ std::make_unique<LinearVisibility>() };
@@ -28,7 +28,8 @@ namespace Long {
 
 		uint32_t m_resolution{ 2048 };
 		float m_orthoExtent{ 110.0f };
-		float m_distance{ 150.0f };
+		float m_near{ 0.1f }; 
+		float m_distance{ 1000.0f };
 		float m_spotFar{ 200.0f };
 	};
 }

@@ -7,7 +7,7 @@
 #include <cmath>
 
 namespace Long {
-	bool ShadowPass::buildLightMatrix(const LightParameter& light, raylib::Matrix& out) const {
+	bool ShadowPass::buildLightMatrix(const LightParameter& light, raylib::Matrix& out, const float& range) const {
 		raylib::Vector3 dir = raylib::Vector3(light.direction).Normalize();
 		if (dir.LengthSqr() < 1e-6f) {
 			dir = { 0.0f, -1.0f, 0.0f };
@@ -25,14 +25,45 @@ namespace Long {
 				0.1f, m_distance * 2.0f));
 			out = view.Multiply(proj);
 			return true;
-		}
-		if (light.type == (uint32_t)LightType::Spot) {
+		} else if (light.type == (uint32_t)LightType::Spot) {
 			float fovy = 2.0f * std::acos(std::fmin(std::fmax(light.outerCos, -1.0f), 1.0f));
 			raylib::Vector3 eye = light.position;
 			raylib::Matrix view = raylib::Matrix(MatrixLookAt(eye, eye.Add(dir), up));
-			raylib::Matrix proj = raylib::Matrix(MatrixPerspective(fovy, 1.0, 0.1, (double)m_spotFar));
+			raylib::Matrix proj = raylib::Matrix(MatrixPerspective(fovy, 1.0, m_near, (double)range));
 			out = view.Multiply(proj);
 			return true;
+		}
+		else if (light.type == (uint32_t)LightType::Point) {
+			raylib::Vector3 eye = light.position; 
+			const Vector3 directions[6] = {
+				{  1,  0,  0 }, // +X
+				{ -1,  0,  0 }, // -X
+				{  0,  1,  0 }, // +Y
+				{  0, -1,  0 }, // -Y
+				{  0,  0,  1 }, // +Z
+				{  0,  0, -1 }, // -Z
+			};
+
+			const Vector3 ups[6] = {
+				{  0, -1,  0 }, // +X
+				{  0, -1,  0 }, // -X
+				{  0,  0,  1 }, // +Y
+				{  0,  0, -1 }, // -Y
+				{  0, -1,  0 }, // +Z
+				{  0, -1,  0 }, // -Z
+			};
+
+			for (int i = 0; i < 6; i++)
+			{
+				raylib::Matrix view = raylib::Matrix(MatrixLookAt(
+					eye,
+					Vector3Add(eye, directions[i]),
+					ups[i]
+				));
+				raylib::Matrix proj = raylib::Matrix(MatrixPerspective(90 * DEG2RAD, m_near, 0.1, (double)range));
+				raylib::Matrix lightProjMatrix = view.Multiply(proj); 
+			}
+
 		}
 		return false; // point lights need a cubemap -- not supported
 	}
@@ -60,7 +91,8 @@ namespace Long {
 			}
 
 			raylib::Matrix lightViewProj;
-			if (!buildLightMatrix(light, lightViewProj)) {
+			const float& range = light.range; 
+			if (!buildLightMatrix(light, lightViewProj,range)) {
 				continue;
 			}
 
@@ -82,8 +114,6 @@ namespace Long {
 			m_queue.BuildBatches();
 
 			{
-				// Depth test + write must be ON (RAII): GL skips depth writes while
-				// GL_DEPTH_TEST is off, and raylib leaves it off outside BeginMode3D.
 				ScopedDepthTest depth(true);
 				ScopedDepthMask mask(true);
 				ScopedBackfaceCull cull(true);
@@ -93,7 +123,6 @@ namespace Long {
 				target.Unbind();
 			}
 
-			// Publish: this light renders from shadows[slot].
 			lights.shadows[slot].lightViewProj = lightViewProj;
 			lights.shadows[slot].depthTexId = target.DepthTextureId();
 			light.shadowIndex = (int)slot;

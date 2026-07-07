@@ -13,9 +13,14 @@ namespace Long {
 		raylib::Vector4 color{ 1, 1, 1, 1 };
 		float intensity{ 1.0f };
 		uint32_t type{ 0 };
+		float range{ 30.0f };
+		//spotlight
 		float innerCos{ 1.0f };
 		float outerCos{ 1.0f };
-		float range{ 30.0f };
+		//point light 
+		float constant;
+		float linear;
+		float quadratic;
 		bool castsShadows{ false };
 		int shadowIndex{ -1 };
 	};

@@ -277,14 +277,13 @@ namespace Long {
 		const raylib::Matrix matView(rlGetMatrixModelview());
 		const raylib::Matrix matProjection(rlGetMatrixProjection());
 		const raylib::Matrix matStack(rlGetMatrixTransform()); // rlPushMatrix stack, normally identity
-
+	
 		// World-space camera position = translation of the inverse view matrix.
 		// Fixed for the whole queue; specular in the shader needs it (u_viewPos).
 		const raylib::Matrix invView = raylib::Matrix(MatrixInvert(matView));
 		const float camPos[3] = { invView.m12, invView.m13, invView.m14 };
 
 		const raylib::Matrix viewProj = matView.Multiply(matProjection);
-
 		const raylib::Matrix viewProjStack = matStack.Multiply(matView).Multiply(matProjection); 
 		//MatrixMultiply(MatrixMultiply(matStack, matView), matProjection)
 
@@ -406,10 +405,7 @@ namespace Long {
 		}
 		constexpr size_t kInstanceThreshold = 4;
 		const raylib::Matrix lvp = lightViewProj;
-
-		// The instanced depth variant (if registered) for large batches.
 		const uint32_t instDepthId = assets.GetInstancedShaderId(depthShaderId);
-
 		uint32_t activeProgram = 0;
 		for (size_t b = 0; b < m_batchCount; ++b) {
 			const Batch& batch = m_batches[b];

@@ -24,7 +24,8 @@ namespace Long {
 		enum class Format { 
 			LDR,
 			HDR,
-			DEPTH };
+			DEPTH, 
+			CUBE};
 		void SetFormat(Format fmt);
 
 		// Ensure the target is allocated at (width, height). No-op if unchanged.

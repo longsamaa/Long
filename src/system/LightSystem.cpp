@@ -25,11 +25,24 @@ namespace Long {
 						lc.color.b / 255.0f, lc.color.a / 255.0f };
 			g.intensity = lc.intensity;
 			g.type = (uint32_t)lc.type;
+			//Spot light 
+			
 			float inner = lc.innerAngle;
 			float outer = (lc.outerAngle > inner) ? lc.outerAngle : inner + 0.01f;
 			g.innerCos = cosf(inner * DEG2RAD);
 			g.outerCos = cosf(outer * DEG2RAD);
 			g.range = (lc.range > 0.01f) ? lc.range : 0.01f;
+			
+			
+			//Point light 
+			
+			
+			g.constant = lc.constant; 
+			g.linear = lc.linear; 
+			g.quadratic = lc.quadratic; 
+			
+
+
 			g.castsShadows = lc.castsShadows;
 			g.shadowIndex = -1; // assigned by ShadowPass
 		}

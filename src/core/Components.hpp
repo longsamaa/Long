@@ -30,9 +30,14 @@ namespace Long {
 		raylib::Vector3 world_direction{ 0.0f, -1.0f, 0.0f };
 		raylib::Color color{ 255, 255, 255, 255 };
 		float intensity{ 1.0f };
+		//Spot light 
 		float innerAngle{ 25.0f };
 		float outerAngle{ 35.0f };
 		float range{ 30.0f };
+		//Point light
+		float constant;
+		float linear;
+		float quadratic;
 		uint32_t version{ 1 };
 		uint32_t buildFromTransformVersion{ 0 };
 		bool castsShadows{ true };
