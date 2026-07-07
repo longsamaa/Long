@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cstdio>   // snprintf
+#include <unordered_map>
 #include <system/LightSystem.hpp>
 
 #ifndef MAX_MATERIAL_MAPS
@@ -34,73 +35,103 @@ namespace Long {
 		}
 	}
 
-	static void BindLights(const raylib::Shader& shader, const SceneLights& lights) {
-		const int count = (int)lights.size;
-		int loc = rlGetLocationUniform(shader.id, "u_lightCount");
-		if (loc == -1) {
-			return; // shader is unlit -> skip the rest
-		}
-		rlSetUniform(loc, &count, SHADER_UNIFORM_INT, 1);
+	// ---------------------------------------------------------------------
+	// Uniform-location cache.
+	//
+	// glGetUniformLocation (rlGetLocationUniform) is a string lookup + driver
+	// round-trip, and a shader's uniform locations NEVER change after linking.
+	// BindLights alone queried ~9 names per light * up to 8 lights = ~72
+	// glGetUniformLocation calls PER SHADER PER FRAME. We resolve every name
+	// once the first time we see a shader id and reuse the ints forever.
+	// -1 means "shader doesn't declare it" -> skip the rlSetUniform.
+	// ---------------------------------------------------------------------
+	static constexpr int kShadowTexSlot0 = 10;
 
-		// Hemisphere ambient (PBR shaders; others resolve to -1 and skip).
-		loc = rlGetLocationUniform(shader.id, "u_ambientSky");
-		if (loc != -1) {
+	struct LightLocs {
+		int count = -1;                 // -1 here also means "shader is unlit" (early out)
+		int ambientSky = -1, ambientGround = -1, ambientIntensity = -1;
+		struct Per {
+			int position = -1, direction = -1, color = -1, intensity = -1;
+			int type = -1, innerCos = -1, outerCos = -1, range = -1, shadowIndex = -1;
+		} light[SceneLights::kMaxLights];
+		// shadows
+		int shadowCount = -1;
+		int lightViewProj[SceneLights::kMaxShadows] = {};
+		int shadowMaps[SceneLights::kMaxShadows] = {};
+		int viewPos = -1;               // camera pos (specular); resolved here too
+	};
+
+	// One entry per shader program id; filled lazily on first use.
+	static std::unordered_map<unsigned int, LightLocs> s_lightLocs;
+
+	static const LightLocs& GetLightLocs(unsigned int shaderId) {
+		auto it = s_lightLocs.find(shaderId);
+		if (it != s_lightLocs.end()) {
+			return it->second;
+		}
+		LightLocs L;
+		char name[64];
+		L.count = rlGetLocationUniform(shaderId, "u_lightCount");
+		L.ambientSky = rlGetLocationUniform(shaderId, "u_ambientSky");
+		L.ambientGround = rlGetLocationUniform(shaderId, "u_ambientGround");
+		L.ambientIntensity = rlGetLocationUniform(shaderId, "u_ambientIntensity");
+		L.viewPos = rlGetLocationUniform(shaderId, "u_viewPos");
+		for (int i = 0; i < SceneLights::kMaxLights; ++i) {
+			auto& p = L.light[i];
+			snprintf(name, sizeof(name), "u_lights[%d].position", i);    p.position = rlGetLocationUniform(shaderId, name);
+			snprintf(name, sizeof(name), "u_lights[%d].direction", i);   p.direction = rlGetLocationUniform(shaderId, name);
+			snprintf(name, sizeof(name), "u_lights[%d].color", i);       p.color = rlGetLocationUniform(shaderId, name);
+			snprintf(name, sizeof(name), "u_lights[%d].intensity", i);   p.intensity = rlGetLocationUniform(shaderId, name);
+			snprintf(name, sizeof(name), "u_lights[%d].type", i);        p.type = rlGetLocationUniform(shaderId, name);
+			snprintf(name, sizeof(name), "u_lights[%d].innerCos", i);    p.innerCos = rlGetLocationUniform(shaderId, name);
+			snprintf(name, sizeof(name), "u_lights[%d].outerCos", i);    p.outerCos = rlGetLocationUniform(shaderId, name);
+			snprintf(name, sizeof(name), "u_lights[%d].range", i);       p.range = rlGetLocationUniform(shaderId, name);
+			snprintf(name, sizeof(name), "u_lights[%d].shadowIndex", i); p.shadowIndex = rlGetLocationUniform(shaderId, name);
+		}
+		L.shadowCount = rlGetLocationUniform(shaderId, "u_shadowCount");
+		for (int k = 0; k < SceneLights::kMaxShadows; ++k) {
+			snprintf(name, sizeof(name), "u_lightViewProj[%d]", k); L.lightViewProj[k] = rlGetLocationUniform(shaderId, name);
+			snprintf(name, sizeof(name), "u_shadowMaps[%d]", k);    L.shadowMaps[k] = rlGetLocationUniform(shaderId, name);
+		}
+		return s_lightLocs.emplace(shaderId, L).first->second;
+	}
+
+	static void BindLights(const raylib::Shader& shader, const SceneLights& lights) {
+		const LightLocs& L = GetLightLocs(shader.id);
+		if (L.count == -1) {
+			return; // shader is unlit -> nothing to bind
+		}
+		const int count = (int)lights.size;
+		rlSetUniform(L.count, &count, SHADER_UNIFORM_INT, 1);
+
+		// Hemisphere ambient (PBR shaders; others cached as -1 and skip).
+		if (L.ambientSky != -1) {
 			float v[3]{ lights.ambientSky.x, lights.ambientSky.y, lights.ambientSky.z };
-			rlSetUniform(loc, v, SHADER_UNIFORM_VEC3, 1);
+			rlSetUniform(L.ambientSky, v, SHADER_UNIFORM_VEC3, 1);
 		}
-		loc = rlGetLocationUniform(shader.id, "u_ambientGround");
-		if (loc != -1) {
+		if (L.ambientGround != -1) {
 			float v[3]{ lights.ambientGround.x, lights.ambientGround.y, lights.ambientGround.z };
-			rlSetUniform(loc, v, SHADER_UNIFORM_VEC3, 1);
+			rlSetUniform(L.ambientGround, v, SHADER_UNIFORM_VEC3, 1);
 		}
-		loc = rlGetLocationUniform(shader.id, "u_ambientIntensity");
-		if (loc != -1) {
-			rlSetUniform(loc, &lights.ambientIntensity, SHADER_UNIFORM_FLOAT, 1);
+		if (L.ambientIntensity != -1) {
+			rlSetUniform(L.ambientIntensity, &lights.ambientIntensity, SHADER_UNIFORM_FLOAT, 1);
 		}
 
 		if (count <= 0) {
 			return;
 		}
-
-		char name[64];
 		for (int i = 0; i < count; ++i) {
 			const LightParameter& l = lights.lights[i];
-
-			snprintf(name, sizeof(name), "u_lights[%d].position", i);
-			loc = rlGetLocationUniform(shader.id, name);
-			if (loc != -1) { float v[3]{ l.position.x, l.position.y, l.position.z }; rlSetUniform(loc, v, SHADER_UNIFORM_VEC3, 1); }
-
-			snprintf(name, sizeof(name), "u_lights[%d].direction", i);
-			loc = rlGetLocationUniform(shader.id, name);
-			if (loc != -1) { float v[3]{ l.direction.x, l.direction.y, l.direction.z }; rlSetUniform(loc, v, SHADER_UNIFORM_VEC3, 1); }
-
-			snprintf(name, sizeof(name), "u_lights[%d].color", i);
-			loc = rlGetLocationUniform(shader.id, name);
-			if (loc != -1) { float v[4]{ l.color.x, l.color.y, l.color.z, l.color.w }; rlSetUniform(loc, v, SHADER_UNIFORM_VEC4, 1); }
-
-			snprintf(name, sizeof(name), "u_lights[%d].intensity", i);
-			loc = rlGetLocationUniform(shader.id, name);
-			if (loc != -1) { float v = l.intensity; rlSetUniform(loc, &v, SHADER_UNIFORM_FLOAT, 1); }
-
-			snprintf(name, sizeof(name), "u_lights[%d].type", i);
-			loc = rlGetLocationUniform(shader.id, name);
-			if (loc != -1) { int v = (int)l.type; rlSetUniform(loc, &v, SHADER_UNIFORM_INT, 1); }
-
-			snprintf(name, sizeof(name), "u_lights[%d].innerCos", i);
-			loc = rlGetLocationUniform(shader.id, name);
-			if (loc != -1) { float v = l.innerCos; rlSetUniform(loc, &v, SHADER_UNIFORM_FLOAT, 1); }
-
-			snprintf(name, sizeof(name), "u_lights[%d].outerCos", i);
-			loc = rlGetLocationUniform(shader.id, name);
-			if (loc != -1) { float v = l.outerCos; rlSetUniform(loc, &v, SHADER_UNIFORM_FLOAT, 1); }
-
-			snprintf(name, sizeof(name), "u_lights[%d].range", i);
-			loc = rlGetLocationUniform(shader.id, name);
-			if (loc != -1) { float v = l.range; rlSetUniform(loc, &v, SHADER_UNIFORM_FLOAT, 1); }
-
-			snprintf(name, sizeof(name), "u_lights[%d].shadowIndex", i);
-			loc = rlGetLocationUniform(shader.id, name);
-			if (loc != -1) { int v = l.shadowIndex; rlSetUniform(loc, &v, SHADER_UNIFORM_INT, 1); }
+			const auto& p = L.light[i];
+			if (p.position != -1) { float v[3]{ l.position.x, l.position.y, l.position.z }; rlSetUniform(p.position, v, SHADER_UNIFORM_VEC3, 1); }
+			if (p.direction != -1) { float v[3]{ l.direction.x, l.direction.y, l.direction.z }; rlSetUniform(p.direction, v, SHADER_UNIFORM_VEC3, 1); }
+			if (p.color != -1) { float v[4]{ l.color.x, l.color.y, l.color.z, l.color.w }; rlSetUniform(p.color, v, SHADER_UNIFORM_VEC4, 1); }
+			if (p.intensity != -1) { float v = l.intensity; rlSetUniform(p.intensity, &v, SHADER_UNIFORM_FLOAT, 1); }
+			if (p.type != -1) { int v = (int)l.type; rlSetUniform(p.type, &v, SHADER_UNIFORM_INT, 1); }
+			if (p.innerCos != -1) { float v = l.innerCos; rlSetUniform(p.innerCos, &v, SHADER_UNIFORM_FLOAT, 1); }
+			if (p.outerCos != -1) { float v = l.outerCos; rlSetUniform(p.outerCos, &v, SHADER_UNIFORM_FLOAT, 1); }
+			if (p.range != -1) { float v = l.range; rlSetUniform(p.range, &v, SHADER_UNIFORM_FLOAT, 1); }
+			if (p.shadowIndex != -1) { int v = l.shadowIndex; rlSetUniform(p.shadowIndex, &v, SHADER_UNIFORM_INT, 1); }
 		}
 	}
 
@@ -108,30 +139,24 @@ namespace Long {
 	// shader (arrays u_shadowMaps[] / u_lightViewProj[]; each light carries its
 	// shadowIndex into them). High texture slots (10+) stay clear of material
 	// maps (0..MAX_MATERIAL_MAPS). Called once per program change.
-	static constexpr int kShadowTexSlot0 = 10;
 	static void BindShadow(const raylib::Shader& shader, const SceneLights& lights) {
-		int countLoc = rlGetLocationUniform(shader.id, "u_shadowCount");
-		if (countLoc == -1) {
+		const LightLocs& L = GetLightLocs(shader.id);
+		if (L.shadowCount == -1) {
 			return; // shader doesn't support shadows
 		}
 		int count = (int)lights.shadowCount;
-		rlSetUniform(countLoc, &count, SHADER_UNIFORM_INT, 1);
+		rlSetUniform(L.shadowCount, &count, SHADER_UNIFORM_INT, 1);
 
-		char name[64];
 		for (int k = 0; k < count; ++k) {
 			const ShadowCaster& sc = lights.shadows[k];
-			snprintf(name, sizeof(name), "u_lightViewProj[%d]", k);
-			int mvpLoc = rlGetLocationUniform(shader.id, name);
-			if (mvpLoc != -1) {
-				rlSetUniformMatrix(mvpLoc, sc.lightViewProj);
+			if (L.lightViewProj[k] != -1) {
+				rlSetUniformMatrix(L.lightViewProj[k], sc.lightViewProj);
 			}
-			snprintf(name, sizeof(name), "u_shadowMaps[%d]", k);
-			int mapLoc = rlGetLocationUniform(shader.id, name);
-			if (mapLoc != -1 && sc.depthTexId != 0) {
+			if (L.shadowMaps[k] != -1 && sc.depthTexId != 0) {
 				int slot = kShadowTexSlot0 + k;
 				rlActiveTextureSlot(slot);
 				rlEnableTexture(sc.depthTexId);
-				rlSetUniform(mapLoc, &slot, SHADER_UNIFORM_INT, 1);
+				rlSetUniform(L.shadowMaps[k], &slot, SHADER_UNIFORM_INT, 1);
 			}
 		}
 	}
@@ -397,8 +422,11 @@ namespace Long {
 		rlDisableShader();
 	}
 
-	void CommandQueue::ExecuteDepth(AssetManager& assets, const raylib::Matrix& lightViewProj,
-		uint32_t depthShaderId)
+	void CommandQueue::ExecuteDepth(AssetManager& assets,
+		const raylib::Matrix& lightViewProj,
+		uint32_t depthShaderId,
+		const float& range, 
+		bool linearDistance)
 	{
 		if (!assets.IsValidShader(depthShaderId)) {
 			return;

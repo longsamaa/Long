@@ -33,38 +33,6 @@ namespace Long {
 			out = view.Multiply(proj);
 			return true;
 		}
-		else if (light.type == (uint32_t)LightType::Point) {
-			raylib::Vector3 eye = light.position; 
-			const Vector3 directions[6] = {
-				{  1,  0,  0 }, // +X
-				{ -1,  0,  0 }, // -X
-				{  0,  1,  0 }, // +Y
-				{  0, -1,  0 }, // -Y
-				{  0,  0,  1 }, // +Z
-				{  0,  0, -1 }, // -Z
-			};
-
-			const Vector3 ups[6] = {
-				{  0, -1,  0 }, // +X
-				{  0, -1,  0 }, // -X
-				{  0,  0,  1 }, // +Y
-				{  0,  0, -1 }, // -Y
-				{  0, -1,  0 }, // +Z
-				{  0, -1,  0 }, // -Z
-			};
-
-			for (int i = 0; i < 6; i++)
-			{
-				raylib::Matrix view = raylib::Matrix(MatrixLookAt(
-					eye,
-					Vector3Add(eye, directions[i]),
-					ups[i]
-				));
-				raylib::Matrix proj = raylib::Matrix(MatrixPerspective(90 * DEG2RAD, m_near, 0.1, (double)range));
-				raylib::Matrix lightProjMatrix = view.Multiply(proj); 
-			}
-
-		}
 		return false; // point lights need a cubemap -- not supported
 	}
 
@@ -91,9 +59,42 @@ namespace Long {
 			}
 
 			raylib::Matrix lightViewProj;
-			const float& range = light.range; 
-			if (!buildLightMatrix(light, lightViewProj,range)) {
-				continue;
+			const float& range = light.range;
+			if (!buildLightMatrix(light, lightViewProj, range)) {
+				//Point light
+				if (light.type == (uint32_t)LightType::Point) {
+					raylib::Vector3 eye = light.position;
+					const Vector3 directions[6] = {
+						{  1,  0,  0 }, // +X
+						{ -1,  0,  0 }, // -X
+						{  0,  1,  0 }, // +Y
+						{  0, -1,  0 }, // -Y
+						{  0,  0,  1 }, // +Z
+						{  0,  0, -1 }, // -Z
+					};
+
+					const Vector3 ups[6] = {
+						{  0, -1,  0 }, // +X
+						{  0, -1,  0 }, // -X
+						{  0,  0,  1 }, // +Y
+						{  0,  0, -1 }, // -Y
+						{  0, -1,  0 }, // +Z
+						{  0, -1,  0 }, // -Z
+					};
+
+					for (int face = 0; face < 6; face++)
+					{
+						raylib::Matrix view = raylib::Matrix(MatrixLookAt(
+							eye,
+							Vector3Add(eye, directions[face]),
+							ups[face]
+						));
+						raylib::Matrix proj = raylib::Matrix(MatrixPerspective(90 * DEG2RAD, 1.0, m_near, (double)range));
+						raylib::Matrix lightProjMatrix = view.Multiply(proj);
+						// TODO: render this face into the cube's depth attachment.
+					}
+				}
+				continue; // point/unsupported lights: no 2D shadow map this frame
 			}
 
 			uint32_t slot = lights.shadowCount;
@@ -119,7 +120,7 @@ namespace Long {
 				ScopedBackfaceCull cull(true);
 				target.Bind();
 				raylib::Color::Black().ClearBackground(); // clears depth to 1.0 too
-				m_queue.ExecuteDepth(*ctx.assets, lightViewProj, depthShaderId);
+				m_queue.ExecuteDepth(*ctx.assets, lightViewProj, depthShaderId,light.range);
 				target.Unbind();
 			}
 
