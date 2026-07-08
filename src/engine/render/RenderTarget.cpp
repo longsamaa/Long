@@ -153,10 +153,7 @@ namespace Long {
 
 
 	void RenderTarget::BindFace(int face) {
-		// Bind the cube FBO and swap the depth attachment to face `face`. Raw GL
-		// because rlFramebufferAttach can't target a cubemap face (see
-		// LoadCubeTexture). Flush raylib's batch first so nothing spills across
-		// the framebuffer switch.
+		if (m_format != Format::CUBE) return; 
 		rlDrawRenderBatchActive();
 		glBindFramebuffer(GL_FRAMEBUFFER, m_texture.id);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
@@ -167,6 +164,7 @@ namespace Long {
 	}
 
 	void RenderTarget::EndCubeFace() {
+		if (m_format != Format::CUBE) return;
 		rlDrawRenderBatchActive();
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		rlViewport(0, 0, GetScreenWidth(), GetScreenHeight());

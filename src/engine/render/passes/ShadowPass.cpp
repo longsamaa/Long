@@ -122,7 +122,7 @@ namespace Long {
 	}
 
 	bool ShadowPass::renderPointCube(RenderContext& ctx, const LightParameter& light,
-		uint32_t slot, uint32_t pointDepthShaderId)
+		const uint32_t& slot, uint32_t pointDepthShaderId)
 	{
 		if (!ctx.assets->IsValidShader(pointDepthShaderId)) {
 			return false;
@@ -133,15 +133,10 @@ namespace Long {
 		if (cube.DepthTextureId() == 0) {
 			return false;
 		}
-
-		// Cull once against the light's REACH (a sphere of `range` around it):
-		// a point light sees every direction, so there's no single frustum -- an
-		// AABB test against the bounding sphere is a cheap, direction-agnostic cull.
-		// (Reuse the linear gather but with a frustum that bounds the sphere.)
+		
 		const raylib::Vector3 eye = light.position;
 		const float r = (light.range > 0.01f) ? light.range : 0.01f;
-		// Build a box-frustum around the light so gatherVisible keeps only nearby
-		// casters. MatrixOrtho centered on the light, +/- range on each axis.
+		
 		raylib::Matrix boxView = raylib::Matrix(MatrixTranslate(-eye.x, -eye.y, -eye.z));
 		raylib::Matrix boxProj = raylib::Matrix(MatrixOrtho(-r, r, -r, r, -r, r));
 		m_lightFrustum.buildFromMatrix(boxView.Multiply(boxProj));
@@ -167,7 +162,7 @@ namespace Long {
 		ScopedBackfaceCull cull(true);
 		for (int face = 0; face < 6; ++face) {
 			raylib::Matrix view = raylib::Matrix(MatrixLookAt(
-				eye, Vector3Add(eye, dirs[face]), ups[face]));
+				eye, eye.Add(dirs[face]), ups[face]));
 			raylib::Matrix proj = raylib::Matrix(
 				MatrixPerspective(90.0 * DEG2RAD, 1.0, m_near, (double)r));
 			raylib::Matrix faceViewProj = view.Multiply(proj);
@@ -180,5 +175,42 @@ namespace Long {
 		}
 		cube.EndCubeFace();
 		return true;
+	}
+	bool ShadowPass::renderDirectionLightDepth(RenderContext& ctx, const uint32_t& slot, const LightParameter& light)
+	{
+	//	RenderTarget& target = m_targets[slot];
+	//	target.SetFormat(RenderTarget::Format::DEPTH);
+	//	target.Resize(m_resolution, m_resolution);
+	//	if (target.DepthTextureId() == 0) {
+	//		return false; 
+	//	}
+
+	//	// Cull with THIS light's frustum and build private batches.
+	//	m_lightFrustum.buildFromMatrix(lightViewProj);
+	//	m_queue.Clear();
+	//	m_visibility->gatherVisible(*ctx.registry, &m_lightFrustum, m_visible,
+	//		ctx.renderStats.culledEntities);
+	//	RenderSystem(*ctx.registry, *ctx.assets, m_queue, m_visible, ctx.renderStats);
+	//	m_queue.Sort();
+	//	m_queue.BuildBatches();
+
+	//	{
+	//		ScopedDepthTest depth(true);
+	//		ScopedDepthMask mask(true);
+	//		ScopedBackfaceCull cull(true);
+	//		target.Bind();
+	//		raylib::Color::Black().ClearBackground(); // clears depth to 1.0 too
+	//		ctx.glRenderer->DrawDepth(m_queue.batches(), m_queue.batchCount(),
+	//			*ctx.assets, lightViewProj, depthShaderId, light.range);
+	//		target.Unbind();
+	//	}
+
+	//	lights.shadows[slot].lightViewProj = lightViewProj;
+	//	lights.shadows[slot].depthTexId = target.DepthTextureId();
+	//	light.shadowIndex = (int)slot;
+	//	lights.shadowCount++;
+	//}
+	//	return true;
+		return true; 
 	}
 }

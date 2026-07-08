@@ -41,8 +41,8 @@ namespace Long {
 
 	struct SceneLights {
 		static constexpr int kMaxLights = 8;
-		static constexpr int kMaxShadows = 4;
-		static constexpr int kMaxCubeShadows = 2; // must match MAX_CUBE_SHADOWS in shaders
+		static constexpr int kMaxShadows = 8;
+		static constexpr int kMaxCubeShadows = 8; // must match MAX_CUBE_SHADOWS in shaders
 		std::array<LightParameter, kMaxLights> lights{};
 		uint32_t size{ 0 };
 		std::array<ShadowCaster, kMaxShadows> shadows{};

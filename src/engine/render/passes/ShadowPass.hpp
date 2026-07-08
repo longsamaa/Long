@@ -22,10 +22,15 @@ namespace Long {
 		bool buildLightMatrix(const LightParameter& light, raylib::Matrix& out, const float& range) const;
 		// Render a point light's 6-face depth cube. Returns false if it couldn't.
 		bool renderPointCube(RenderContext& ctx, const LightParameter& light,
-			uint32_t slot, uint32_t pointDepthShaderId);
+			const uint32_t& slot, uint32_t pointDepthShaderId);
+		// Render a directional light.(directional light, spot)
+		bool renderDirectionLightDepth(RenderContext& ctx, const uint32_t& slot, const LightParameter& light);
+
 
 		std::array<RenderTarget, SceneLights::kMaxShadows> m_targets;
 		std::array<RenderTarget, SceneLights::kMaxCubeShadows> m_cubeTargets;
+
+		//Rect light target 
 		FrustumCulling m_lightFrustum;
 		std::unique_ptr<IVisibility> m_visibility{ std::make_unique<LinearVisibility>() };
 		std::vector<entt::entity> m_visible;

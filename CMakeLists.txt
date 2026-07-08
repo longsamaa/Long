@@ -93,6 +93,20 @@ target_include_directories(LongEngineCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/sr
 target_link_libraries(LongEngineCore PUBLIC raylib raylib_cpp imgui rlimgui entt tinygltf)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${ENGINE_SOURCES})
 
+# ---- Math backend selection (compile-time) ----
+# Selects the implementation behind Long::Math (core/math/Math.hpp). PUBLIC so
+# every target linking LongEngineCore (editor, game) compiles Math.hpp with the
+# SAME backend -- otherwise Mat4/Vec3 would differ across TUs (ODR violation).
+set(LONG_MATH "raylib" CACHE STRING "Math backend: raylib or glm")
+set_property(CACHE LONG_MATH PROPERTY STRINGS raylib glm)
+if(LONG_MATH STREQUAL "glm")
+    target_compile_definitions(LongEngineCore PUBLIC LONG_MATH_GLM)
+    message(STATUS "Math backend: glm")
+else()
+    target_compile_definitions(LongEngineCore PUBLIC LONG_MATH_RAYLIB)
+    message(STATUS "Math backend: raylib")
+endif()
+
 # ============================================================================
 #  LongEditor  --  the editor executable. Editor-only code + entry point, linked
 #  against LongEngineCore. A future "LongPlayer" target would link LongEngineCore
