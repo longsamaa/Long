@@ -2,7 +2,7 @@
 #ifndef _BLOOM_PASS_HPP_
 #define _BLOOM_PASS_HPP_
 #include "engine/render/IRenderPass.hpp"
-#include "engine/render/RenderTarget.hpp"
+#include "engine/render/GLRenderTarget.hpp"
 #include <array>
 namespace Long {
 	class BloomPass : public IRenderPass {
@@ -15,7 +15,7 @@ namespace Long {
 
 		uint32_t m_downShaderId{ UINT32_MAX };
 		uint32_t m_upShaderId{ UINT32_MAX };
-		std::array<RenderTarget, kMipCount> m_mips; // m_mips[0] = largest
+		std::array<GLRenderTarget, kMipCount> m_mips; // m_mips[0] = largest
 		uint32_t m_baseW{ 0 }, m_baseH{ 0 };
 	};
 }

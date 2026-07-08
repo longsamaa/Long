@@ -15,7 +15,6 @@ namespace Long {
 
 		void SetColor(raylib::Color color);
 
-		raylib::Material& Apply(raylib::Shader& shader) override;
 	};
 
 }

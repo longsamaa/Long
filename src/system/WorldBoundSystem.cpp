@@ -16,8 +16,7 @@ namespace Long {
 					Logger::TraceLog(LOG_WARNING, std::format("Valid Mesh : {}", name.value));
 					continue;
 				}
-				raylib::Mesh& mesh = asset_manager.GetMesh(mesh_filter.meshId);
-				raylib::BoundingBox box(mesh);
+				raylib::BoundingBox box = asset_manager.GetMesh(mesh_filter.meshId).Bounds();
 				raylib::BoundingBox world_box = MakeWorldBoundingBox(box, world_matrix.world_matrix);
 				WorldAABB& aabb = registry.emplace<WorldAABB>(e,
 					WorldAABB{ world_box.GetMin(), world_box.GetMax(),box.GetMin(),box.GetMax() });

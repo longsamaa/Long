@@ -1,3 +1,4 @@
+#include "engine/render/GLRenderTarget.hpp"
 #include "BloomPass.hpp"
 #include "engine/AssetManager.hpp"
 #include "engine/render/RenderContext.hpp"
@@ -44,7 +45,7 @@ namespace Long {
 		raylib::Shader& up = ctx.assets->GetShader(m_upShaderId);
 		
 		auto drawFull = [](RenderTarget& srcT, RenderTarget& dst) {
-			raylib::TextureUnmanaged tex = srcT.GetTexture();
+			raylib::TextureUnmanaged tex = ToRaylibTexture(srcT.Color());
 			raylib::Rectangle src = { 0, 0, (float)srcT.Width(), (float)srcT.Height() };
 			raylib::Rectangle d = { 0, 0, (float)dst.Width(), (float)dst.Height() };
 			tex.Draw(src, d, { 0, 0 }, 0.0f, raylib::Color::White());

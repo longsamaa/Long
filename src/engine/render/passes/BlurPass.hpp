@@ -2,7 +2,7 @@
 #ifndef _BLUR_PASS_HPP_
 #define _BLUR_PASS_HPP_
 #include "engine/render/IRenderPass.hpp"
-#include "engine/render/RenderTarget.hpp"
+#include "engine/render/GLRenderTarget.hpp"
 namespace Long {
 	//Blur pass
 	class BlurPass : public IRenderPass {
@@ -13,7 +13,7 @@ namespace Long {
 		int down_scale{ 1 };
 	private:
 		uint32_t m_shaderId{ UINT32_MAX };
-		RenderTarget m_blurTarget; 
+		GLRenderTarget m_blurTarget; 
 	};
 }
 #endif // !_BRIGHT_PASS_HPP_

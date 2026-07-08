@@ -3,7 +3,7 @@
 #define _RENDERER_HPP_
 
 #include "engine/render/IRenderPass.hpp"
-#include "engine/render/RenderTarget.hpp"
+#include "engine/render/GLRenderTarget.hpp"
 #include "engine/render/RenderContext.hpp"
 #include <memory>
 #include <vector>
@@ -25,13 +25,13 @@ namespace Long {
 
 	private:
 		std::vector<std::unique_ptr<IRenderPass>> m_passes;
-		RenderTarget m_sceneTarget;
-		RenderTarget m_maskTarget;
-		RenderTarget m_finalTarget;
-		RenderTarget m_brightTarget;
-		RenderTarget m_blurTarget;
-		RenderTarget m_depthShadowTarget;
-		RenderTarget m_ldrTarget;
+		GLRenderTarget m_sceneTarget;
+		GLRenderTarget m_maskTarget;
+		GLRenderTarget m_finalTarget;
+		GLRenderTarget m_brightTarget;
+		GLRenderTarget m_blurTarget;
+		GLRenderTarget m_depthShadowTarget;
+		GLRenderTarget m_ldrTarget;
 		GLRenderer m_glRenderer;   // GL backend, owns the instance VBO across frames
 	};
 

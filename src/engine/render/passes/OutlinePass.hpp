@@ -2,7 +2,7 @@
 #ifndef _OUTLINE_PASS_HPP_
 #define _OUTLINE_PASS_HPP_
 #include "engine/render/IRenderPass.hpp"
-#include "engine/render/RenderTarget.hpp"
+#include "engine/render/GLRenderTarget.hpp"
 #include "raylib-cpp.hpp"
 namespace Long {
 	// Edge-detects ctx.maskTarget and draws the outline over the screen. Runs
@@ -23,7 +23,7 @@ namespace Long {
 		int downscale = 1;
 	private:
 		uint32_t m_shaderId = UINT32_MAX;                  // resolved lazily
-		RenderTarget m_tempTarget;  // holds the horizontal-pass result (the dilated mask)
+		GLRenderTarget m_tempTarget;  // holds the horizontal-pass result (the dilated mask)
 	};
 }
 #endif // !_OUTLINE_PASS_HPP_

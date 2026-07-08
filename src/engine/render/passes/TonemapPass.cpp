@@ -1,3 +1,4 @@
+#include "engine/render/GLRenderTarget.hpp"
 #include "TonemapPass.hpp"
 #include "engine/AssetManager.hpp"
 #include "raylib-cpp.hpp"
@@ -16,7 +17,7 @@ namespace Long {
 			}
 		}
 		raylib::Shader& shader = ctx.assets->GetShader(m_shaderId);
-		raylib::TextureUnmanaged hdrTex = ctx.finalTarget->GetTexture();
+		raylib::TextureUnmanaged hdrTex = ToRaylibTexture(ctx.finalTarget->Color());
 		raylib::Rectangle src = ctx.finalTarget->SourceRect(); 
 		raylib::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
 		raylib::Vector2 res{ (float)ctx.width, (float)ctx.height };

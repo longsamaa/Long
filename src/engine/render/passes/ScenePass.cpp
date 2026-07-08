@@ -31,7 +31,7 @@ namespace Long {
 			ctx.renderStats.msExecute = Time::elapsedMs(t0);
 			auto tSky = Time::now();
 			if (ctx.environment) {
-				ctx.environment->DrawSkybox(*ctx.camera);
+				ctx.environment->DrawSkybox(*ctx.camera, *ctx.glRenderer);
 			}
 			ctx.renderStats.msSkybox = Time::elapsedMs(tSky);
 			ctx.camera->EndMode();

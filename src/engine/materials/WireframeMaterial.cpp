@@ -26,10 +26,5 @@ namespace Long {
 		SetUniform("u_thickness", thickness);
 	}
 
-	raylib::Material& WireframeMaterial::Apply(raylib::Shader& shader) {
-		m_rlMaterial.shader = shader;
-		ApplyUniforms(shader);
-		return m_rlMaterial;
-	}
 
 } // namespace Long

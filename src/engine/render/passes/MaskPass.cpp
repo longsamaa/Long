@@ -18,13 +18,11 @@ namespace Long {
 			m_material = std::make_unique<MaskMaterial>(shaderId, raylib::Color::White());
 		}
 		auto& reg = *ctx.registry;
-		raylib::Shader& shader = ctx.assets->GetShader(m_material->GetShaderId());
 		ctx.maskTarget->Bind();
 		{
-			raylib::Color::Black().ClearBackground(); 
+			raylib::Color::Black().ClearBackground();
 			if (!ctx.selectedEntities.empty()) {
 				ctx.camera->BeginMode();
-				raylib::Material& rlMat = m_material->Apply(shader);
 				for (entt::entity e : ctx.selectedEntities) {
 					if (!reg.valid(e) || !reg.all_of<MatrixTransform, MeshFilter>(e)) {
 						continue;
@@ -34,7 +32,9 @@ namespace Long {
 					if (!ctx.assets->IsValidMesh(mf.meshId)) {
 						continue;
 					}
-					ctx.assets->GetMesh(mf.meshId).Draw(rlMat, wt.world_matrix);
+					// CPU material -> backend resolves shader + uniforms + draw.
+					ctx.glRenderer->DrawMeshImmediate(*ctx.assets, mf.meshId,
+						*m_material, wt.world_matrix);
 				}
 				ctx.camera->EndMode();
 			}

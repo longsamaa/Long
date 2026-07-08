@@ -1,3 +1,4 @@
+#include "engine/render/GLRenderTarget.hpp"
 #include "OutlinePass.hpp"
 #include "engine/AssetManager.hpp"
 #include "raylib-cpp.hpp"
@@ -39,7 +40,7 @@ namespace Long {
 			int sw = (int)ctx.width, sh = (int)ctx.height;
 			raylib::Vector2 dir{ 1.0f, 0.0f };
 			int isFinal = 0;
-			raylib::TextureUnmanaged maskTex = ctx.maskTarget->GetTexture();
+			raylib::TextureUnmanaged maskTex = ToRaylibTexture(ctx.maskTarget->Color());
 			::Rectangle dstLow = { 0.0f, 0.0f, (float)lowW, (float)lowH };
 			m_tempTarget.Bind();
 			shader.BeginMode();
@@ -57,7 +58,7 @@ namespace Long {
 			int sw = (int)lowW, sh = (int)lowH;
 			raylib::Vector2 dir{ 0.0f, 1.0f };
 			int isFinal = 1;
-			raylib::TextureUnmanaged tempTex = m_tempTarget.GetTexture();
+			raylib::TextureUnmanaged tempTex = ToRaylibTexture(m_tempTarget.Color());
 			::Rectangle dstFull = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
 			shader.BeginMode();
 			shader.SetValue(locSize, &outlineSize, SHADER_UNIFORM_INT);

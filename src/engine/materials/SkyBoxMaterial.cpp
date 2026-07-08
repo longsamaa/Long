@@ -11,10 +11,4 @@ namespace Long {
 		SetUniform("u_bottomColor", botColor);
 		SetUniform("u_sharpness", gradientSharpness);
 	}
-	raylib::Material& SkyboxMaterial::Apply(raylib::Shader& shader)
-	{
-		m_rlMaterial.shader = shader;
-		ApplyUniforms(shader);
-		return m_rlMaterial;
-	}
 }

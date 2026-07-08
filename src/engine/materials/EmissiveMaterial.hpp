@@ -16,7 +16,6 @@ namespace Long {
 			float intensity = 4.0f);
 		void SetColor(raylib::Color color);
 		void SetIntensity(float intensity); // >1 makes the surface bloom
-		raylib::Material& Apply(raylib::Shader& shader) override;
 	};
 
 } // namespace Long

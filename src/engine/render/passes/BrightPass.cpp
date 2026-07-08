@@ -1,3 +1,4 @@
+#include "engine/render/GLRenderTarget.hpp"
 #include "BrightPass.hpp"
 #include "engine/AssetManager.hpp"
 #include "raylib-cpp.hpp"
@@ -22,7 +23,7 @@ namespace Long {
 			}
 		}
 		raylib::Shader& shader = ctx.assets->GetShader(m_shaderId);
-		raylib::TextureUnmanaged sceneTex = ctx.sceneTarget->GetTexture();
+		raylib::TextureUnmanaged sceneTex = ToRaylibTexture(ctx.sceneTarget->Color());
 		raylib::Rectangle src = ctx.sceneTarget->SourceRect(); // negative height: GL flip
 		raylib::Rectangle dst = { 0.0f, 0.0f, (float)bw, (float)bh };
 		ctx.brightTarget->Bind();

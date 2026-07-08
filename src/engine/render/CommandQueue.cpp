@@ -37,7 +37,7 @@ namespace Long {
 				uint32_t sb = b.material ? b.material->GetShaderId() : 0;
 				if (sa != sb) return sa < sb;
 				if (a.material != b.material) return a.material < b.material;
-				return a.mesh < b.mesh;
+				return a.meshId < b.meshId;
 			});
 	}
 
@@ -48,16 +48,16 @@ namespace Long {
 		const Command* cmds = m_commands.data();
 		for (uint32_t idx : m_order) {
 			const Command& cmd = cmds[idx];
-			if (cmd.isCulled || !cmd.mesh || !cmd.material) {
+			if (cmd.isCulled || cmd.meshId == UINT32_MAX || !cmd.material) {
 				continue;
 			}
-			if (!current || current->mesh != cmd.mesh || current->material != cmd.material)
+			if (!current || current->meshId != cmd.meshId || current->material != cmd.material)
 			{
 				if (m_batchCount == m_batches.size()) {
 					m_batches.emplace_back();
 				}
 				current = &m_batches[m_batchCount++];
-				current->mesh = cmd.mesh;
+				current->meshId = cmd.meshId;
 				current->material = cmd.material;
 				current->transforms.clear();
 			}

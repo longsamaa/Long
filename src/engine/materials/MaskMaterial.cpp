@@ -17,10 +17,5 @@ namespace Long {
 		SetUniform("u_maskColor", c);
 	}
 
-	raylib::Material& MaskMaterial::Apply(raylib::Shader& shader) {
-		m_rlMaterial.shader = shader;
-		ApplyUniforms(shader);
-		return m_rlMaterial;
-	}
 
 }

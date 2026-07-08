@@ -1,6 +1,7 @@
 #include "CommandDebugQueue.hpp"
 #include <raylib-cpp.hpp>
-#include "rlgl.h"
+#include <cmath>
+
 namespace Long {
 	void CommandDebugQueue::Submit(const DebugCommand& cmd)
 	{
@@ -10,56 +11,94 @@ namespace Long {
 	{
 		return m_commands;
 	}
-	void CommandDebugQueue::Execute(RenderStats& stats)
+
+	void CommandDebugQueue::AddLine(const raylib::Vector3& a, const raylib::Vector3& b,
+		const raylib::Color& c)
 	{
+		m_lines.push_back({ a.x, a.y, a.z, c.r, c.g, c.b, c.a });
+		m_lines.push_back({ b.x, b.y, b.z, c.r, c.g, c.b, c.a });
+	}
+
+	// Line circle around `center` in the plane perpendicular to `axis`
+	// (0 = X, 1 = Y, 2 = Z). Debug stand-in for the old solid spheres.
+	void CommandDebugQueue::AddCircle(const raylib::Vector3& center, float radius,
+		int axis, const raylib::Color& c)
+	{
+		constexpr int kSegments = 16;
+		raylib::Vector3 prev{};
+		for (int s = 0; s <= kSegments; ++s) {
+			float t = (float)s / kSegments * 2.0f * PI;
+			float ca = cosf(t) * radius;
+			float sa = sinf(t) * radius;
+			raylib::Vector3 p = center;
+			if (axis == 0) { p.y += ca; p.z += sa; }
+			else if (axis == 1) { p.x += ca; p.z += sa; }
+			else { p.x += ca; p.y += sa; }
+			if (s > 0) {
+				AddLine(prev, p, c);
+			}
+			prev = p;
+		}
+	}
+
+	void CommandDebugQueue::BuildLines(RenderStats& stats)
+	{
+		m_lines.clear();
 		for (auto& cmd : m_commands) {
-			std::visit([&, stats](auto&& v) {
+			std::visit([&](auto&& v) {
 				using T = std::decay_t<decltype(v)>;
 				if constexpr (std::is_same_v<T, GridCommand>) {
-					::DrawGrid(v.slices, v.spacing);
+					// Mirrors raylib's DrawGrid: (slices+1) lines each way on the
+					// XZ plane, darker pair through the origin.
+					const int half = (int)v.slices / 2;
+					const float ext = half * v.spacing;
+					for (int i = -half; i <= half; ++i) {
+						raylib::Color c = (i == 0) ? raylib::Color{ 90, 90, 90, 255 }
+												   : raylib::Color{ 120, 120, 120, 255 };
+						float d = i * v.spacing;
+						AddLine({ d, 0, -ext }, { d, 0, ext }, c);
+						AddLine({ -ext, 0, d }, { ext, 0, d }, c);
+					}
 				}
 				else if constexpr (std::is_same_v<T, CameraHelperCommand>) {
-					v.pos.DrawSphere(0.3f, raylib::Color::Red());
-
-					v.pos.DrawLine3D(v.n_tl, raylib::Color::Green());
-					v.pos.DrawLine3D(v.n_tr, raylib::Color::Green());
-					v.pos.DrawLine3D(v.n_bl, raylib::Color::Green());
-					v.pos.DrawLine3D(v.n_br, raylib::Color::Green());
-
-					v.n_tl.DrawLine3D(v.n_tr, raylib::Color::Green());
-					v.n_tr.DrawLine3D(v.n_br, raylib::Color::Green());
-					v.n_br.DrawLine3D(v.n_bl, raylib::Color::Green());
-					v.n_bl.DrawLine3D(v.n_tl, raylib::Color::Green());
-
-					v.n_tl.DrawLine3D(v.f_tl, raylib::Color::Green());
-					v.n_tr.DrawLine3D(v.f_tr, raylib::Color::Green());
-					v.n_br.DrawLine3D(v.f_br, raylib::Color::Green());
-					v.n_bl.DrawLine3D(v.f_bl, raylib::Color::Green());
-
-					v.f_tl.DrawLine3D(v.f_tr, raylib::Color::Green());
-					v.f_tr.DrawLine3D(v.f_br, raylib::Color::Green());
-					v.f_br.DrawLine3D(v.f_bl, raylib::Color::Green());
-					v.f_bl.DrawLine3D(v.f_tl, raylib::Color::Green());
+					const raylib::Color g = raylib::Color::Green();
+					// Body marker: 3 axis circles instead of a solid sphere.
+					AddCircle(v.pos, 0.3f, 0, raylib::Color::Red());
+					AddCircle(v.pos, 0.3f, 1, raylib::Color::Red());
+					AddCircle(v.pos, 0.3f, 2, raylib::Color::Red());
+					// Frustum edges.
+					AddLine(v.pos, v.n_tl, g); AddLine(v.pos, v.n_tr, g);
+					AddLine(v.pos, v.n_bl, g); AddLine(v.pos, v.n_br, g);
+					AddLine(v.n_tl, v.n_tr, g); AddLine(v.n_tr, v.n_br, g);
+					AddLine(v.n_br, v.n_bl, g); AddLine(v.n_bl, v.n_tl, g);
+					AddLine(v.n_tl, v.f_tl, g); AddLine(v.n_tr, v.f_tr, g);
+					AddLine(v.n_br, v.f_br, g); AddLine(v.n_bl, v.f_bl, g);
+					AddLine(v.f_tl, v.f_tr, g); AddLine(v.f_tr, v.f_br, g);
+					AddLine(v.f_br, v.f_bl, g); AddLine(v.f_bl, v.f_tl, g);
 				}
 				else if constexpr (std::is_same_v<T, LightHelperCommand>) {
 					raylib::Vector3 dir = raylib::Vector3(v.direction).Normalize();
 					raylib::Vector3 end = raylib::Vector3(v.origin).Add(dir.Scale(v.length));
-					v.origin.DrawSphere(0.2f, v.color);
+					AddCircle(v.origin, 0.2f, 0, v.color);
+					AddCircle(v.origin, 0.2f, 1, v.color);
+					AddCircle(v.origin, 0.2f, 2, v.color);
 					raylib::Vector3 ref = (fabsf(dir.y) < 0.9f)
 						? raylib::Vector3{ 0, 1, 0 } : raylib::Vector3{ 1, 0, 0 };
 					raylib::Vector3 u = dir.CrossProduct(ref).Normalize().Scale(0.5f);
 					raylib::Vector3 w = dir.CrossProduct(u).Normalize().Scale(0.5f);
-					raylib::Vector3(v.origin).DrawLine3D(end, v.color);
+					AddLine(v.origin, end, v.color);
 					for (auto off : { u, u.Scale(-1.0f), w, w.Scale(-1.0f) }) {
 						raylib::Vector3 o = raylib::Vector3(v.origin).Add(off);
-						o.DrawLine3D(o.Add(dir.Scale(v.length)), v.color);
+						AddLine(o, o.Add(dir.Scale(v.length)), v.color);
 					}
 				}
 			}, cmd);
 		}
+		stats.debugLineCount = (uint32_t)(m_lines.size() / 2);
 	}
+
 	void CommandDebugQueue::Clear()
 	{
-		m_commands.clear(); 
+		m_commands.clear();
 	}
 }

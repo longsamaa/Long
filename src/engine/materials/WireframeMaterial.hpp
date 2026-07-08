@@ -17,7 +17,6 @@ namespace Long {
 		void SetLineColor(raylib::Color color);
 		void SetFaceColor(raylib::Color color);
 		void SetThickness(float thickness);
-		raylib::Material& Apply(raylib::Shader& shader) override;
 	};
 
 } // namespace Long

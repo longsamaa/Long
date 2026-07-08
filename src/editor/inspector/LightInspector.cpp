@@ -1,5 +1,6 @@
 #include "LightInspector.hpp"
 #include "core/Components.hpp"
+#include "core/math/transform.hpp" // KelvinToRGB (temperature preview swatch)
 #include "imgui.h"
 
 namespace Long {
@@ -34,6 +35,17 @@ namespace Long {
 			if (light.intensity < 0.0f) light.intensity = 0.0f;
 			changed = true;
 		}
+
+		// Color temperature: warm tungsten (~2700K) .. neutral (6500K) .. cool
+		// sky (~10000K+). Swatch previews the blackbody tint being applied.
+		if (ImGui::SliderFloat("Temperature", &light.temperature, 1000.0f, 12000.0f, "%.0f K")) {
+			changed = true;
+		}
+		raylib::Vector3 kelvin = KelvinToRGB(light.temperature);
+		ImGui::SameLine();
+		ImGui::ColorButton("##kelvinPreview",
+			ImVec4(kelvin.x, kelvin.y, kelvin.z, 1.0f),
+			ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker);
 
 		if (light.type != LightType::Point) {
 			float dir[3] = { light.direction.x, light.direction.y, light.direction.z };

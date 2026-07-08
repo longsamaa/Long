@@ -18,7 +18,6 @@ namespace Long {
 								float metallic = 0.0f,
 								float roughness = 0.25f,
 								float ao = 1.0f);
-		raylib::Material& Apply(raylib::Shader& shader) override;
 	};
 
 } // namespace Long

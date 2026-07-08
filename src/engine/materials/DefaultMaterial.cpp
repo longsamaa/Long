@@ -17,10 +17,5 @@ namespace Long {
 		SetAO(ao);
 	}
 
-	raylib::Material& DefaultMaterial::Apply(raylib::Shader& shader) {
-		m_rlMaterial.shader = shader;
-		ApplyUniforms(shader);
-		return m_rlMaterial;
-	}
 
 } // namespace Long

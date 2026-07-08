@@ -11,9 +11,12 @@ namespace Long {
 		Grid
 	};
 
+	// Draw command references the mesh by ASSET ID, not by pointer: assets only
+	// hold CPU data (MeshCPU); the GL backend resolves the id to its cached GPU
+	// mesh at draw time.
 	struct Command {
 		raylib::Matrix worldMatrix;
-		raylib::Mesh* mesh{ nullptr };
+		uint32_t meshId{ UINT32_MAX };
 		BaseMaterial* material{ nullptr };
 		bool isCulled{ false };
 	};
@@ -22,7 +25,7 @@ namespace Long {
 	// transform. Such a group can be drawn in a single instanced call. Consumed by
 	// GLRenderer, which turns it into GL draw calls.
 	struct Batch {
-		raylib::Mesh* mesh{ nullptr };
+		uint32_t meshId{ UINT32_MAX };
 		BaseMaterial* material{ nullptr };
 		std::vector<raylib::Matrix> transforms;
 	};

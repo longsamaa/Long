@@ -86,8 +86,8 @@ namespace Long {
 	void Game::buildDefaultScene() {
 		auto& assets = m_app.GetAssets();
 		auto& reg = m_scene.Registry();
-		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
-		raylib::BoundingBox box(cube);
+		MeshCPU cube = MeshCPU::FromRaylib(raylib::Mesh::Cube(1.0f, 1.0f, 1.0f));
+		raylib::BoundingBox box = cube.Bounds();
 		uint32_t meshId = assets.AddMesh(std::move(cube));
 		uint32_t emissiveId = assets.GetShaderId("emissive");
 		uint32_t mat = assets.CreateEmissiveMaterial(emissiveId, raylib::Color{ 80, 180, 255, 255 }, 5.0f);

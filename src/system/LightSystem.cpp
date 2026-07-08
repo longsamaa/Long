@@ -1,5 +1,6 @@
 #include "LightSystem.hpp"
 #include "core/Components.hpp"
+#include "core/math/transform.hpp" // KelvinToRGB
 #include <cmath>
 
 namespace Long {
@@ -26,12 +27,13 @@ namespace Long {
 			g.source = e;
 			g.position = position;
 			g.direction = lc.world_direction;
-			g.color = { lc.color.r / 255.0f, lc.color.g / 255.0f,
-						lc.color.b / 255.0f, lc.color.a / 255.0f };
+			raylib::Vector3 kelvin = KelvinToRGB(lc.temperature);
+			g.color = { lc.color.r / 255.0f * kelvin.x,
+						lc.color.g / 255.0f * kelvin.y,
+						lc.color.b / 255.0f * kelvin.z,
+						lc.color.a / 255.0f };
 			g.intensity = lc.intensity;
 			g.type = (uint32_t)lc.type;
-			//Spot light 
-
 			float inner = lc.innerAngle;
 			float outer = (lc.outerAngle > inner) ? lc.outerAngle : inner + 0.01f;
 			g.innerCos = cosf(inner * DEG2RAD);

@@ -14,7 +14,6 @@ namespace Long {
 		void SetColor(raylib::Vector3 topColor,
 			raylib::Vector3 botColor,
 			float gradientSharpness);
-		raylib::Material& Apply(raylib::Shader& shader) override;
 	};
 } // namespace Long
 

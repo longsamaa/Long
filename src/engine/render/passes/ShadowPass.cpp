@@ -68,7 +68,7 @@ namespace Long {
 				uint32_t cubeSlot = lights.cubeShadowCount;
 				if (renderPointCube(ctx, light, cubeSlot, pointDepthShaderId)) {
 					lights.cubeShadows[cubeSlot].cubeTexId =
-						m_cubeTargets[cubeSlot].DepthTextureId();
+						m_cubeTargets[cubeSlot].Depth().id;
 					lights.cubeShadows[cubeSlot].lightPos = light.position;
 					lights.cubeShadows[cubeSlot].range = range;
 					light.cubeShadowIndex = (int)cubeSlot;
@@ -87,10 +87,10 @@ namespace Long {
 				continue; // unsupported type
 			}
 
-			RenderTarget& target = m_targets[slot];
-			target.SetFormat(RenderTarget::Format::DEPTH);
+			GLRenderTarget& target = m_targets[slot];
+			target.SetFormat(GLRenderTarget::Format::DEPTH);
 			target.Resize(m_resolution, m_resolution);
-			if (target.DepthTextureId() == 0) {
+			if (target.Depth().id == 0) {
 				continue; // depth framebuffer failed to allocate
 			}
 
@@ -115,7 +115,7 @@ namespace Long {
 			}
 
 			lights.shadows[slot].lightViewProj = lightViewProj;
-			lights.shadows[slot].depthTexId = target.DepthTextureId();
+			lights.shadows[slot].depthTexId = target.Depth().id;
 			light.shadowIndex = (int)slot;
 			lights.shadowCount++;
 		}
@@ -127,10 +127,10 @@ namespace Long {
 		if (!ctx.assets->IsValidShader(pointDepthShaderId)) {
 			return false;
 		}
-		RenderTarget& cube = m_cubeTargets[slot];
-		cube.SetFormat(RenderTarget::Format::CUBE);
+		GLRenderTarget& cube = m_cubeTargets[slot];
+		cube.SetFormat(GLRenderTarget::Format::CUBE);
 		cube.Resize(m_cubeResolution, m_cubeResolution);
-		if (cube.DepthTextureId() == 0) {
+		if (cube.Depth().id == 0) {
 			return false;
 		}
 		
@@ -178,10 +178,10 @@ namespace Long {
 	}
 	bool ShadowPass::renderDirectionLightDepth(RenderContext& ctx, const uint32_t& slot, const LightParameter& light)
 	{
-	//	RenderTarget& target = m_targets[slot];
-	//	target.SetFormat(RenderTarget::Format::DEPTH);
+	//	GLRenderTarget& target = m_targets[slot];
+	//	target.SetFormat(GLRenderTarget::Format::DEPTH);
 	//	target.Resize(m_resolution, m_resolution);
-	//	if (target.DepthTextureId() == 0) {
+	//	if (target.Depth().id == 0) {
 	//		return false; 
 	//	}
 
@@ -206,7 +206,7 @@ namespace Long {
 	//	}
 
 	//	lights.shadows[slot].lightViewProj = lightViewProj;
-	//	lights.shadows[slot].depthTexId = target.DepthTextureId();
+	//	lights.shadows[slot].depthTexId = target.Depth().id;
 	//	light.shadowIndex = (int)slot;
 	//	lights.shadowCount++;
 	//}

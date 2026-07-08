@@ -1,3 +1,4 @@
+#include "engine/render/GLRenderTarget.hpp"
 #include "engine/render/passes/CompositePass.hpp"
 #include "raylib-cpp.hpp"
 
@@ -10,7 +11,7 @@ namespace Long {
 		if (!ctx.finalTarget->IsValid()) {
 			return;
 		}
-		//raylib::TextureUnmanaged tex = ctx.sceneTarget->GetTexture();
+		//raylib::TextureUnmanaged tex = ToRaylibTexture(ctx.sceneTarget->Color());
 		//raylib::Rectangle src = ctx.sceneTarget->SourceRect();
 		//raylib::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
 
@@ -20,6 +21,6 @@ namespace Long {
 
 		raylib::Rectangle src = ctx.finalTarget->SourceRect();
 		raylib::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
-		ctx.finalTarget->GetTexture().Draw(src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
+		ToRaylibTexture(ctx.finalTarget->Color()).Draw(src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
 	}
 }

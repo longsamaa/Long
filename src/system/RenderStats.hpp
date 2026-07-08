@@ -16,6 +16,7 @@ namespace Long {
 		uint32_t shaderBinds = 0; //number of glUseProgram calls issued by Execute
 		uint32_t materialCount = 0; //number of material (shader/material)
 		uint32_t renderPassCalls = 0; //number of render pass
+		uint32_t debugLineCount = 0;  //debug helper line segments this frame
 		// Per-stage CPU timings (milliseconds), filled by ScenePass each frame.
 		double msRenderSystem = 0.0; // build command list from the ECS view
 		double msSort = 0.0;         // sort the command index buffer

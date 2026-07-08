@@ -1,3 +1,4 @@
+#include "engine/render/GLRenderTarget.hpp"
 #include "engine/render/passes/FXAAPass.hpp"
 #include "engine/AssetManager.hpp"
 #include "raylib-cpp.hpp"
@@ -17,7 +18,7 @@ namespace Long {
 			}
 		}
 		raylib::Shader& shader = ctx.assets->GetShader(m_shaderId);
-		raylib::TextureUnmanaged tex = ctx.ldrTarget->GetTexture();
+		raylib::TextureUnmanaged tex = ToRaylibTexture(ctx.ldrTarget->Color());
 		raylib::Vector2 res{ (float)ctx.width, (float)ctx.height };
 		raylib::Rectangle src = ctx.ldrTarget->SourceRect();
 		raylib::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };

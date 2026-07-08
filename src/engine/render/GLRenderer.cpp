@@ -1,9 +1,14 @@
 #include "GLRenderer.hpp"
-#include "CommandQueue.hpp"   // Batch
+#include "CommandQueue.hpp"        // Batch
+#include "CommandDebugQueue.hpp"   // DebugLineVertex
 #include "engine/Material.hpp"
 #include "engine/AssetManager.hpp"
+#include "engine/render/RenderState.hpp"
 #include "rlgl.h"
 #include "raymath.h"
+// GL enums/prototypes only -- raylib already loaded the function pointers.
+// Needed for glDrawArrays(GL_LINES): rlgl's vertex-array draws are triangles-only.
+#include "external/glad.h"
 #include <cstdio>   // snprintf
 #include <unordered_map>
 #include <system/LightSystem.hpp>
@@ -13,26 +18,6 @@
 #endif
 
 namespace Long {
-	static void UploadMaterialColors(const ::Material& mat) {
-		if (mat.shader.locs[SHADER_LOC_COLOR_DIFFUSE] != -1) {
-			float values[4] = {
-				(float)mat.maps[MATERIAL_MAP_DIFFUSE].color.r / 255.0f,
-				(float)mat.maps[MATERIAL_MAP_DIFFUSE].color.g / 255.0f,
-				(float)mat.maps[MATERIAL_MAP_DIFFUSE].color.b / 255.0f,
-				(float)mat.maps[MATERIAL_MAP_DIFFUSE].color.a / 255.0f
-			};
-			rlSetUniform(mat.shader.locs[SHADER_LOC_COLOR_DIFFUSE], values, SHADER_UNIFORM_VEC4, 1);
-		}
-		if (mat.shader.locs[SHADER_LOC_COLOR_SPECULAR] != -1) {
-			float values[4] = {
-				(float)mat.maps[MATERIAL_MAP_SPECULAR].color.r / 255.0f,
-				(float)mat.maps[MATERIAL_MAP_SPECULAR].color.g / 255.0f,
-				(float)mat.maps[MATERIAL_MAP_SPECULAR].color.b / 255.0f,
-				(float)mat.maps[MATERIAL_MAP_SPECULAR].color.a / 255.0f
-			};
-			rlSetUniform(mat.shader.locs[SHADER_LOC_COLOR_SPECULAR], values, SHADER_UNIFORM_VEC4, 1);
-		}
-	}
 	static constexpr int kShadowTexSlot0 = 10;                              // 2D maps: slots 10..
 	static constexpr int kCubeTexSlot0 = kShadowTexSlot0 + SceneLights::kMaxShadows; // cubes after
 	struct LightLocs {
@@ -183,30 +168,6 @@ namespace Long {
 		}
 	}
 
-	static void BindMaterialMaps(const ::Material& mat) {
-		for (int i = 0; i < MAX_MATERIAL_MAPS; i++) {
-			if (mat.maps[i].texture.id > 0) {
-				rlActiveTextureSlot(i);
-				if ((i == MATERIAL_MAP_IRRADIANCE) ||
-					(i == MATERIAL_MAP_PREFILTER) ||
-					(i == MATERIAL_MAP_CUBEMAP)) rlEnableTextureCubemap(mat.maps[i].texture.id);
-				else rlEnableTexture(mat.maps[i].texture.id);
-				rlSetUniform(mat.shader.locs[SHADER_LOC_MAP_DIFFUSE + i], &i, SHADER_UNIFORM_INT, 1);
-			}
-		}
-	}
-	static void UnbindMaterialMaps(const ::Material& mat) {
-		for (int i = 0; i < MAX_MATERIAL_MAPS; i++) {
-			if (mat.maps[i].texture.id > 0) {
-				rlActiveTextureSlot(i);
-				if ((i == MATERIAL_MAP_IRRADIANCE) ||
-					(i == MATERIAL_MAP_PREFILTER) ||
-					(i == MATERIAL_MAP_CUBEMAP)) rlDisableTextureCubemap();
-				else rlDisableTexture();
-			}
-		}
-	}
-
 	static void SetupInstanceAttributes(const ::Shader& shader, unsigned int vbo) {
 		int loc = shader.locs[SHADER_LOC_VERTEX_INSTANCETRANSFORM];
 		if (loc == -1) {
@@ -229,6 +190,200 @@ namespace Long {
 		if (m_instanceVbo != 0) {
 			rlUnloadVertexBuffer(m_instanceVbo);
 		}
+		if (m_lineVbo != 0) {
+			rlUnloadVertexBuffer(m_lineVbo);
+		}
+		if (m_lineVao != 0) {
+			rlUnloadVertexArray(m_lineVao);
+		}
+		// GPU meshes: CPU pointers were freed right after upload (nulled), so
+		// UnloadMesh only releases the VAO/VBOs (free(NULL) is a no-op).
+		for (::Mesh& m : m_gpuMeshes) {
+			if (m.vaoId > 0) {
+				::UnloadMesh(m);
+			}
+		}
+		if (m_immediateMaterialReady) {
+			// The shader slot holds a BORROWED asset shader -- point it back at
+			// raylib's default so UnloadMaterial doesn't free someone else's
+			// program (same double-free lesson as the old BaseMaterial dtor).
+			m_immediateMaterial.shader.id = rlGetShaderIdDefault();
+			m_immediateMaterial.shader.locs = nullptr;
+			::UnloadMaterial(m_immediateMaterial);
+		}
+	}
+
+	::Mesh& GLRenderer::GetGpuMesh(AssetManager& assets, uint32_t meshId)
+	{
+		static ::Mesh invalid{}; // vaoId == 0 -> callers skip the draw
+		if (!assets.IsValidMesh(meshId)) {
+			return invalid;
+		}
+		if (m_gpuMeshes.size() < assets.meshCount()) {
+			m_gpuMeshes.resize(assets.meshCount(), ::Mesh{});
+		}
+		::Mesh& gpu = m_gpuMeshes[meshId];
+		if (gpu.vaoId > 0) {
+			return gpu; // already uploaded
+		}
+
+		const MeshCPU& cpu = assets.GetMesh(meshId);
+		if (!cpu.IsValid()) {
+			return invalid;
+		}
+		const int vcount = cpu.VertexCount();
+
+		// De-interleave MeshCPU into the separate arrays raylib's UploadMesh
+		// expects. MemAlloc so the temporary CPU copies match RL_FREE.
+		::Mesh m{};
+		m.vertexCount = vcount;
+		m.triangleCount = cpu.TriangleCount();
+		m.vertices = (float*)MemAlloc((unsigned int)(vcount * 3 * sizeof(float)));
+		m.normals = (float*)MemAlloc((unsigned int)(vcount * 3 * sizeof(float)));
+		m.texcoords = (float*)MemAlloc((unsigned int)(vcount * 2 * sizeof(float)));
+		for (int i = 0; i < vcount; ++i) {
+			const VertexPNT& v = cpu.vertices[(size_t)i];
+			m.vertices[i * 3 + 0] = v.px; m.vertices[i * 3 + 1] = v.py; m.vertices[i * 3 + 2] = v.pz;
+			m.normals[i * 3 + 0] = v.nx;  m.normals[i * 3 + 1] = v.ny;  m.normals[i * 3 + 2] = v.nz;
+			m.texcoords[i * 2 + 0] = v.u; m.texcoords[i * 2 + 1] = v.v;
+		}
+		if (!cpu.indices.empty()) {
+			// raylib meshes only take 16-bit indices; importers already reject
+			// >65535-vertex primitives, so the cast is safe here.
+			m.indices = (unsigned short*)MemAlloc(
+				(unsigned int)(cpu.indices.size() * sizeof(unsigned short)));
+			for (size_t i = 0; i < cpu.indices.size(); ++i) {
+				m.indices[i] = (unsigned short)cpu.indices[i];
+			}
+		}
+
+		::UploadMesh(&m, false); // static geometry -> GPU (fills vaoId/vboId)
+		MemFree(m.vertices);  m.vertices = nullptr;
+		MemFree(m.normals);   m.normals = nullptr;
+		MemFree(m.texcoords); m.texcoords = nullptr;
+		gpu = m;
+		return gpu;
+	}
+
+	void GLRenderer::ApplyMaterial(const BaseMaterial& material, const ::Shader& shader)
+	{
+		// Resolve each named uniform through the backend's per-program cache.
+		// REQUIRES the program to be currently bound (rlEnableShader upstream) --
+		// rlSetUniform writes to the active program.
+		auto& locs = m_materialLocs[shader.id];
+		for (const auto& [name, value] : material.Uniforms()) {
+			int loc;
+			auto it = locs.find(name);
+			if (it != locs.end()) {
+				loc = it->second;
+			}
+			else {
+				loc = rlGetLocationUniform(shader.id, name.c_str());
+				locs.emplace(name, loc);
+			}
+			if (loc < 0) {
+				continue; // shader doesn't declare this parameter
+			}
+			std::visit([&](auto&& v) {
+				using T = std::decay_t<decltype(v)>;
+				if constexpr (std::is_same_v<T, float>)
+					rlSetUniform(loc, &v, SHADER_UNIFORM_FLOAT, 1);
+				else if constexpr (std::is_same_v<T, int>)
+					rlSetUniform(loc, &v, SHADER_UNIFORM_INT, 1);
+				else if constexpr (std::is_same_v<T, raylib::Vector2>)
+					rlSetUniform(loc, &v, SHADER_UNIFORM_VEC2, 1);
+				else if constexpr (std::is_same_v<T, raylib::Vector3>)
+					rlSetUniform(loc, &v, SHADER_UNIFORM_VEC3, 1);
+				else if constexpr (std::is_same_v<T, raylib::Vector4>)
+					rlSetUniform(loc, &v, SHADER_UNIFORM_VEC4, 1);
+				}, value);
+		}
+	}
+
+	void GLRenderer::DrawMeshImmediate(AssetManager& assets, uint32_t meshId,
+		const BaseMaterial& material, const raylib::Matrix& transform)
+	{
+		::Mesh& gpu = GetGpuMesh(assets, meshId);
+		if (gpu.vaoId == 0) {
+			return;
+		}
+		if (!assets.IsValidShader(material.GetShaderId())) {
+			return;
+		}
+		const ::Shader sh = assets.GetShader(material.GetShaderId());
+
+		// DrawMesh needs a raylib ::Material; keep ONE scratch (default maps =
+		// white texture) and swap the shader in per call.
+		if (!m_immediateMaterialReady) {
+			m_immediateMaterial = ::LoadMaterialDefault();
+			m_immediateMaterialReady = true;
+		}
+		m_immediateMaterial.shader = sh;
+
+		// Push the CPU material's parameters onto the program, then let raylib
+		// issue the draw (it re-binds the same program; uniforms persist).
+		rlEnableShader(sh.id);
+		ApplyMaterial(material, sh);
+		::DrawMesh(gpu, m_immediateMaterial, transform);
+	}
+
+	void GLRenderer::DrawSkybox(AssetManager& assets, uint32_t meshId,
+		const BaseMaterial& material, const raylib::Vector3& cameraPos)
+	{
+		// Inside faces face the camera (no cull) and the sky must never occlude
+		// scene geometry (no depth writes). RAII restores both.
+		ScopedBackfaceCull cull(false);
+		ScopedDepthMask mask(false);
+		DrawMeshImmediate(assets, meshId, material,
+			raylib::Matrix(MatrixTranslate(cameraPos.x, cameraPos.y, cameraPos.z)));
+	}
+
+	void GLRenderer::DrawDebugLines(AssetManager& assets,
+		const std::vector<DebugLineVertex>& lines)
+	{
+		if (lines.empty()) {
+			return;
+		}
+		uint32_t shaderId = assets.GetShaderId("debug_line");
+		if (!assets.IsValidShader(shaderId)) {
+			return;
+		}
+		const ::Shader sh = assets.GetShader(shaderId);
+
+		const int bytes = (int)(lines.size() * sizeof(DebugLineVertex));
+		if (m_lineVao == 0) {
+			m_lineVao = rlLoadVertexArray();
+		}
+		rlEnableVertexArray(m_lineVao);
+		if (m_lineVbo == 0 || lines.size() > m_lineCapacity) {
+			// (Re)allocate grown buffer; attribute pointers capture the buffer
+			// binding, so they must be re-declared against the NEW vbo while the
+			// VAO is bound. Layout matches debug_line.vert / raylib's default
+			// attrib locations: 0 = vertexPosition (3f), 3 = vertexColor (4ub, normalized).
+			if (m_lineVbo != 0) {
+				rlUnloadVertexBuffer(m_lineVbo);
+			}
+			m_lineVbo = rlLoadVertexBuffer(lines.data(), bytes, true); // dynamic
+			m_lineCapacity = lines.size();
+			rlSetVertexAttribute(0, 3, RL_FLOAT, 0, (int)sizeof(DebugLineVertex), 0);
+			rlEnableVertexAttribute(0);
+			rlSetVertexAttribute(3, 4, RL_UNSIGNED_BYTE, 1, (int)sizeof(DebugLineVertex), 12);
+			rlEnableVertexAttribute(3);
+		}
+		else {
+			rlUpdateVertexBuffer(m_lineVbo, lines.data(), bytes, 0);
+		}
+
+		rlEnableShader(sh.id);
+		// Matrices from the current BeginMode3D (call this inside camera mode).
+		raylib::Matrix mvp = raylib::Matrix(rlGetMatrixTransform())
+			.Multiply(rlGetMatrixModelview())
+			.Multiply(rlGetMatrixProjection());
+		rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], mvp);
+		// rlgl's vertex-array draws are triangles-only -> raw GL for lines.
+		glDrawArrays(GL_LINES, 0, (GLsizei)lines.size());
+		rlDisableVertexArray();
+		rlDisableShader();
 	}
 
 	void GLRenderer::UploadInstanceTransforms(const std::vector<raylib::Matrix>& transforms)
@@ -256,8 +411,11 @@ namespace Long {
 		}
 	}
 
-	void GLRenderer::DrawBatches(const std::vector<Batch>& batches, size_t batchCount,
-		AssetManager& assets, RenderStats& stats, const SceneLights* lights)
+	void GLRenderer::DrawBatches(const std::vector<Batch>& batches,
+		size_t batchCount,
+		AssetManager& assets, 
+		RenderStats& stats, 
+		const SceneLights* lights)
 	{
 		stats.materialCount = assets.materialCount();
 		constexpr size_t kInstanceThreshold = 4;
@@ -288,8 +446,7 @@ namespace Long {
 				(count >= kInstanceThreshold && instShaderId != AssetManager::Invalid);
 
 			raylib::Shader& shader = assets.GetShader(instanced ? instShaderId : baseShaderId);
-			raylib::Material& rlMat = batch.material->Apply(shader);
-			const ::Shader sh = rlMat.shader;
+			const ::Shader sh = shader;
 
 			if (sh.id != activeProgram) {
 				rlEnableShader(sh.id);
@@ -308,6 +465,14 @@ namespace Long {
 				if (viewPosLoc != -1) {
 					rlSetUniform(viewPosLoc, camPos, SHADER_UNIFORM_VEC3, 1);
 				}
+				// texture0: no per-material textures yet, bind raylib's 1x1 white
+				// so `texture(texture0, uv)` is a no-op multiplier.
+				if (sh.locs[SHADER_LOC_MAP_DIFFUSE] != -1) {
+					rlActiveTextureSlot(0);
+					rlEnableTexture(rlGetTextureIdDefault());
+					int slot0 = 0;
+					rlSetUniform(sh.locs[SHADER_LOC_MAP_DIFFUSE], &slot0, SHADER_UNIFORM_INT, 1);
+				}
 				// Global per-shader uniforms: the scene light array + shadow map.
 				if (lights != nullptr) {
 					BindLights(shader, *lights);
@@ -315,21 +480,13 @@ namespace Long {
 				}
 			}
 
-			UploadMaterialColors(rlMat);
-			BindMaterialMaps(rlMat);
+			// Per-batch material parameters (u_baseColor & co) via the backend's
+			// uniform table -- the material itself is pure CPU data.
+			ApplyMaterial(*batch.material, sh);
 
-			raylib::Mesh& mesh = *batch.mesh;
+			::Mesh& mesh = GetGpuMesh(assets, batch.meshId);
 			if (!rlEnableVertexArray(mesh.vaoId)) {
-				// No VAO (unexpected on GL 4.3) -> raylib's own slow path.
-				UnbindMaterialMaps(rlMat);
-				for (const raylib::Matrix& m : batch.transforms) {
-					mesh.Draw(rlMat, m);
-					stats.drawCalls++;
-					stats.triangles += (uint32_t)mesh.triangleCount;
-					stats.vertices += (uint32_t)mesh.vertexCount;
-				}
-				activeProgram = 0;
-				continue;
+				continue; // invalid mesh id / failed upload -> nothing to draw
 			}
 			if (instanced) {
 				UploadInstanceTransforms(batch.transforms);
@@ -373,7 +530,6 @@ namespace Long {
 			}
 
 			rlDisableVertexArray();
-			UnbindMaterialMaps(rlMat);
 		}
 		rlDisableShader();
 	}
@@ -396,7 +552,7 @@ namespace Long {
 		uint32_t activeProgram = 0;
 		for (size_t b = 0; b < batchCount; ++b) {
 			const Batch& batch = batches[b];
-			if (!batch.mesh || !batch.material || !batch.material->CastsShadow()) {
+			if (batch.meshId == UINT32_MAX || !batch.material || !batch.material->CastsShadow()) {
 				continue; // non-casters don't write to the shadow map
 			}
 			const size_t count = batch.transforms.size();
@@ -415,7 +571,7 @@ namespace Long {
 				}
 			}
 
-			raylib::Mesh& mesh = *batch.mesh;
+			::Mesh& mesh = GetGpuMesh(assets, batch.meshId);
 			if (!rlEnableVertexArray(mesh.vaoId)) {
 				continue; // depth pass skips meshes without a VAO
 			}

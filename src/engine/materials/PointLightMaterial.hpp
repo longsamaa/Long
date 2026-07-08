@@ -9,7 +9,6 @@ namespace Long {
 	public:
 		explicit PointLightDepthMaterial();
 		void Set(const raylib::Vector3& u_lightPos, const float& range); 
-		raylib::Material& Apply(raylib::Shader& shader) override;
 	};
 } // namespace Long
 

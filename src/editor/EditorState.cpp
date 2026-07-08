@@ -90,8 +90,8 @@ namespace Long {
 		const raylib::Vector3& camera_pos = m_gameCamera.Raw().GetPosition();
 		Transform transform;
 		reg.emplace<Transform>(main_camera, transform);
-		raylib::Mesh sphere = raylib::Mesh::Sphere(0.5f, 16, 16);
-		raylib::BoundingBox box_collider(sphere);
+		MeshCPU sphere = MeshCPU::FromRaylib(raylib::Mesh::Sphere(0.5f, 16, 16));
+		raylib::BoundingBox box_collider = sphere.Bounds();
 		uint32_t meshId = assets.AddMesh(std::move(sphere));
 		uint32_t defaultId = assets.GetShaderId("default");
 		uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color{ 200, 200, 200, 255 });
@@ -114,8 +114,8 @@ namespace Long {
 		Transform transform;
 		transform.position = { 10.0f, 10.0f, 0.0f };
 		reg.emplace<Transform>(light, transform);
-		raylib::Mesh sphere = raylib::Mesh::Sphere(0.5f, 16, 16);
-		raylib::BoundingBox box_collider(sphere);
+		MeshCPU sphere = MeshCPU::FromRaylib(raylib::Mesh::Sphere(0.5f, 16, 16));
+		raylib::BoundingBox box_collider = sphere.Bounds();
 		uint32_t meshId = m_app.GetAssets().AddMesh(std::move(sphere));
 		uint32_t defaultId = assets.GetShaderId("default");
 		uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color::Yellow());
@@ -140,8 +140,8 @@ namespace Long {
 		transform.position = { 0.0f, 6.0f, 0.0f };
 		reg.emplace<Transform>(light, transform);
 		// Small emissive-looking gizmo sphere so the light is visible/selectable.
-		raylib::Mesh sphere = raylib::Mesh::Sphere(0.4f, 16, 16);
-		raylib::BoundingBox box_collider(sphere);
+		MeshCPU sphere = MeshCPU::FromRaylib(raylib::Mesh::Sphere(0.4f, 16, 16));
+		raylib::BoundingBox box_collider = sphere.Bounds();
 		uint32_t meshId = assets.AddMesh(std::move(sphere));
 		uint32_t defaultId = assets.GetShaderId("default");
 		uint32_t mat = assets.CreateDefaultMaterial(defaultId, raylib::Color{ 255, 240, 200, 255 });
@@ -318,8 +318,8 @@ namespace Long {
 	{
 		auto& assets = m_app.GetAssets();
 		auto& reg = m_scene.Registry();
-		raylib::Mesh cube = raylib::Mesh::Cube(4.0f, 4.0f, 4.0f);
-		raylib::BoundingBox box(cube);
+		MeshCPU cube = MeshCPU::FromRaylib(raylib::Mesh::Cube(4.0f, 4.0f, 4.0f));
+		raylib::BoundingBox box = cube.Bounds();
 		uint32_t meshId = assets.AddMesh(std::move(cube));
 		uint32_t wireId = assets.GetShaderId("wireframe");
 		raylib::Color lightBrown{ 196, 164, 132, 255 };
@@ -350,8 +350,8 @@ namespace Long {
 	{
 		auto& assets = m_app.GetAssets();
 		auto& reg = m_scene.Registry();
-		raylib::Mesh cube = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
-		raylib::BoundingBox box(cube);
+		MeshCPU cube = MeshCPU::FromRaylib(raylib::Mesh::Cube(1.0f, 1.0f, 1.0f));
+		raylib::BoundingBox box = cube.Bounds();
 		uint32_t meshId = assets.AddMesh(std::move(cube));
 		uint32_t emissiveId = assets.GetShaderId("emissive");
 		struct Glow { raylib::Vector3 pos; raylib::Color color; };
@@ -399,11 +399,11 @@ namespace Long {
 			auto& parent_hierarchy = reg.emplace<Hierarchy>(parent, Hierarchy{ entt::null, {} });
 			for (const auto& meshId : robot.meshIds) {
 				entt::entity e = m_scene.CreateEntity(robot.meshName[meshId]);
-				auto& mesh = m_app.GetAssets().GetMesh(meshId);
+				MeshCPU& mesh = m_app.GetAssets().GetMesh(meshId);
 				reg.emplace<Transform>(e, Transform{});
 				reg.emplace<MeshFilter>(e, MeshFilter{ meshId });
 				reg.emplace<MeshRenderer>(e, MeshRenderer{ emat, raylib::Color::White(), true });
-				reg.emplace<BoxCollider3D>(e, BoxCollider3D{ raylib::BoundingBox(mesh) });
+				reg.emplace<BoxCollider3D>(e, BoxCollider3D{ mesh.Bounds() });
 				reg.emplace<Hierarchy>(e, Hierarchy{ parent, {} });
 				parent_hierarchy.children.push_back(e);
 			}

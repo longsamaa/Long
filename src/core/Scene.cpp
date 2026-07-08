@@ -33,8 +33,8 @@ namespace Long {
 			static const std::string name = "Cube";
 			entt::entity cube = m_registry.create();
 			m_registry.emplace<Name>(cube, name);
-			raylib::Mesh cubeMesh = raylib::Mesh::Cube(1.0f, 1.0f, 1.0f);
-			raylib::BoundingBox box_collider(cubeMesh);
+			MeshCPU cubeMesh = MeshCPU::FromRaylib(raylib::Mesh::Cube(1.0f, 1.0f, 1.0f));
+			raylib::BoundingBox box_collider = cubeMesh.Bounds();
 			uint32_t meshId = assets.AddMesh(std::move(cubeMesh));
 			uint32_t pbrId = assets.GetShaderId("pbr");
 			uint32_t mat = assets.CreateDefaultMaterial(pbrId, raylib::Color::White());
@@ -50,8 +50,8 @@ namespace Long {
 			static const std::string name = "Sphere";
 			entt::entity sphere = m_registry.create();
 			m_registry.emplace<Name>(sphere, name);
-			raylib::Mesh sphereMesh = raylib::Mesh::Sphere(1,16,16);
-			raylib::BoundingBox box_collider(sphereMesh);
+			MeshCPU sphereMesh = MeshCPU::FromRaylib(raylib::Mesh::Sphere(1, 16, 16));
+			raylib::BoundingBox box_collider = sphereMesh.Bounds();
 			uint32_t meshId = assets.AddMesh(std::move(sphereMesh));
 			uint32_t pbrId = assets.GetShaderId("pbr");
 			uint32_t mat = assets.CreateDefaultMaterial(pbrId, raylib::Color::White());
@@ -67,8 +67,8 @@ namespace Long {
 			static const std::string name = "Cylinder";
 			entt::entity cylinder = m_registry.create();
 			m_registry.emplace<Name>(cylinder, name);
-			raylib::Mesh cylinderMesh = raylib::Mesh::Cylinder(1, 1, 16);
-			raylib::BoundingBox box_collider(cylinderMesh);
+			MeshCPU cylinderMesh = MeshCPU::FromRaylib(raylib::Mesh::Cylinder(1, 1, 16));
+			raylib::BoundingBox box_collider = cylinderMesh.Bounds();
 			uint32_t meshId = assets.AddMesh(std::move(cylinderMesh));
 			uint32_t pbrId = assets.GetShaderId("pbr");
 			uint32_t mat = assets.CreateDefaultMaterial(pbrId, raylib::Color::White());

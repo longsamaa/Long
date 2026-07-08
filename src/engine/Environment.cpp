@@ -1,6 +1,7 @@
 #include "engine/Environment.hpp"
 #include "engine/AssetManager.hpp"
-#include "engine/render/RenderState.hpp"
+#include "engine/render/GLRenderer.hpp"
+#include "core/MeshCPU.hpp"
 #include "rlgl.h"
 #include "raymath.h"
 #include "engine/Logger.hpp"
@@ -9,22 +10,28 @@
 namespace Long {
 
 	Environment::Environment() = default;
-	Environment::~Environment() = default; 
-	
+	Environment::~Environment() = default;
+
 	void Environment::Init(AssetManager& assets) {
 		m_gradientShaderId = assets.GetShaderId("skybox_gradient");
 		if (!assets.IsValidShader(m_gradientShaderId)) {
 			Logger::TraceLog(::TraceLogLevel::LOG_ERROR, "skybox_gradient shader not found");
 			return;
 		}
-		m_skybox = ::GenMeshCube(1.0f, 1.0f, 1.0f);
+		// Register the skybox cube as a normal CPU mesh asset; the backend
+		// uploads it lazily like everything else. GenMeshCube also uploads its
+		// own GPU copy, so unload it right after copying the CPU side.
+		::Mesh cube = ::GenMeshCube(1.0f, 1.0f, 1.0f);
+		m_skyboxMeshId = assets.AddMesh(MeshCPU::FromRaylib(cube));
+		::UnloadMesh(cube);
+
 		m_skyBoxMaterial = std::make_unique<SkyboxMaterial>(
 			m_gradientShaderId, topColor, bottomColor, gradientSharpness);
 		m_assets = &assets;
 		m_ready = true;
 	}
 
-	void Environment::DrawSkybox(BaseCamera& camera) {
+	void Environment::DrawSkybox(BaseCamera& camera, GLRenderer& gl) {
 		if (!m_ready || !m_assets || !m_skyBoxMaterial) {
 			return;
 		}
@@ -32,12 +39,9 @@ namespace Long {
 			return;
 		}
 		m_skyBoxMaterial->SetColor(topColor, bottomColor, gradientSharpness);
-		raylib::Shader& shader = m_assets->GetShader(m_gradientShaderId);
-		raylib::Material& rlMat = m_skyBoxMaterial->Apply(shader);
-		// Skybox: inside faces face us (no cull) and must not occlude scene (no depth write).
-		ScopedBackfaceCull cull(false);
-		ScopedDepthMask mask(false);
-		m_skybox.Draw(rlMat, MatrixTranslate(camera.Raw().GetPosition().x, camera.Raw().GetPosition().y, camera.Raw().GetPosition().z));
+		// The backend handles state (no cull / no depth write) + the draw.
+		gl.DrawSkybox(*m_assets, m_skyboxMeshId, *m_skyBoxMaterial,
+			camera.Raw().GetPosition());
 	}
 
 } // namespace Long

@@ -1,3 +1,4 @@
+#include "engine/render/GLRenderTarget.hpp"
 #include "BloomCompositePass.hpp"
 #include "engine/AssetManager.hpp"
 #include "raylib-cpp.hpp"
@@ -23,8 +24,8 @@ namespace Long {
 			}
 		}
 		raylib::Shader& shader = ctx.assets->GetShader(m_shaderId);
-		raylib::TextureUnmanaged bloomTex = ctx.blurTarget->GetTexture();
-		raylib::TextureUnmanaged sceneTex = ctx.sceneTarget->GetTexture();
+		raylib::TextureUnmanaged bloomTex = ToRaylibTexture(ctx.blurTarget->Color());
+		raylib::TextureUnmanaged sceneTex = ToRaylibTexture(ctx.sceneTarget->Color());
 		raylib::Rectangle src = ctx.sceneTarget->SourceRect(); 
 		raylib::Rectangle dst = { 0.0f, 0.0f, (float)ctx.width, (float)ctx.height };
 

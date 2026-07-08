@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <filesystem>
 #include "engine/Material.hpp"
+#include "core/MeshCPU.hpp"
 #include "import/GLTFImporter.hpp"
 
 
@@ -35,9 +36,13 @@ namespace Long {
 			return m_shaders[id];
 		}
 		bool IsValidShader(uint32_t id) const { return id < m_shaders.size(); }
-		uint32_t AddMesh(raylib::Mesh&& mesh);
-		raylib::Mesh& GetMesh(uint32_t id) { return m_meshes[id]; }
+		// Meshes are stored as CPU data only (MeshCPU) -- API-agnostic. The render
+		// backend (GLRenderer) uploads + caches the GPU side, keyed by this id.
+		uint32_t AddMesh(MeshCPU&& mesh);
+		MeshCPU& GetMesh(uint32_t id) { return m_meshes[id]; }
+		const MeshCPU& GetMesh(uint32_t id) const { return m_meshes[id]; }
 		bool IsValidMesh(uint32_t id) const { return id < m_meshes.size(); }
+		size_t meshCount() const { return m_meshes.size(); }
 		uint32_t AddMaterial(std::unique_ptr<BaseMaterial> material);
 		BaseMaterial& GetMaterial(uint32_t id) { return *m_materials[id]; }
 		bool IsValidMaterial(uint32_t id) const { return id < m_materials.size(); }
@@ -57,7 +62,7 @@ namespace Long {
 		std::unordered_map<std::string, uint32_t> m_shaderNameToId;
 		std::unordered_map<uint32_t, uint32_t> m_instancedOf; // base shader id -> instanced id
 		std::vector<std::unique_ptr<BaseMaterial>> m_materials;
-		std::vector<raylib::Mesh> m_meshes;
+		std::vector<MeshCPU> m_meshes;
 	};
 } // namespace Long
 

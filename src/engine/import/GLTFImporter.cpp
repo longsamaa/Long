@@ -65,8 +65,12 @@ namespace Long {
 		return true;
 	}
 
+	// One glTF primitive -> one MeshCPU (pure CPU data, NO GL here!). Vertices
+	// stay in NODE-LOCAL space -- world placement is the entity Transform's job.
+	// The GL backend uploads/caches the GPU side later, so the importer no longer
+	// touches MemAlloc/UploadMesh at all.
 	static bool PrimitiveToMesh(const tinygltf::Model& model,
-		const tinygltf::Primitive& prim, ::Mesh& out, std::string& message)
+		const tinygltf::Primitive& prim, MeshCPU& out, std::string& message)
 	{
 		if (prim.mode != TINYGLTF_MODE_TRIANGLES) {
 			message = "Not triangle mode!";
@@ -83,36 +87,31 @@ namespace Long {
 		const tinygltf::Accessor& pos_accessor = accessors[it_pos->second];
 		const tinygltf::BufferView& pos_bufferview = model.bufferViews[pos_accessor.bufferView];
 		const tinygltf::Buffer& pos_buffer = model.buffers[pos_bufferview.buffer];
-		// NOTE: `type` (VEC3) va `componentType` (FLOAT) la 2 field khac nhau,
-		// va dieu kien fail phai la || (sai MOT trong hai la loai).
 		if (pos_accessor.type != TINYGLTF_TYPE_VEC3 ||
 			pos_accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT) {
 			message = "Position not float vec3";
 			return false;
 		}
-		// raylib Mesh chi co index 16-bit: primitive to hon phai split, chua lam.
+		// raylib GPU mesh chi co index 16-bit: primitive to hon phai split, chua lam.
 		if (prim.indices >= 0 && pos_accessor.count > 65535) {
 			message = "more than 65535 vertices (raylib indices are 16-bit)";
 			return false;
 		}
-		// 1 buffer view co the chua nhieu accessor -> cong ca 2 tang byteOffset.
 		const unsigned char* pos_data =
 			pos_buffer.data.data() +
 			pos_bufferview.byteOffset +
 			pos_accessor.byteOffset;
-		// MemAlloc (khong phai malloc): UnloadMesh free bang RL_FREE, allocator
-		// phai khop mot cap.
-		out.vertices = (float*)MemAlloc((unsigned int)(sizeof(float) * pos_accessor.count * 3));
 		uint32_t pos_stride = pos_accessor.ByteStride(pos_bufferview);
+
+		// Interleave thang vao VertexPNT (position truoc, normal/uv dien sau).
+		out.vertices.assign(pos_accessor.count, VertexPNT{});
 		for (size_t i = 0; i < pos_accessor.count; ++i)
 		{
-			memcpy(
-				out.vertices + i * 3,
-				pos_data + i * pos_stride,
-				sizeof(float) * 3);
+			const float* p = (const float*)(pos_data + i * pos_stride);
+			out.vertices[i].px = p[0];
+			out.vertices[i].py = p[1];
+			out.vertices[i].pz = p[2];
 		}
-		// vertexCount la SO VERTEX, khong phai so float (dung *3).
-		out.vertexCount = (int)pos_accessor.count;
 
 		// ---- NORMAL (tuy chon: float vec3) ----
 		auto it_normal = prim.attributes.find("NORMAL");
@@ -120,7 +119,6 @@ namespace Long {
 			const tinygltf::Accessor& normal_accessor = accessors[it_normal->second];
 			const tinygltf::BufferView& normal_bufferview = model.bufferViews[normal_accessor.bufferView];
 			const tinygltf::Buffer& normal_buffer = model.buffers[normal_bufferview.buffer];
-			// check accessor cua CHINH normal, va chi bo qua attribute (khong fail ca mesh)
 			if (normal_accessor.type == TINYGLTF_TYPE_VEC3 &&
 				normal_accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT &&
 				normal_accessor.count == pos_accessor.count) {
@@ -128,14 +126,13 @@ namespace Long {
 					normal_buffer.data.data() +
 					normal_bufferview.byteOffset +
 					normal_accessor.byteOffset;
-				out.normals = (float*)MemAlloc((unsigned int)(sizeof(float) * normal_accessor.count * 3));
 				uint32_t normal_stride = normal_accessor.ByteStride(normal_bufferview);
 				for (size_t i = 0; i < normal_accessor.count; ++i)
 				{
-					memcpy(
-						out.normals + i * 3,
-						normal_data + i * normal_stride,
-						sizeof(float) * 3);
+					const float* n = (const float*)(normal_data + i * normal_stride);
+					out.vertices[i].nx = n[0];
+					out.vertices[i].ny = n[1];
+					out.vertices[i].nz = n[2];
 				}
 			}
 		}
@@ -153,40 +150,12 @@ namespace Long {
 					textcoord_0_buffer.data.data() +
 					textcoord_0_bufferview.byteOffset +
 					textcoord_0_accessor.byteOffset;
-				out.texcoords = (float*)MemAlloc((unsigned int)(sizeof(float) * textcoord_0_accessor.count * 2));
 				uint32_t textcoord_0_stride = textcoord_0_accessor.ByteStride(textcoord_0_bufferview);
 				for (size_t i = 0; i < textcoord_0_accessor.count; ++i)
 				{
-					memcpy(
-						out.texcoords + i * 2,
-						textcoord_0_data + i * textcoord_0_stride,
-						sizeof(float) * 2);
-				}
-			}
-		}
-
-		// ---- TEXCOORD_1 (tuy chon: float vec2 -> texcoords2) ----
-		auto it_textcoord_1 = prim.attributes.find("TEXCOORD_1");
-		if (it_textcoord_1 != prim.attributes.end()) {
-			const tinygltf::Accessor& textcoord_1_accessor = accessors[it_textcoord_1->second];
-			const tinygltf::BufferView& textcoord_1_bufferview = model.bufferViews[textcoord_1_accessor.bufferView];
-			const tinygltf::Buffer& textcoord_1_buffer = model.buffers[textcoord_1_bufferview.buffer];
-			if (textcoord_1_accessor.type == TINYGLTF_TYPE_VEC2 &&
-				textcoord_1_accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT &&
-				textcoord_1_accessor.count == pos_accessor.count) {
-				const unsigned char* textcoord_1_data =
-					textcoord_1_buffer.data.data() +
-					textcoord_1_bufferview.byteOffset +
-					textcoord_1_accessor.byteOffset;
-				// texcoords2, khong phai texcoords (bug cu: alloc mot noi, memcpy noi khac)
-				out.texcoords2 = (float*)MemAlloc((unsigned int)(sizeof(float) * textcoord_1_accessor.count * 2));
-				uint32_t textcoord_1_stride = textcoord_1_accessor.ByteStride(textcoord_1_bufferview);
-				for (size_t i = 0; i < textcoord_1_accessor.count; ++i)
-				{
-					memcpy(
-						out.texcoords2 + i * 2,
-						textcoord_1_data + i * textcoord_1_stride,
-						sizeof(float) * 2);
+					const float* t = (const float*)(textcoord_0_data + i * textcoord_0_stride);
+					out.vertices[i].u = t[0];
+					out.vertices[i].v = t[1];
 				}
 			}
 		}
@@ -202,38 +171,27 @@ namespace Long {
 				index_accessor.byteOffset;
 			uint32_t index_stride = index_accessor.ByteStride(index_bufferview);
 
-			out.indices = (unsigned short*)MemAlloc(
-				(unsigned int)(sizeof(unsigned short) * index_accessor.count));
+			out.indices.resize(index_accessor.count);
 			for (size_t i = 0; i < index_accessor.count; ++i)
 			{
 				const unsigned char* p = index_data + i * index_stride;
 				switch (index_accessor.componentType)
 				{
 				case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-					out.indices[i] = (unsigned short)(*p);
+					out.indices[i] = (uint32_t)(*p);
 					break;
 				case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-					out.indices[i] = *(const unsigned short*)p;
+					out.indices[i] = (uint32_t)(*(const unsigned short*)p);
 					break;
 				case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-					out.indices[i] = (unsigned short)(*(const unsigned int*)p);
+					out.indices[i] = *(const unsigned int*)p;
 					break;
 				default:
-					// don dep het nhung gi da cap phat roi moi fail
-					MemFree(out.indices);
-					MemFree(out.vertices);
-					if (out.normals) MemFree(out.normals);
-					if (out.texcoords) MemFree(out.texcoords);
-					if (out.texcoords2) MemFree(out.texcoords2);
-					out = ::Mesh{};
+					out = MeshCPU{};
 					message = "unsupported index component type";
 					return false;
 				}
 			}
-			out.triangleCount = (int)(index_accessor.count / 3);
-		}
-		else {
-			out.triangleCount = out.vertexCount / 3; // non-indexed triangle soup
 		}
 		return true;
 	}
@@ -305,7 +263,7 @@ namespace Long {
 		for (int mi = 0; mi < (int)model.meshes.size(); ++mi) {
 			const tinygltf::Mesh& gm = model.meshes[mi];
 			for (const tinygltf::Primitive& prim : gm.primitives) {
-				::Mesh m{};
+				MeshCPU m;
 				std::string why;
 				if (!PrimitiveToMesh(model, prim, m, why)) {
 					Logger::TraceLog(LOG_WARNING, std::format(
@@ -313,8 +271,8 @@ namespace Long {
 					skipped++;
 					continue;
 				}
-				::UploadMesh(&m, false); 
-				uint32_t meshIndex = assets.AddMesh(m); 
+				// Pure CPU data into the assets; the GL backend uploads lazily.
+				uint32_t meshIndex = assets.AddMesh(std::move(m));
 				out.meshIds.push_back(meshIndex);
 				out.gltfMeshIndex.push_back(mi);
 				out.meshMaterial.push_back(prim.material);

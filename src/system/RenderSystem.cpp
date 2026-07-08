@@ -24,7 +24,6 @@ namespace Long {
 					std::format("RenderSystem: Entity {} has invalid mesh or material.", entt::to_integral(e)));
 				continue;
 			}
-			raylib::Mesh& mesh = assets.GetMesh(mf->meshId);
 			BaseMaterial& material = assets.GetMaterial(mr->materialId);
 			if (!assets.IsValidShader(material.GetShaderId())) {
 				Logger::TraceLog(LOG_WARNING,
@@ -33,7 +32,7 @@ namespace Long {
 			}
 			queue.Submit({
 				wt->world_matrix,
-				&mesh,
+				mf->meshId,   // asset id; the GL backend resolves the GPU mesh
 				&material,
 				!mr->visible
 				});

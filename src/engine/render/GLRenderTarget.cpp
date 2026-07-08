@@ -1,4 +1,4 @@
-#include "engine/render/RenderTarget.hpp"
+#include "engine/render/GLRenderTarget.hpp"
 #include "rlgl.h"
 // raylib already links + loads GLAD (in its rlgl translation unit). We include
 // the header WITHOUT GLAD_GL_IMPLEMENTATION to get the GL enums/prototypes only;
@@ -12,7 +12,7 @@ namespace Long {
 		raylib::RenderTexture2D target(::RenderTexture2D(0));
 		target.id = rlLoadFramebuffer();
 		if (target.id == 0) {
-			TRACELOG(LOG_WARNING, "RenderTarget: failed to create HDR framebuffer");
+			TRACELOG(LOG_WARNING, "GLRenderTarget: failed to create HDR framebuffer");
 			return target;
 		}
 		rlEnableFramebuffer(target.id);
@@ -38,7 +38,7 @@ namespace Long {
 			RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_RENDERBUFFER, 0);
 
 		if (!rlFramebufferComplete(target.id)) {
-			TRACELOG(LOG_WARNING, "RenderTarget: HDR framebuffer %u incomplete", target.id);
+			TRACELOG(LOG_WARNING, "GLRenderTarget: HDR framebuffer %u incomplete", target.id);
 		}
 		rlDisableFramebuffer();
 		return target;
@@ -55,7 +55,7 @@ namespace Long {
 
 		target.id = rlLoadFramebuffer();
 		if (target.id == 0) {
-			TRACELOG(LOG_WARNING, "RenderTarget: failed to create depth-cube framebuffer");
+			TRACELOG(LOG_WARNING, "GLRenderTarget: failed to create depth-cube framebuffer");
 			return target;
 		}
 
@@ -91,7 +91,7 @@ namespace Long {
 		glDrawBuffer(GL_NONE); // depth-only: no color to draw...
 		glReadBuffer(GL_NONE); // ...or read
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-			TRACELOG(LOG_WARNING, "RenderTarget: depth-cube framebuffer %u incomplete", target.id);
+			TRACELOG(LOG_WARNING, "GLRenderTarget: depth-cube framebuffer %u incomplete", target.id);
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -115,7 +115,7 @@ namespace Long {
 		target.id = rlLoadFramebuffer();
 		if (target.id == 0)
 		{
-			TRACELOG(LOG_WARNING, "RenderTarget: failed to create depth framebuffer");
+			TRACELOG(LOG_WARNING, "GLRenderTarget: failed to create depth framebuffer");
 			return target;
 		}
 
@@ -144,7 +144,7 @@ namespace Long {
 		if (!rlFramebufferComplete(target.id))
 		{
 			TRACELOG(LOG_WARNING,
-				"RenderTarget: depth framebuffer %u incomplete",
+				"GLRenderTarget: depth framebuffer %u incomplete",
 				target.id);
 		}
 		rlDisableFramebuffer();
@@ -152,7 +152,7 @@ namespace Long {
 	}
 
 
-	void RenderTarget::BindFace(int face) {
+	void GLRenderTarget::BindFace(int face) {
 		if (m_format != Format::CUBE) return; 
 		rlDrawRenderBatchActive();
 		glBindFramebuffer(GL_FRAMEBUFFER, m_texture.id);
@@ -163,7 +163,7 @@ namespace Long {
 		rlSetFramebufferHeight((int)height);
 	}
 
-	void RenderTarget::EndCubeFace() {
+	void GLRenderTarget::EndCubeFace() {
 		if (m_format != Format::CUBE) return;
 		rlDrawRenderBatchActive();
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -172,7 +172,7 @@ namespace Long {
 		rlSetFramebufferHeight(GetScreenHeight());
 	}
 
-	void RenderTarget::SetFormat(Format fmt) {
+	void GLRenderTarget::SetFormat(Format fmt) {
 		if (fmt == m_format) {
 			return;
 		}
@@ -182,7 +182,7 @@ namespace Long {
 		height = 0;
 	}
 
-	void RenderTarget::Resize(uint32_t newWidth, uint32_t newHeight) {
+	void GLRenderTarget::Resize(uint32_t newWidth, uint32_t newHeight) {
 		//If size not change
 		if (newWidth == width && newHeight == height) {
 			return;

@@ -3,7 +3,7 @@
 #define _SHADOW_PASS_HPP_
 #include "engine/render/IRenderPass.hpp"
 #include "engine/render/CommandQueue.hpp"
-#include "engine/render/RenderTarget.hpp"
+#include "engine/render/GLRenderTarget.hpp"
 #include "engine/visibility/FrustumCulling.hpp"
 #include "system/VisibilitySystem.hpp"
 #include "system/LightSystem.hpp"
@@ -27,8 +27,8 @@ namespace Long {
 		bool renderDirectionLightDepth(RenderContext& ctx, const uint32_t& slot, const LightParameter& light);
 
 
-		std::array<RenderTarget, SceneLights::kMaxShadows> m_targets;
-		std::array<RenderTarget, SceneLights::kMaxCubeShadows> m_cubeTargets;
+		std::array<GLRenderTarget, SceneLights::kMaxShadows> m_targets;
+		std::array<GLRenderTarget, SceneLights::kMaxCubeShadows> m_cubeTargets;
 
 		//Rect light target 
 		FrustumCulling m_lightFrustum;

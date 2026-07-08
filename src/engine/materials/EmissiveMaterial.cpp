@@ -21,10 +21,5 @@ namespace Long {
 		SetUniform("u_emissiveIntensity", intensity);
 	}
 
-	raylib::Material& EmissiveMaterial::Apply(raylib::Shader& shader) {
-		m_rlMaterial.shader = shader;
-		ApplyUniforms(shader);
-		return m_rlMaterial;
-	}
 
 } // namespace Long

@@ -30,7 +30,10 @@ namespace Long {
 		raylib::Vector3 world_direction{ 0.0f, -1.0f, 0.0f };
 		raylib::Color color{ 255, 255, 255, 255 };
 		float intensity{ 1.0f };
-		//Spot light 
+		// Color temperature in Kelvin, multiplied with `color` (KelvinToRGB).
+		// 6500K ~ neutral white; lower = warm/orange, higher = cool/blue.
+		float temperature{ 6500.0f };
+		//Spot light
 		float innerAngle{ 25.0f };
 		float outerAngle{ 35.0f };
 		float range{ 30.0f };
