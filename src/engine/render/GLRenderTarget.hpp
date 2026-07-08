@@ -4,7 +4,6 @@
 #include "RenderTarget.hpp"
 #include "raylib-cpp.hpp"
 namespace Long {
-
 	// OpenGL implementation of RenderTarget: wraps a raylib RenderTexture (plus
 	// hand-built FBOs for HDR / depth-texture / depth-cubemap formats) with RAII
 	// and lazy resize. Owned by Renderer / passes; the rest of the engine only

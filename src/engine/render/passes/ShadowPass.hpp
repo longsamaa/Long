@@ -24,13 +24,12 @@ namespace Long {
 		bool renderPointCube(RenderContext& ctx, const LightParameter& light,
 			const uint32_t& slot, uint32_t pointDepthShaderId);
 		// Render a directional light.(directional light, spot)
-		bool renderDirectionLightDepth(RenderContext& ctx, const uint32_t& slot, const LightParameter& light);
-
+		bool renderDirectionLightDepth(RenderContext& ctx, SceneLights& lights, const uint32_t& slot, LightParameter& light, const float& range, const uint32_t& depthShaderId);
 
 		std::array<GLRenderTarget, SceneLights::kMaxShadows> m_targets;
 		std::array<GLRenderTarget, SceneLights::kMaxCubeShadows> m_cubeTargets;
 
-		//Rect light target 
+		//Rect light target
 		FrustumCulling m_lightFrustum;
 		std::unique_ptr<IVisibility> m_visibility{ std::make_unique<LinearVisibility>() };
 		std::vector<entt::entity> m_visible;
@@ -38,8 +37,8 @@ namespace Long {
 
 		uint32_t m_resolution{ 2048 };
 		uint32_t m_cubeResolution{ 1024 };
-		float m_orthoExtent{ 110.0f };
-		float m_near{ 0.1f }; 
+		float m_orthoExtent{ 100.0f };
+		float m_near{ 0.1f };
 		float m_distance{ 1000.0f };
 		float m_spotFar{ 200.0f };
 	};

@@ -6,10 +6,10 @@
 #include <cstring>   // memcpy
 #include <functional>
 #if defined(_WIN32)
-	#define WIN32_LEAN_AND_MEAN
-	#define NOGDI
-	#define NOUSER
-	#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#define NOUSER
+#define NOMINMAX
 #endif
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NO_STB_IMAGE
@@ -19,7 +19,7 @@
 #include "tiny_gltf.h"
 
 namespace Long {
-	//CALLBACK LOAD TEXTURE 
+	//CALLBACK LOAD TEXTURE
 	static bool LoadImageWithRaylib(tinygltf::Image* image, const int imageIdx,
 		std::string* err, std::string* /*warn*/, int /*reqWidth*/, int /*reqHeight*/,
 		const unsigned char* bytes, int size, void* /*user*/)
@@ -237,27 +237,27 @@ namespace Long {
 		auto printNode = [&](const tinygltf::Scene& scene) -> void {
 			for (size_t i = 0; i < scene.nodes.size(); i++) {
 				//std::cout << "node.name : " << scene.nodes[i] << std::endl;
-				Logger::TraceLog(LOG_TRACE, std::format("node.name : {}", scene.nodes[i])); 
+				Logger::TraceLog(LOG_TRACE, std::format("node.name : {}", scene.nodes[i]));
 			}
-		};
-		const auto& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0]; 
+			};
+		const auto& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
 		printNode(scene);
-		
+
 		std::function<void(const tinygltf::Model&, int)> traverseNode;
 
 		traverseNode = [&](const tinygltf::Model& model, int nodeIndex)
-		{
-			const auto& node = model.nodes[nodeIndex];
-			Logger::TraceLog(LOG_TRACE,std::format("node name : {}", node.name));
-			for (int child : node.children)
 			{
-				traverseNode(model, child);
-			}
-		};
+				const auto& node = model.nodes[nodeIndex];
+				Logger::TraceLog(LOG_TRACE, std::format("node name : {}", node.name));
+				for (int child : node.children)
+				{
+					traverseNode(model, child);
+				}
+			};
 
 		for (int nodeIndex : scene.nodes)
 		{
-			traverseNode(model,nodeIndex);
+			traverseNode(model, nodeIndex);
 		}
 		int skipped = 0;
 		for (int mi = 0; mi < (int)model.meshes.size(); ++mi) {
@@ -276,7 +276,7 @@ namespace Long {
 				out.meshIds.push_back(meshIndex);
 				out.gltfMeshIndex.push_back(mi);
 				out.meshMaterial.push_back(prim.material);
-				out.meshName.insert({ meshIndex,gm.name }); 
+				out.meshName.insert({ meshIndex,gm.name });
 			}
 		}
 		Logger::TraceLog(LOG_INFO, std::format(

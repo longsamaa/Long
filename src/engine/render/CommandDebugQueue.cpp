@@ -54,7 +54,7 @@ namespace Long {
 					const float ext = half * v.spacing;
 					for (int i = -half; i <= half; ++i) {
 						raylib::Color c = (i == 0) ? raylib::Color{ 90, 90, 90, 255 }
-												   : raylib::Color{ 120, 120, 120, 255 };
+						: raylib::Color{ 120, 120, 120, 255 };
 						float d = i * v.spacing;
 						AddLine({ d, 0, -ext }, { d, 0, ext }, c);
 						AddLine({ -ext, 0, d }, { ext, 0, d }, c);
@@ -92,7 +92,7 @@ namespace Long {
 						AddLine(o, o.Add(dir.Scale(v.length)), v.color);
 					}
 				}
-			}, cmd);
+				}, cmd);
 		}
 		stats.debugLineCount = (uint32_t)(m_lines.size() / 2);
 	}

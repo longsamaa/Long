@@ -27,10 +27,10 @@ namespace Long {
 			raylib::TextureUnmanaged srcTex = ToRaylibTexture(ctx.brightTarget->Color());
 			raylib::Rectangle src = ctx.brightTarget->SourceRect();
 			m_blurTarget.Bind();
-			raylib::Color::Black().ClearBackground(); 
+			raylib::Color::Black().ClearBackground();
 			shader.BeginMode();
-			shader.SetValue(getLoc("u_radius",shader), &u_radius, SHADER_UNIFORM_INT);
-			shader.SetValue(getLoc("u_texelDir",shader), &dir, SHADER_UNIFORM_VEC2);
+			shader.SetValue(getLoc("u_radius", shader), &u_radius, SHADER_UNIFORM_INT);
+			shader.SetValue(getLoc("u_texelDir", shader), &dir, SHADER_UNIFORM_VEC2);
 			srcTex.Draw(src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
 			shader.EndMode();
 			m_blurTarget.Unbind();
@@ -41,8 +41,8 @@ namespace Long {
 			ctx.blurTarget->Bind();
 			raylib::Color::Black().ClearBackground();
 			shader.BeginMode();
-			shader.SetValue(getLoc("u_radius",shader), &u_radius, SHADER_UNIFORM_INT);
-			shader.SetValue(getLoc("u_texelDir",shader), &dir, SHADER_UNIFORM_VEC2);
+			shader.SetValue(getLoc("u_radius", shader), &u_radius, SHADER_UNIFORM_INT);
+			shader.SetValue(getLoc("u_texelDir", shader), &dir, SHADER_UNIFORM_VEC2);
 			ToRaylibTexture(m_blurTarget.Color()).Draw(src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
 			shader.EndMode();
 			ctx.blurTarget->Unbind();

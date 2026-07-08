@@ -3,7 +3,6 @@
 #include <algorithm>
 
 namespace Long {
-
 	void CommandQueue::Submit(const Command& cmd)
 	{
 		m_commands.emplace_back(cmd);

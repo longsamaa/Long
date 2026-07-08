@@ -48,7 +48,7 @@ namespace Long {
 				Logger::TraceLog(::LOG_ERROR, std::format("Shader {} has .vert but no .frag, skipping", name.c_str()));
 				continue;
 			}
-			raylib::Shader shader(raylib::Shader::Load(entry.path().string(),frag.string())); 
+			raylib::Shader shader(raylib::Shader::Load(entry.path().string(), frag.string()));
 			uint32_t id = (uint32_t)m_shaders.size();
 			m_shaders.push_back(std::move(shader));
 			m_shaderNameToId[name] = id;
@@ -68,7 +68,7 @@ namespace Long {
 		// Compile the SAME source but with INSTANCED defined in the vertex stage.
 		std::string vs = InjectDefine(ReadFile(vert), "INSTANCED");
 		std::string fs = ReadFile(frag);
-		raylib::Shader shader(raylib::Shader::LoadFromMemory(vs.c_str(), fs.c_str())); 
+		raylib::Shader shader(raylib::Shader::LoadFromMemory(vs.c_str(), fs.c_str()));
 		const std::string key = name + "_instanced";
 		uint32_t id = (uint32_t)m_shaders.size();
 		m_shaders.push_back(std::move(shader));
@@ -126,6 +126,6 @@ namespace Long {
 	}
 	ModelAsset AssetManager::ImportModel(const std::filesystem::path& path)
 	{
-		return ImportGLTF(path,*this); 
+		return ImportGLTF(path, *this);
 	}
 } // namespace Long

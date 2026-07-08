@@ -45,14 +45,14 @@ namespace Long {
 
 	raylib::Vector3 EditorGizmo::Axis(const Transform& target, int i) const {
 		if (!m_local) return ax[i];
-		return ax[i].RotateByQuaternion(HandleOrientation(target)); 
+		return ax[i].RotateByQuaternion(HandleOrientation(target));
 	}
 
 	raylib::Vector3 EditorGizmo::Axis2(const Transform& target, int i) const {
 		if (!m_local) return ax2[i];
 		// ax2 is a 2-axis combo used to size/offset plane handles; rotating it as a
 		// vector keeps the plane handles attached to the same two local axes.
-		
+
 		return raylib::Vector3(Vector3RotateByQuaternion(ax2[i], HandleOrientation(target)));
 	}
 
@@ -137,7 +137,7 @@ namespace Long {
 				t.position = localT.position;
 				t.quaternion = localT.quaternion;
 				t.scale = localT.scale;
-			}); // on_update -> auto DirtyTransform
+				}); // on_update -> auto DirtyTransform
 			return true;
 		}
 

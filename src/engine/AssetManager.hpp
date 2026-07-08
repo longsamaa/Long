@@ -12,7 +12,6 @@
 #include "core/MeshCPU.hpp"
 #include "import/GLTFImporter.hpp"
 
-
 namespace Long {
 	class AssetManager {
 	public:
@@ -56,7 +55,7 @@ namespace Long {
 			raylib::Color color = raylib::Color::White(),
 			float intensity = 4.0f);
 		size_t materialCount() { return m_materials.size(); };
-		ModelAsset ImportModel(const std::filesystem::path& path); 
+		ModelAsset ImportModel(const std::filesystem::path& path);
 	private:
 		std::vector<raylib::Shader> m_shaders;
 		std::unordered_map<std::string, uint32_t> m_shaderNameToId;

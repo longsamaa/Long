@@ -25,7 +25,8 @@ namespace Long {
 				0.1f, m_distance * 2.0f));
 			out = view.Multiply(proj);
 			return true;
-		} else if (light.type == (uint32_t)LightType::Spot) {
+		}
+		else if (light.type == (uint32_t)LightType::Spot) {
 			float fovy = 2.0f * std::acos(std::fmin(std::fmax(light.outerCos, -1.0f), 1.0f));
 			raylib::Vector3 eye = light.position;
 			raylib::Matrix view = raylib::Matrix(MatrixLookAt(eye, eye.Add(dir), up));
@@ -42,14 +43,9 @@ namespace Long {
 		}
 		SceneLights& lights = *ctx.lights;
 		lights.shadowCount = 0;
-
-		uint32_t depthShaderId = ctx.assets->GetShaderId("shadow_depth");
 		uint32_t pointDepthShaderId = ctx.assets->GetShaderId("shadow_depth_point");
-		if (!ctx.assets->IsValidShader(depthShaderId)) {
-			return;
-		}
+		uint32_t depthShaderId = ctx.assets->GetShaderId("shadow_depth");
 		lights.cubeShadowCount = 0;
-
 		for (uint32_t i = 0; i < lights.size; ++i) {
 			LightParameter& light = lights.lights[i];
 			light.shadowIndex = -1;
@@ -57,9 +53,7 @@ namespace Long {
 			if (!light.castsShadows) {
 				continue;
 			}
-
 			const float& range = light.range;
-
 			// ---- Point light: omnidirectional depth cube ----
 			if (light.type == (uint32_t)LightType::Point) {
 				if (lights.cubeShadowCount >= (uint32_t)SceneLights::kMaxCubeShadows) {
@@ -78,46 +72,10 @@ namespace Long {
 			}
 
 			// ---- Directional / Spot: single 2D depth map ----
-			if (lights.shadowCount >= (uint32_t)SceneLights::kMaxShadows) {
-				continue;
-			}
-			raylib::Matrix lightViewProj;
+
+			//Render direction light
 			uint32_t slot = lights.shadowCount;
-			if (!buildLightMatrix(light, lightViewProj, range)) {
-				continue; // unsupported type
-			}
-
-			GLRenderTarget& target = m_targets[slot];
-			target.SetFormat(GLRenderTarget::Format::DEPTH);
-			target.Resize(m_resolution, m_resolution);
-			if (target.Depth().id == 0) {
-				continue; // depth framebuffer failed to allocate
-			}
-
-			// Cull with THIS light's frustum and build private batches.
-			m_lightFrustum.buildFromMatrix(lightViewProj);
-			m_queue.Clear();
-			m_visibility->gatherVisible(*ctx.registry, &m_lightFrustum, m_visible,
-				ctx.renderStats.culledEntities);
-			RenderSystem(*ctx.registry, *ctx.assets, m_queue, m_visible, ctx.renderStats);
-			m_queue.Sort();
-			m_queue.BuildBatches();
-
-			{
-				ScopedDepthTest depth(true);
-				ScopedDepthMask mask(true);
-				ScopedBackfaceCull cull(true);
-				target.Bind();
-				raylib::Color::Black().ClearBackground(); // clears depth to 1.0 too
-				ctx.glRenderer->DrawDepth(m_queue.batches(), m_queue.batchCount(),
-					*ctx.assets, lightViewProj, depthShaderId, light.range);
-				target.Unbind();
-			}
-
-			lights.shadows[slot].lightViewProj = lightViewProj;
-			lights.shadows[slot].depthTexId = target.Depth().id;
-			light.shadowIndex = (int)slot;
-			lights.shadowCount++;
+			renderDirectionLightDepth(ctx, lights, slot, light, range, depthShaderId);
 		}
 	}
 
@@ -133,10 +91,10 @@ namespace Long {
 		if (cube.Depth().id == 0) {
 			return false;
 		}
-		
+
 		const raylib::Vector3 eye = light.position;
 		const float r = (light.range > 0.01f) ? light.range : 0.01f;
-		
+
 		raylib::Matrix boxView = raylib::Matrix(MatrixTranslate(-eye.x, -eye.y, -eye.z));
 		raylib::Matrix boxProj = raylib::Matrix(MatrixOrtho(-r, r, -r, r, -r, r));
 		m_lightFrustum.buildFromMatrix(boxView.Multiply(boxProj));
@@ -176,41 +134,48 @@ namespace Long {
 		cube.EndCubeFace();
 		return true;
 	}
-	bool ShadowPass::renderDirectionLightDepth(RenderContext& ctx, const uint32_t& slot, const LightParameter& light)
+	bool ShadowPass::renderDirectionLightDepth(RenderContext& ctx,
+		SceneLights& lights,
+		const uint32_t& slot,
+		LightParameter& light,
+		const float& range,
+		const uint32_t& depthShaderId)
 	{
-	//	GLRenderTarget& target = m_targets[slot];
-	//	target.SetFormat(GLRenderTarget::Format::DEPTH);
-	//	target.Resize(m_resolution, m_resolution);
-	//	if (target.Depth().id == 0) {
-	//		return false; 
-	//	}
+		if (lights.shadowCount >= (uint32_t)SceneLights::kMaxShadows) {
+			return false;
+		}
+		raylib::Matrix lightViewProj;
+		if (!buildLightMatrix(light, lightViewProj, light.range)) {
+			return false; // unsupported type
+		}
+		GLRenderTarget& target = m_targets[slot];
+		target.SetFormat(GLRenderTarget::Format::DEPTH);
+		target.Resize(m_resolution, m_resolution);
+		if (target.Depth().id == 0) {
+			return false; // depth framebuffer failed to allocate
+		}
 
-	//	// Cull with THIS light's frustum and build private batches.
-	//	m_lightFrustum.buildFromMatrix(lightViewProj);
-	//	m_queue.Clear();
-	//	m_visibility->gatherVisible(*ctx.registry, &m_lightFrustum, m_visible,
-	//		ctx.renderStats.culledEntities);
-	//	RenderSystem(*ctx.registry, *ctx.assets, m_queue, m_visible, ctx.renderStats);
-	//	m_queue.Sort();
-	//	m_queue.BuildBatches();
-
-	//	{
-	//		ScopedDepthTest depth(true);
-	//		ScopedDepthMask mask(true);
-	//		ScopedBackfaceCull cull(true);
-	//		target.Bind();
-	//		raylib::Color::Black().ClearBackground(); // clears depth to 1.0 too
-	//		ctx.glRenderer->DrawDepth(m_queue.batches(), m_queue.batchCount(),
-	//			*ctx.assets, lightViewProj, depthShaderId, light.range);
-	//		target.Unbind();
-	//	}
-
-	//	lights.shadows[slot].lightViewProj = lightViewProj;
-	//	lights.shadows[slot].depthTexId = target.Depth().id;
-	//	light.shadowIndex = (int)slot;
-	//	lights.shadowCount++;
-	//}
-	//	return true;
-		return true; 
+		m_lightFrustum.buildFromMatrix(lightViewProj);
+		m_queue.Clear();
+		m_visibility->gatherVisible(*ctx.registry, &m_lightFrustum, m_visible,
+			ctx.renderStats.culledEntities);
+		RenderSystem(*ctx.registry, *ctx.assets, m_queue, m_visible, ctx.renderStats);
+		m_queue.Sort();
+		m_queue.BuildBatches();
+		{
+			ScopedDepthTest depth(true);
+			ScopedDepthMask mask(true);
+			ScopedBackfaceCull cull(true);
+			target.Bind();
+			raylib::Color::Black().ClearBackground();
+			ctx.glRenderer->DrawDepth(m_queue.batches(), m_queue.batchCount(),
+				*ctx.assets, lightViewProj, depthShaderId, 0);
+			target.Unbind();
+		}
+		lights.shadows[slot].lightViewProj = lightViewProj;
+		lights.shadows[slot].depthTexId = target.Depth().id;
+		light.shadowIndex = (int)slot;
+		lights.shadowCount++;
+		return true;
 	}
 }

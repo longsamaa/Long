@@ -8,7 +8,6 @@
 #include "engine/materials/SkyBoxMaterial.hpp"
 
 namespace Long {
-
 	Environment::Environment() = default;
 	Environment::~Environment() = default;
 
@@ -43,5 +42,4 @@ namespace Long {
 		gl.DrawSkybox(*m_assets, m_skyboxMeshId, *m_skyBoxMaterial,
 			camera.Raw().GetPosition());
 	}
-
 } // namespace Long

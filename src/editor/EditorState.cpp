@@ -78,7 +78,7 @@ namespace Long {
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createGround done, createEmissiveBoxes begin");
 		createEmissiveBoxes();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createEmissiveBoxes done");
-		createRobot(); 
+		createRobot();
 		Logger::TraceLog(LOG_INFO, "[Editor] OnEnter: createRobot done");
 	}
 
@@ -407,14 +407,11 @@ namespace Long {
 				reg.emplace<Hierarchy>(e, Hierarchy{ parent, {} });
 				parent_hierarchy.children.push_back(e);
 			}
-		}; 
+			};
 
-
-		fnc_import_model(robot_dir,"robot");
-		fnc_import_model(helmet_dir,"helmet");
+		fnc_import_model(robot_dir, "robot");
+		fnc_import_model(helmet_dir, "helmet");
 		//fnc_import_model(house_dir,"house");
-		
-		
 	}
 
 	void EditorState::RenderMenuBar()

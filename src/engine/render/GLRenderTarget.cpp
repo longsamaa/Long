@@ -151,9 +151,8 @@ namespace Long {
 		return target;
 	}
 
-
 	void GLRenderTarget::BindFace(int face) {
-		if (m_format != Format::CUBE) return; 
+		if (m_format != Format::CUBE) return;
 		rlDrawRenderBatchActive();
 		glBindFramebuffer(GL_FRAMEBUFFER, m_texture.id);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,

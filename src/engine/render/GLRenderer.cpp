@@ -121,7 +121,7 @@ namespace Long {
 			if (p.cubeShadowIndex != -1) { int v = l.cubeShadowIndex; rlSetUniform(p.cubeShadowIndex, &v, SHADER_UNIFORM_INT, 1); }
 		}
 	}
-	
+
 	static void BindShadow(const raylib::Shader& shader, const SceneLights& lights) {
 		const LightLocs& L = GetLightLocs(shader.id);
 		if (L.shadowCount == -1) {
@@ -413,8 +413,8 @@ namespace Long {
 
 	void GLRenderer::DrawBatches(const std::vector<Batch>& batches,
 		size_t batchCount,
-		AssetManager& assets, 
-		RenderStats& stats, 
+		AssetManager& assets,
+		RenderStats& stats,
 		const SceneLights* lights)
 	{
 		stats.materialCount = assets.materialCount();

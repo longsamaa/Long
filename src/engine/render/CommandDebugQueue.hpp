@@ -10,22 +10,22 @@ namespace Long {
 	struct GridCommand {
 		uint32_t slices{ 0 };
 		float_t spacing{ 0.0 };
-	}; 
+	};
 	struct CameraHelperCommand {
-		raylib::Vector3 pos; 
-		raylib::Vector3 n_tl; 
-		raylib::Vector3 n_tr; 
-		raylib::Vector3 n_bl; 
-		raylib::Vector3 n_br; 
-		raylib::Vector3 f_tl; 
-		raylib::Vector3 f_tr; 
-		raylib::Vector3 f_bl; 
-		raylib::Vector3 f_br; 
+		raylib::Vector3 pos;
+		raylib::Vector3 n_tl;
+		raylib::Vector3 n_tr;
+		raylib::Vector3 n_bl;
+		raylib::Vector3 n_br;
+		raylib::Vector3 f_tl;
+		raylib::Vector3 f_tr;
+		raylib::Vector3 f_bl;
+		raylib::Vector3 f_br;
 		raylib::Vector3 up_p;
 		raylib::Vector3 foward_p;
 		raylib::Vector3 right_p;
 	};
-	
+
 	struct LightHelperCommand {
 		raylib::Vector3 origin;
 		raylib::Vector3 direction;   // normalized shine direction
