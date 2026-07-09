@@ -7,21 +7,22 @@
 
 namespace Long {
 
-	// One interleaved vertex: position + normal + texcoord. Plain floats so the
-	// layout is backend-agnostic (the GL backend de-interleaves on upload).
 	struct VertexPNT {
 		float px{ 0 }, py{ 0 }, pz{ 0 }; // position
 		float nx{ 0 }, ny{ 0 }, nz{ 0 }; // normal
 		float u{ 0 }, v{ 0 };            // texcoord
 	};
 
-	// CPU-side mesh: the ONLY mesh representation assets know about. No VAO/VBO,
-	// no GL -- the render backend (GLRenderer) converts it to GPU buffers lazily
-	// and caches them by mesh id. Indices empty = non-indexed triangle soup.
+	//JOINT_0, WEIGHT_0
+	struct VertexSkin {
+		uint32_t joints[4]{ 0, 0, 0, 0 };
+		float    weights[4]{ 0, 0, 0, 0 };
+	};
 	struct MeshCPU {
 		std::vector<VertexPNT> vertices;
 		std::vector<uint32_t> indices;
-
+		std::vector<VertexSkin> skin;
+		bool IsSkinned() const { return skin.size() == vertices.size() && !skin.empty(); }
 		int VertexCount() const { return (int)vertices.size(); }
 		int TriangleCount() const {
 			return indices.empty() ? (int)vertices.size() / 3

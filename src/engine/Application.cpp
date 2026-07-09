@@ -51,6 +51,10 @@ namespace Long {
 				m_assets.LoadInstancedVariant(shaderDir, "shadow_depth");
 				m_assets.LoadInstancedVariant(shaderDir, "shadow_depth_point");
 				m_assets.LoadInstancedVariant(shaderDir, "pbr");
+
+				// Skinned variants for the lit shaders used by imported models.
+				m_assets.LoadSkinnedVariant(shaderDir, "pbr");
+				m_assets.LoadSkinnedVariant(shaderDir, "default");
 	}
 
 	Application::~Application() {

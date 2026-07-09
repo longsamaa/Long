@@ -1,16 +1,20 @@
 #include "GLRenderer.hpp"
 #include "CommandQueue.hpp"        // Batch
 #include "CommandDebugQueue.hpp"   // DebugLineVertex
+#include "core/Components.hpp"     // Skeleton
 #include "engine/Material.hpp"
 #include "engine/AssetManager.hpp"
 #include "engine/render/RenderState.hpp"
 #include "rlgl.h"
 #include "raymath.h"
+#include "engine/Logger.hpp"
 // GL enums/prototypes only -- raylib already loaded the function pointers.
 // Needed for glDrawArrays(GL_LINES): rlgl's vertex-array draws are triangles-only.
 #include "external/glad.h"
 #include <cstdio>   // snprintf
 #include <unordered_map>
+#include <algorithm>
+#include <vector>
 #include <system/LightSystem.hpp>
 
 #ifndef MAX_MATERIAL_MAPS
@@ -18,6 +22,29 @@
 #endif
 
 namespace Long {
+	// Vertex attribute locations for skinning, matching raylib's convention and
+	// the skinning shader's `layout(location=...)`: 7 = bone indices, 8 = bone
+	// weights (location 6 is the element INDEX buffer, not a vertex attribute!).
+	static constexpr int kBoneIdsLoc = 7;
+	static constexpr int kBoneWeightsLoc = 8;
+	// Max joints uploaded per skeleton (must match u_jointMatrices[] in the shader).
+	static constexpr int kMaxJoints = 128;
+
+	// Upload a skeleton's joint matrices to u_jointMatrices[] on the bound shader.
+	// SkinningSystem already computed jointMatrices = inverseBind * jointWorld.
+	static void BindJointMatrices(const ::Shader& sh, const Skeleton& skel) {
+		int loc = rlGetLocationUniform(sh.id, "u_jointMatrices");
+		if (loc < 0) {
+			return;
+		}
+		const int n = (int)std::min<size_t>(skel.jointMatrices.size(), (size_t)kMaxJoints);
+		// rlSetUniformMatrix takes one Matrix; upload the array element by element
+		// (locations are contiguous for a mat4[] uniform).
+		for (int j = 0; j < n; ++j) {
+			rlSetUniformMatrix(loc + j, skel.jointMatrices[j]);
+		}
+	}
+
 	static constexpr int kShadowTexSlot0 = 10;                              // 2D maps: slots 10..
 	static constexpr int kCubeTexSlot0 = kShadowTexSlot0 + SceneLights::kMaxShadows; // cubes after
 	struct LightLocs {
@@ -258,9 +285,39 @@ namespace Long {
 		}
 
 		::UploadMesh(&m, false); // static geometry -> GPU (fills vaoId/vboId)
+		if (cpu.IsSkinned()) {
+			// Bone ids as float (GLSL reads them as vec4; keep it simple/portable).
+			std::vector<float> boneIds((size_t)vcount * 4);
+			std::vector<float> boneWeights((size_t)vcount * 4);
+			for (int i = 0; i < vcount; ++i) {
+				const VertexSkin& s = cpu.skin[(size_t)i];
+				for (int k = 0; k < 4; ++k) {
+					boneIds[(size_t)i * 4 + k] = (float)s.joints[k];
+					boneWeights[(size_t)i * 4 + k] = s.weights[k];
+				}
+			}
+			rlEnableVertexArray(m.vaoId);
+			unsigned int idVbo = rlLoadVertexBuffer(boneIds.data(),
+				(int)(boneIds.size() * sizeof(float)), false);
+			rlSetVertexAttribute(kBoneIdsLoc, 4, RL_FLOAT, false, 0, 0);
+			rlEnableVertexAttribute(kBoneIdsLoc);
+			unsigned int wVbo = rlLoadVertexBuffer(boneWeights.data(),
+				(int)(boneWeights.size() * sizeof(float)), false);
+			rlSetVertexAttribute(kBoneWeightsLoc, 4, RL_FLOAT, false, 0, 0);
+			rlEnableVertexAttribute(kBoneWeightsLoc);
+			rlDisableVertexArray();
+		}
+
+
 		MemFree(m.vertices);  m.vertices = nullptr;
 		MemFree(m.normals);   m.normals = nullptr;
 		MemFree(m.texcoords); m.texcoords = nullptr;
+
+		// Skinning attributes. raylib's UploadMesh doesn't handle JOINTS/WEIGHTS
+		// (SUPPORT_GPU_SKINNING is off), so attach them manually to the mesh's VAO
+		// at the conventional locations 6 (bone ids) and 7 (bone weights) -- the
+		// skinning vertex shader reads them there. Uploaded once with the mesh.
+
 		gpu = m;
 		return gpu;
 	}
@@ -441,11 +498,20 @@ namespace Long {
 				continue;
 			}
 			const size_t count = batch.transforms.size();
-			uint32_t instShaderId = assets.GetInstancedShaderId(baseShaderId);
+			const bool skinned = (batch.skeleton != nullptr);
+			// Skinned meshes can't be instanced (per-entity joint data) and need
+			// the skinning shader variant instead of the instanced one.
+			uint32_t skinShaderId = skinned ? assets.GetSkinnedShaderId(baseShaderId)
+											: AssetManager::Invalid;
+			uint32_t instShaderId = skinned ? AssetManager::Invalid
+											: assets.GetInstancedShaderId(baseShaderId);
 			const bool instanced =
 				(count >= kInstanceThreshold && instShaderId != AssetManager::Invalid);
 
-			raylib::Shader& shader = assets.GetShader(instanced ? instShaderId : baseShaderId);
+			uint32_t useShaderId = baseShaderId;
+			if (skinned && skinShaderId != AssetManager::Invalid) useShaderId = skinShaderId;
+			else if (instanced) useShaderId = instShaderId;
+			raylib::Shader& shader = assets.GetShader(useShaderId);
 			const ::Shader sh = shader;
 
 			if (sh.id != activeProgram) {
@@ -506,8 +572,19 @@ namespace Long {
 				stats.vertices += (uint32_t)mesh.vertexCount * (uint32_t)count;
 			}
 			else {
+				// Skinned: upload this skeleton's joint matrices once for the
+				// batch. The shader multiplies each vertex by the weighted sum of
+				// u_jointMatrices[boneIds] (see the _skinned vertex shader).
+				if (skinned && batch.skeleton) {
+					BindJointMatrices(sh, *batch.skeleton);
+				}
 				// Only the model-dependent matrices change per draw.
 				for (const raylib::Matrix& t : batch.transforms) {
+					// Both skinned and non-skinned meshes need the node's world
+					// matrix as the model matrix. For skinned meshes the skin
+					// matrices only pose the vertices in the mesh's LOCAL space
+					// (skinMat == identity at bind pose), so matModel still places
+					// the posed mesh into the world.
 					const raylib::Matrix matModel = t.Multiply(matStack);
 					if (sh.locs[SHADER_LOC_MATRIX_MODEL] != -1) {
 						rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MODEL], matModel);

@@ -31,6 +31,14 @@ namespace Long {
 			auto it = m_instancedOf.find(baseShaderId);
 			return (it != m_instancedOf.end()) ? it->second : Invalid;
 		}
+		// Skinned shader variant (compiled with SKINNED defined), analogous to the
+		// instanced one. Used for skinned meshes; Invalid if none was loaded.
+		uint32_t LoadSkinnedVariant(const std::filesystem::path& directory,
+			const std::string& name);
+		uint32_t GetSkinnedShaderId(uint32_t baseShaderId) const {
+			auto it = m_skinnedOf.find(baseShaderId);
+			return (it != m_skinnedOf.end()) ? it->second : Invalid;
+		}
 		raylib::Shader& GetShader(uint32_t id) {
 			return m_shaders[id];
 		}
@@ -60,6 +68,7 @@ namespace Long {
 		std::vector<raylib::Shader> m_shaders;
 		std::unordered_map<std::string, uint32_t> m_shaderNameToId;
 		std::unordered_map<uint32_t, uint32_t> m_instancedOf; // base shader id -> instanced id
+		std::unordered_map<uint32_t, uint32_t> m_skinnedOf;   // base shader id -> skinned id
 		std::vector<std::unique_ptr<BaseMaterial>> m_materials;
 		std::vector<MeshCPU> m_meshes;
 	};
