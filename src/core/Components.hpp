@@ -3,6 +3,7 @@
 #include <entt/entt.hpp>
 #include <string>
 #include <vector>
+
 namespace Long {
 	struct MainCamera {
 		uint32_t buildFromTransformVersion{ 0 };
@@ -105,5 +106,24 @@ namespace Long {
 
 	struct Name {
 		std::string value;
+	};
+
+	// A skeleton for skinned meshes. Each joint is a scene entity (part of the
+	// normal Hierarchy/Transform graph), so animating a joint is just editing its
+	// Transform -- TransformSystem then produces its world matrix. SkinningSystem
+	// combines that with inverseBind to fill jointMatrices, which the skinning
+	// shader multiplies vertices by.
+	struct Skeleton {
+		std::vector<entt::entity> joints;        // joint entities, in skin order
+		std::vector<raylib::Matrix> inverseBind; // per joint (bind-space -> joint-local)
+		std::vector<raylib::Matrix> jointMatrices; // computed: jointWorld * inverseBind
+		uint32_t version{ 0 };                   // bumped by SkinningSystem on rebuild
+	};
+
+	// Marks a MeshFilter entity as skinned and points at the Skeleton entity that
+	// deforms it. The renderer uploads that skeleton's jointMatrices and uses the
+	// skinning shader variant. Without this, a mesh renders rigidly (bind pose).
+	struct SkinnedMeshRenderer {
+		entt::entity skeleton = entt::null;
 	};
 } // namespace Long

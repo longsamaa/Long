@@ -50,7 +50,14 @@ namespace Long {
 			if (cmd.isCulled || cmd.meshId == UINT32_MAX || !cmd.material) {
 				continue;
 			}
-			if (!current || current->meshId != cmd.meshId || current->material != cmd.material)
+			// A skinned command needs its own batch (per-entity joint matrices, no
+			// instancing), so never merge it with the previous or following draw.
+			const bool startNew = !current
+				|| current->meshId != cmd.meshId
+				|| current->material != cmd.material
+				|| cmd.skeleton != nullptr           // skinned -> fresh batch
+				|| current->skeleton != nullptr;     // previous was skinned -> don't extend
+			if (startNew)
 			{
 				if (m_batchCount == m_batches.size()) {
 					m_batches.emplace_back();
@@ -58,6 +65,7 @@ namespace Long {
 				current = &m_batches[m_batchCount++];
 				current->meshId = cmd.meshId;
 				current->material = cmd.material;
+				current->skeleton = cmd.skeleton;
 				current->transforms.clear();
 			}
 			current->transforms.emplace_back(cmd.worldMatrix);

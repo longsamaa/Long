@@ -30,11 +30,21 @@ namespace Long {
 					std::format("RenderSystem: Entity {} has invalid shader in material.", entt::to_integral(e)));
 				continue;
 			}
+			// Skinned mesh: pass the skeleton so the backend uploads its joint
+			// matrices and uses the skinning shader. SkinningSystem has already
+			// filled jointMatrices this frame.
+			const Skeleton* skeleton = nullptr;
+			if (const SkinnedMeshRenderer* smr = registry.try_get<SkinnedMeshRenderer>(e)) {
+				if (smr->skeleton != entt::null && registry.valid(smr->skeleton)) {
+					skeleton = registry.try_get<Skeleton>(smr->skeleton);
+				}
+			}
 			queue.Submit({
 				wt->world_matrix,
 				mf->meshId,   // asset id; the GL backend resolves the GPU mesh
 				&material,
-				!mr->visible
+				!mr->visible,
+				skeleton
 				});
 		}
 	}

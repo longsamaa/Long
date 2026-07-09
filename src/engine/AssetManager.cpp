@@ -84,6 +84,33 @@ namespace Long {
 		return id;
 	}
 
+	uint32_t AssetManager::LoadSkinnedVariant(const fs::path& directory,
+		const std::string& name) {
+		fs::path vert = directory / (name + ".vert");
+		fs::path frag = directory / (name + ".frag");
+		if (!fs::exists(vert) || !fs::exists(frag)) {
+			Logger::TraceLog(::LOG_ERROR,
+				std::format("Skinned variant: {} .vert/.frag missing", name));
+			return Invalid;
+		}
+		// Same source, SKINNED defined in the vertex stage (adds bone attributes
+		// + u_jointMatrices skinning; see the shader's #if defined(SKINNED)).
+		std::string vs = InjectDefine(ReadFile(vert), "SKINNED");
+		std::string fs = ReadFile(frag);
+		raylib::Shader shader(raylib::Shader::LoadFromMemory(vs.c_str(), fs.c_str()));
+		const std::string key = name + "_skinned";
+		uint32_t id = (uint32_t)m_shaders.size();
+		m_shaders.push_back(std::move(shader));
+		m_shaderNameToId[key] = id;
+		uint32_t baseId = GetShaderId(name);
+		if (baseId != Invalid) {
+			m_skinnedOf[baseId] = id;
+		}
+		Logger::TraceLog(LOG_INFO,
+			std::format("Loaded skinned shader {} (id={})", key, id));
+		return id;
+	}
+
 	uint32_t AssetManager::GetShaderId(const std::string& name) const {
 		auto it = m_shaderNameToId.find(name);
 		if (it != m_shaderNameToId.end()) {
@@ -124,6 +151,7 @@ namespace Long {
 		return AddMaterial(std::make_unique<EmissiveMaterial>(
 			shaderId, color, intensity));
 	}
+	//Nap thang vao registry luon 
 	ModelAsset AssetManager::ImportModel(const std::filesystem::path& path)
 	{
 		return ImportGLTF(path, *this);

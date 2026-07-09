@@ -1,6 +1,7 @@
 #include "GLTFImporter.hpp"
 #include "engine/AssetManager.hpp"
 #include "engine/Logger.hpp"
+#include "core/math/transform.hpp"
 #include <format>
 #include <iostream>
 #include <cstring>   // memcpy
@@ -160,6 +161,60 @@ namespace Long {
 			}
 		}
 
+		auto it_joints = prim.attributes.find("JOINTS_0");
+		auto it_weights = prim.attributes.find("WEIGHTS_0");
+		if (it_joints != prim.attributes.end() && it_weights != prim.attributes.end()) {
+			const tinygltf::Accessor& ja = accessors[it_joints->second];
+			const tinygltf::Accessor& wa = accessors[it_weights->second];
+			const tinygltf::BufferView& jbv = model.bufferViews[ja.bufferView];
+			const tinygltf::BufferView& wbv = model.bufferViews[wa.bufferView];
+			const tinygltf::Buffer& jbuf = model.buffers[jbv.buffer];
+			const tinygltf::Buffer& wbuf = model.buffers[wbv.buffer];
+			const bool okTypes =
+				ja.type == TINYGLTF_TYPE_VEC4 && wa.type == TINYGLTF_TYPE_VEC4 &&
+				ja.count == pos_accessor.count && wa.count == pos_accessor.count;
+			if (okTypes) {
+				const unsigned char* jdata = jbuf.data.data() + jbv.byteOffset + ja.byteOffset;
+				const unsigned char* wdata = wbuf.data.data() + wbv.byteOffset + wa.byteOffset;
+				uint32_t jstride = ja.ByteStride(jbv);
+				uint32_t wstride = wa.ByteStride(wbv);
+				out.skin.assign(pos_accessor.count, VertexSkin{});
+				for (size_t i = 0; i < pos_accessor.count; ++i) {
+					const unsigned char* jp = jdata + i * jstride;
+					// Joint indices: u8 or u16 per component.
+					for (int k = 0; k < 4; ++k) {
+						uint32_t idx = 0;
+						if (ja.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+							idx = ((const unsigned char*)jp)[k];
+						}
+						else { // UNSIGNED_SHORT
+							idx = ((const unsigned short*)jp)[k];
+						}
+						out.skin[i].joints[k] = idx;
+					}
+					// Weights: float, or normalized u8/u16.
+					const unsigned char* wp = wdata + i * wstride;
+					for (int k = 0; k < 4; ++k) {
+						float w = 0.0f;
+						if (wa.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+							w = ((const float*)wp)[k];
+						}
+						else if (wa.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+							w = ((const unsigned char*)wp)[k] / 255.0f;
+						}
+						else { // UNSIGNED_SHORT
+							w = ((const unsigned short*)wp)[k] / 65535.0f;
+						}
+						out.skin[i].weights[k] = w;
+					}
+				}
+			}
+			else {
+				Logger::TraceLog(LOG_WARNING,
+					"[GLTF] JOINTS_0/WEIGHTS_0 present but unsupported layout, skipping skin");
+			}
+		}
+
 		// ---- INDICES (tuy chon; khong co thi la triangle soup) ----
 		if (prim.indices >= 0) {
 			const tinygltf::Accessor& index_accessor = accessors[prim.indices];
@@ -201,11 +256,6 @@ namespace Long {
 		ModelAsset out;
 
 		tinygltf::TinyGLTF loader;
-		// Decode embedded images via raylib (LoadImageWithRaylib). NOTE: decoded
-		// pixels live inside tinygltf::Model until it is destroyed at the end of
-		// this function -- upload them to GPU textures HERE (material phase) and
-		// never keep the Model alive longer than the import.
-		//loader.SetImageLoader(&LoadImageWithRaylib, nullptr);
 		loader.SetImageLoader(
 			[](tinygltf::Image*, int, std::string*, std::string*,
 				int, int, const unsigned char*, int, void*) { return true; },
@@ -232,56 +282,143 @@ namespace Long {
 			std::format("[GLTF] loaded {}: {} meshes, {} materials, {} nodes, {} images",
 				modelPath.filename().string(), model.meshes.size(),
 				model.materials.size(), model.nodes.size(), model.images.size()));
-		auto t = model.defaultScene;
-
-		auto printNode = [&](const tinygltf::Scene& scene) -> void {
-			for (size_t i = 0; i < scene.nodes.size(); i++) {
-				//std::cout << "node.name : " << scene.nodes[i] << std::endl;
-				Logger::TraceLog(LOG_TRACE, std::format("node.name : {}", scene.nodes[i]));
-			}
-			};
 		const auto& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
-		printNode(scene);
+		int skipped = 0;
+		// Map a glTF node index -> our node index (our traversal order differs from
+		// glTF's flat array). Needed to remap skin joints, which reference glTF
+		// node indices, into our node list.
+		std::vector<int> gltfToOurs(model.nodes.size(), -1);
 
-		std::function<void(const tinygltf::Model&, int)> traverseNode;
-
-		traverseNode = [&](const tinygltf::Model& model, int nodeIndex)
+		std::function<void(const tinygltf::Model&,
+			int,
+			std::vector<GLTFNode>&,
+			int)> traverseNode;
+		traverseNode = [&](const tinygltf::Model& model,
+			int nodeIndexGLTF,
+			std::vector<GLTFNode>& nodes,
+			int parent_node)
 			{
-				const auto& node = model.nodes[nodeIndex];
+				const auto& node = model.nodes[nodeIndexGLTF];
+				//create 1 node
+				GLTFNode new_node;
+				new_node.name = node.name;
+				new_node.id_parent = parent_node;
+				if (node.mesh >= 0) {
+					const tinygltf::Mesh& gm = model.meshes[node.mesh];
+					for (const tinygltf::Primitive& prim : gm.primitives) {
+						MeshCPU m;
+						std::string why;
+						if (!PrimitiveToMesh(model, prim, m, why)) {
+							Logger::TraceLog(LOG_WARNING, std::format(
+								"[GLTF] mesh '{}' primitive skipped: {}", gm.name, why));
+							skipped++;
+							continue;
+						}
+						uint32_t meshIndex = assets.AddMesh(std::move(m));
+						new_node.meshIds.push_back((int)meshIndex); // keep ALL primitives
+					}
+				}
+				raylib::Vector3 translation{ 0.0f, 0.0f, 0.0f };
+				raylib::Vector3 scale{ 1.0f, 1.0f, 1.0f };
+				raylib::Quaternion quat{ 0.0f, 0.0f, 0.0f, 1.0f };
+				new_node.skinId = node.skin; // -1 if none
+				if (!node.matrix.empty()) {
+					raylib::Matrix matrix = VectorMatrixToRaylibMatrix(node.matrix);
+					auto transform = DecomposeToTransform(matrix);
+					translation = transform.position;
+					scale = transform.scale;
+					quat = transform.quaternion;
+				}
+				else {
+					if (node.translation.size() == 3) translation = VectorToRaylibVector3(node.translation);
+					if (node.scale.size() == 3)       scale = VectorToRaylibVector3(node.scale);
+					if (node.rotation.size() == 4)    quat = VectorToRaylibQuaternion(node.rotation);
+				}
+				new_node.transform = { 
+					.pos = translation,
+					.scale = scale,
+					.quaternion = quat 
+				}; 
+				new_node.index = (int)nodes.size();
+				gltfToOurs[nodeIndexGLTF] = new_node.index;
+				nodes.emplace_back(new_node);
+
+				if (parent_node >= 0 && parent_node < (int)nodes.size()) {
+					auto& parent = nodes[parent_node];
+					auto it_child = std::find(parent.children.begin(), parent.children.end(), new_node.index);
+					if (it_child == parent.children.end()) {
+						parent.children.emplace_back(new_node.index);
+					}
+				}
+
 				Logger::TraceLog(LOG_TRACE, std::format("node name : {}", node.name));
-				for (int child : node.children)
+				for (int childIndex : node.children)
 				{
-					traverseNode(model, child);
+					traverseNode(model,
+						childIndex,
+						nodes,
+						new_node.index);
 				}
 			};
 
+		raylib::Matrix parent_matrix = raylib::Matrix::Identity();
+		std::vector<GLTFNode> nodes;
 		for (int nodeIndex : scene.nodes)
 		{
-			traverseNode(model, nodeIndex);
+			traverseNode(model, 
+				nodeIndex,
+				nodes,
+				-1);
 		}
-		int skipped = 0;
-		for (int mi = 0; mi < (int)model.meshes.size(); ++mi) {
-			const tinygltf::Mesh& gm = model.meshes[mi];
-			for (const tinygltf::Primitive& prim : gm.primitives) {
-				MeshCPU m;
-				std::string why;
-				if (!PrimitiveToMesh(model, prim, m, why)) {
-					Logger::TraceLog(LOG_WARNING, std::format(
-						"[GLTF] mesh '{}' primitive skipped: {}", gm.name, why));
-					skipped++;
-					continue;
+		out.nodes = nodes;
+
+		// ---- Skins: read joints + inverse-bind matrices ----
+		// Each glTF skin becomes a GLTFSkin whose joints are remapped from glTF
+		// node indices to OUR node indices. inverseBindMatrices is an accessor of
+		// MAT4 (column-major floats), one per joint.
+		out.skins.reserve(model.skins.size());
+		for (const tinygltf::Skin& gskin : model.skins) {
+			GLTFSkin skin;
+			skin.joints.reserve(gskin.joints.size());
+			for (int gjoint : gskin.joints) {
+				int ours = (gjoint >= 0 && gjoint < (int)gltfToOurs.size())
+					? gltfToOurs[gjoint] : -1;
+				skin.joints.push_back(ours);
+			}
+			// Inverse-bind matrices (optional; absent = identity per joint).
+			skin.inverseBind.assign(skin.joints.size(), raylib::Matrix::Identity());
+			if (gskin.inverseBindMatrices >= 0) {
+				const tinygltf::Accessor& iba = model.accessors[gskin.inverseBindMatrices];
+				const tinygltf::BufferView& bv = model.bufferViews[iba.bufferView];
+				const tinygltf::Buffer& buf = model.buffers[bv.buffer];
+				if (iba.type == TINYGLTF_TYPE_MAT4 &&
+					iba.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT &&
+					iba.count == skin.joints.size()) {
+					const unsigned char* data = buf.data.data() + bv.byteOffset + iba.byteOffset;
+					uint32_t stride = iba.ByteStride(bv);
+					for (size_t j = 0; j < iba.count; ++j) {
+						const float* m = (const float*)(data + j * stride);
+						// glTF MAT4 is column-major, same as raylib ::Matrix -> copy fields.
+						::Matrix mat;
+						mat.m0 = m[0];  mat.m1 = m[1];  mat.m2 = m[2];  mat.m3 = m[3];
+						mat.m4 = m[4];  mat.m5 = m[5];  mat.m6 = m[6];  mat.m7 = m[7];
+						mat.m8 = m[8];  mat.m9 = m[9];  mat.m10 = m[10]; mat.m11 = m[11];
+						mat.m12 = m[12]; mat.m13 = m[13]; mat.m14 = m[14]; mat.m15 = m[15];
+						skin.inverseBind[j] = raylib::Matrix(mat);
+					}
 				}
-				// Pure CPU data into the assets; the GL backend uploads lazily.
-				uint32_t meshIndex = assets.AddMesh(std::move(m));
-				out.meshIds.push_back(meshIndex);
-				out.gltfMeshIndex.push_back(mi);
-				out.meshMaterial.push_back(prim.material);
-				out.meshName.insert({ meshIndex,gm.name });
+				else {
+					Logger::TraceLog(LOG_WARNING,
+						"[GLTF] inverseBindMatrices unsupported layout, using identity");
+				}
+			}
+			out.skins.push_back(std::move(skin));
+		}
+		for (GLTFNode& n : out.nodes) {
+			if (n.skinId >= 0 && n.skinId >= (int)out.skins.size()) {
+				n.skinId = -1; // out-of-range guard
 			}
 		}
-		Logger::TraceLog(LOG_INFO, std::format(
-			"[GLTF] {}: {} primitives converted, {} skipped",
-			modelPath.filename().string(), out.meshIds.size(), skipped));
 		return out;
 	}
 }
