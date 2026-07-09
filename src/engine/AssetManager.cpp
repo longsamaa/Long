@@ -124,6 +124,7 @@ namespace Long {
 		return AddMaterial(std::make_unique<EmissiveMaterial>(
 			shaderId, color, intensity));
 	}
+	//Nap thang vao registry luon 
 	ModelAsset AssetManager::ImportModel(const std::filesystem::path& path)
 	{
 		return ImportGLTF(path, *this);

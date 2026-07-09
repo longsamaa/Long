@@ -3,6 +3,7 @@
 #include <entt/entt.hpp>
 #include <string>
 #include <vector>
+
 namespace Long {
 	struct MainCamera {
 		uint32_t buildFromTransformVersion{ 0 };

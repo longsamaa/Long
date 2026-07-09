@@ -1,6 +1,7 @@
 #include "GLTFImporter.hpp"
 #include "engine/AssetManager.hpp"
 #include "engine/Logger.hpp"
+#include "core/math/transform.hpp"
 #include <format>
 #include <iostream>
 #include <cstring>   // memcpy
@@ -201,11 +202,6 @@ namespace Long {
 		ModelAsset out;
 
 		tinygltf::TinyGLTF loader;
-		// Decode embedded images via raylib (LoadImageWithRaylib). NOTE: decoded
-		// pixels live inside tinygltf::Model until it is destroyed at the end of
-		// this function -- upload them to GPU textures HERE (material phase) and
-		// never keep the Model alive longer than the import.
-		//loader.SetImageLoader(&LoadImageWithRaylib, nullptr);
 		loader.SetImageLoader(
 			[](tinygltf::Image*, int, std::string*, std::string*,
 				int, int, const unsigned char*, int, void*) { return true; },
@@ -232,56 +228,90 @@ namespace Long {
 			std::format("[GLTF] loaded {}: {} meshes, {} materials, {} nodes, {} images",
 				modelPath.filename().string(), model.meshes.size(),
 				model.materials.size(), model.nodes.size(), model.images.size()));
-		auto t = model.defaultScene;
-
-		auto printNode = [&](const tinygltf::Scene& scene) -> void {
-			for (size_t i = 0; i < scene.nodes.size(); i++) {
-				//std::cout << "node.name : " << scene.nodes[i] << std::endl;
-				Logger::TraceLog(LOG_TRACE, std::format("node.name : {}", scene.nodes[i]));
-			}
-			};
 		const auto& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
-		printNode(scene);
-
-		std::function<void(const tinygltf::Model&, int)> traverseNode;
-
-		traverseNode = [&](const tinygltf::Model& model, int nodeIndex)
+		int skipped = 0;
+		std::function<void(const tinygltf::Model&,
+			int,
+			std::vector<GLTFNode>&,
+			int)> traverseNode;
+		traverseNode = [&](const tinygltf::Model& model,
+			int nodeIndexGLTF, 
+			std::vector<GLTFNode>& nodes, 
+			int parent_node)
 			{
-				const auto& node = model.nodes[nodeIndex];
+				const auto& node = model.nodes[nodeIndexGLTF];
+				//create 1 node 
+				GLTFNode new_node; 
+				new_node.name = node.name; 
+				new_node.id_parent = parent_node; 
+				if (node.mesh >= 0) {
+					const tinygltf::Mesh& gm = model.meshes[node.mesh];
+					for (const tinygltf::Primitive& prim : gm.primitives) {
+						MeshCPU m;
+						std::string why;
+						if (!PrimitiveToMesh(model, prim, m, why)) {
+							Logger::TraceLog(LOG_WARNING, std::format(
+								"[GLTF] mesh '{}' primitive skipped: {}", gm.name, why));
+							skipped++;
+							continue;
+						}
+						uint32_t meshIndex = assets.AddMesh(std::move(m));
+						new_node.meshId = (int)meshIndex; 
+					}
+				}
+				raylib::Vector3 translation{ 0.0f, 0.0f, 0.0f };
+				raylib::Vector3 scale{ 1.0f, 1.0f, 1.0f };
+				raylib::Quaternion quat{ 0.0f, 0.0f, 0.0f, 1.0f };
+				if (node.skin >= 0) {
+				}
+				else if (!node.matrix.empty()) {
+					raylib::Matrix matrix = VectorMatrixToRaylibMatrix(node.matrix);
+					auto transform = DecomposeToTransform(matrix);
+					translation = transform.position;
+					scale = transform.scale;
+					quat = transform.quaternion;
+				}
+				else {
+					if (node.translation.size() == 3) translation = VectorToRaylibVector3(node.translation);
+					if (node.scale.size() == 3)       scale = VectorToRaylibVector3(node.scale);
+					if (node.rotation.size() == 4)    quat = VectorToRaylibQuaternion(node.rotation);
+				}
+				new_node.transform = { 
+					.pos = translation,
+					.scale = scale,
+					.quaternion = quat 
+				}; 
+				new_node.index = (int)nodes.size();
+				nodes.emplace_back(new_node);
+
+				if (parent_node >= 0 && parent_node < (int)nodes.size()) {
+					auto& parent = nodes[parent_node];
+					auto it_child = std::find(parent.children.begin(), parent.children.end(), new_node.index);
+					if (it_child == parent.children.end()) {
+						parent.children.emplace_back(new_node.index);
+					}
+				}
+
 				Logger::TraceLog(LOG_TRACE, std::format("node name : {}", node.name));
-				for (int child : node.children)
+				for (int childIndex : node.children)
 				{
-					traverseNode(model, child);
+					traverseNode(model,
+						childIndex,
+						nodes,
+						new_node.index);
 				}
 			};
 
+		raylib::Matrix parent_matrix = raylib::Matrix::Identity();
+		std::vector<GLTFNode> nodes;
 		for (int nodeIndex : scene.nodes)
 		{
-			traverseNode(model, nodeIndex);
+			traverseNode(model, 
+				nodeIndex,
+				nodes,
+				-1);
 		}
-		int skipped = 0;
-		for (int mi = 0; mi < (int)model.meshes.size(); ++mi) {
-			const tinygltf::Mesh& gm = model.meshes[mi];
-			for (const tinygltf::Primitive& prim : gm.primitives) {
-				MeshCPU m;
-				std::string why;
-				if (!PrimitiveToMesh(model, prim, m, why)) {
-					Logger::TraceLog(LOG_WARNING, std::format(
-						"[GLTF] mesh '{}' primitive skipped: {}", gm.name, why));
-					skipped++;
-					continue;
-				}
-				// Pure CPU data into the assets; the GL backend uploads lazily.
-				uint32_t meshIndex = assets.AddMesh(std::move(m));
-				out.meshIds.push_back(meshIndex);
-				out.gltfMeshIndex.push_back(mi);
-				out.meshMaterial.push_back(prim.material);
-				out.meshName.insert({ meshIndex,gm.name });
-			}
-		}
-		Logger::TraceLog(LOG_INFO, std::format(
-			"[GLTF] {}: {} primitives converted, {} skipped",
-			modelPath.filename().string(), out.meshIds.size(), skipped));
+		out.nodes = nodes; 
 		return out;
 	}
 }
