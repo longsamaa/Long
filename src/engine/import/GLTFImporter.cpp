@@ -321,7 +321,7 @@ namespace Long {
 				raylib::Vector3 translation{ 0.0f, 0.0f, 0.0f };
 				raylib::Vector3 scale{ 1.0f, 1.0f, 1.0f };
 				raylib::Quaternion quat{ 0.0f, 0.0f, 0.0f, 1.0f };
-				new_node.skinId = node.skin; // -1 if none
+				new_node.skinId = node.skin; 
 				if (!node.matrix.empty()) {
 					raylib::Matrix matrix = VectorMatrixToRaylibMatrix(node.matrix);
 					auto transform = DecomposeToTransform(matrix);
@@ -371,11 +371,6 @@ namespace Long {
 				-1);
 		}
 		out.nodes = nodes;
-
-		// ---- Skins: read joints + inverse-bind matrices ----
-		// Each glTF skin becomes a GLTFSkin whose joints are remapped from glTF
-		// node indices to OUR node indices. inverseBindMatrices is an accessor of
-		// MAT4 (column-major floats), one per joint.
 		out.skins.reserve(model.skins.size());
 		for (const tinygltf::Skin& gskin : model.skins) {
 			GLTFSkin skin;

@@ -18,6 +18,7 @@ namespace Long {
 		uint32_t joints[4]{ 0, 0, 0, 0 };
 		float    weights[4]{ 0, 0, 0, 0 };
 	};
+
 	struct MeshCPU {
 		std::vector<VertexPNT> vertices;
 		std::vector<uint32_t> indices;

@@ -22,24 +22,15 @@
 #endif
 
 namespace Long {
-	// Vertex attribute locations for skinning, matching raylib's convention and
-	// the skinning shader's `layout(location=...)`: 7 = bone indices, 8 = bone
-	// weights (location 6 is the element INDEX buffer, not a vertex attribute!).
 	static constexpr int kBoneIdsLoc = 7;
 	static constexpr int kBoneWeightsLoc = 8;
-	// Max joints uploaded per skeleton (must match u_jointMatrices[] in the shader).
 	static constexpr int kMaxJoints = 128;
-
-	// Upload a skeleton's joint matrices to u_jointMatrices[] on the bound shader.
-	// SkinningSystem already computed jointMatrices = inverseBind * jointWorld.
 	static void BindJointMatrices(const ::Shader& sh, const Skeleton& skel) {
 		int loc = rlGetLocationUniform(sh.id, "u_jointMatrices");
 		if (loc < 0) {
 			return;
 		}
 		const int n = (int)std::min<size_t>(skel.jointMatrices.size(), (size_t)kMaxJoints);
-		// rlSetUniformMatrix takes one Matrix; upload the array element by element
-		// (locations are contiguous for a mat4[] uniform).
 		for (int j = 0; j < n; ++j) {
 			rlSetUniformMatrix(loc + j, skel.jointMatrices[j]);
 		}
@@ -170,9 +161,6 @@ namespace Long {
 			}
 		}
 
-		// Point-light cube shadows (samplerCube). Slots continue after the 2D
-		// maps so they never collide. rlEnableTextureCubemap binds to the CUBE
-		// target of the active slot.
 		if (L.cubeShadowCount != -1) {
 			int cubeCount = (int)lights.cubeShadowCount;
 			rlSetUniform(L.cubeShadowCount, &cubeCount, SHADER_UNIFORM_INT, 1);
@@ -223,46 +211,53 @@ namespace Long {
 		if (m_lineVao != 0) {
 			rlUnloadVertexArray(m_lineVao);
 		}
-		// GPU meshes: CPU pointers were freed right after upload (nulled), so
-		// UnloadMesh only releases the VAO/VBOs (free(NULL) is a no-op).
-		for (::Mesh& m : m_gpuMeshes) {
-			if (m.vaoId > 0) {
-				::UnloadMesh(m);
+		for (GLGpuMesh& m : m_gpuMeshes) {
+			if (m.mesh.vaoId > 0) {
+				::UnloadMesh(m.mesh);
 			}
 		}
 		if (m_immediateMaterialReady) {
-			// The shader slot holds a BORROWED asset shader -- point it back at
-			// raylib's default so UnloadMaterial doesn't free someone else's
-			// program (same double-free lesson as the old BaseMaterial dtor).
 			m_immediateMaterial.shader.id = rlGetShaderIdDefault();
 			m_immediateMaterial.shader.locs = nullptr;
 			::UnloadMaterial(m_immediateMaterial);
 		}
 	}
 
-	::Mesh& GLRenderer::GetGpuMesh(AssetManager& assets, uint32_t meshId)
+	
+	GLGpuMesh& GLRenderer::UploadGpuMesh(AssetManager& assets, uint32_t meshId)
 	{
-		static ::Mesh invalid{}; // vaoId == 0 -> callers skip the draw
+		static ::Mesh invalidRaylibMesh{}; 
+		static GLGpuMesh invalidGlGpuMesh{.mesh = invalidRaylibMesh, .skin = std::nullopt};
 		if (!assets.IsValidMesh(meshId)) {
-			return invalid;
+			return invalidGlGpuMesh;
 		}
 		if (m_gpuMeshes.size() < assets.meshCount()) {
-			m_gpuMeshes.resize(assets.meshCount(), ::Mesh{});
+			m_gpuMeshes.resize(assets.meshCount(), GLGpuMesh{.mesh = ::Mesh(),
+			.skin = std::nullopt});
 		}
-		::Mesh& gpu = m_gpuMeshes[meshId];
-		if (gpu.vaoId > 0) {
+		GLGpuMesh& gpu = m_gpuMeshes[meshId];
+		if (gpu.mesh.vaoId > 0) {
 			return gpu; // already uploaded
 		}
 
 		const MeshCPU& cpu = assets.GetMesh(meshId);
 		if (!cpu.IsValid()) {
-			return invalid;
+			return invalidGlGpuMesh;
 		}
 		const int vcount = cpu.VertexCount();
+		auto m = uploadRaylibMesh(cpu); 
+		MemFree(m.vertices);  m.vertices = nullptr;
+		MemFree(m.normals);   m.normals = nullptr;
+		MemFree(m.texcoords); m.texcoords = nullptr;
+		gpu.mesh = m;
+		gpu.skin = uploadSkinMesh(m.vaoId,cpu); 
+		return gpu;
+	}
 
-		// De-interleave MeshCPU into the separate arrays raylib's UploadMesh
-		// expects. MemAlloc so the temporary CPU copies match RL_FREE.
+	::Mesh GLRenderer::uploadRaylibMesh(const MeshCPU& cpu)
+	{
 		::Mesh m{};
+		uint32_t vcount = cpu.VertexCount(); 
 		m.vertexCount = vcount;
 		m.triangleCount = cpu.TriangleCount();
 		m.vertices = (float*)MemAlloc((unsigned int)(vcount * 3 * sizeof(float)));
@@ -275,58 +270,47 @@ namespace Long {
 			m.texcoords[i * 2 + 0] = v.u; m.texcoords[i * 2 + 1] = v.v;
 		}
 		if (!cpu.indices.empty()) {
-			// raylib meshes only take 16-bit indices; importers already reject
-			// >65535-vertex primitives, so the cast is safe here.
 			m.indices = (unsigned short*)MemAlloc(
 				(unsigned int)(cpu.indices.size() * sizeof(unsigned short)));
 			for (size_t i = 0; i < cpu.indices.size(); ++i) {
 				m.indices[i] = (unsigned short)cpu.indices[i];
 			}
 		}
-
-		::UploadMesh(&m, false); // static geometry -> GPU (fills vaoId/vboId)
-		if (cpu.IsSkinned()) {
-			// Bone ids as float (GLSL reads them as vec4; keep it simple/portable).
-			std::vector<float> boneIds((size_t)vcount * 4);
-			std::vector<float> boneWeights((size_t)vcount * 4);
-			for (int i = 0; i < vcount; ++i) {
-				const VertexSkin& s = cpu.skin[(size_t)i];
-				for (int k = 0; k < 4; ++k) {
-					boneIds[(size_t)i * 4 + k] = (float)s.joints[k];
-					boneWeights[(size_t)i * 4 + k] = s.weights[k];
-				}
-			}
-			rlEnableVertexArray(m.vaoId);
-			unsigned int idVbo = rlLoadVertexBuffer(boneIds.data(),
-				(int)(boneIds.size() * sizeof(float)), false);
-			rlSetVertexAttribute(kBoneIdsLoc, 4, RL_FLOAT, false, 0, 0);
-			rlEnableVertexAttribute(kBoneIdsLoc);
-			unsigned int wVbo = rlLoadVertexBuffer(boneWeights.data(),
-				(int)(boneWeights.size() * sizeof(float)), false);
-			rlSetVertexAttribute(kBoneWeightsLoc, 4, RL_FLOAT, false, 0, 0);
-			rlEnableVertexAttribute(kBoneWeightsLoc);
-			rlDisableVertexArray();
-		}
-
-
-		MemFree(m.vertices);  m.vertices = nullptr;
-		MemFree(m.normals);   m.normals = nullptr;
-		MemFree(m.texcoords); m.texcoords = nullptr;
-
-		// Skinning attributes. raylib's UploadMesh doesn't handle JOINTS/WEIGHTS
-		// (SUPPORT_GPU_SKINNING is off), so attach them manually to the mesh's VAO
-		// at the conventional locations 6 (bone ids) and 7 (bone weights) -- the
-		// skinning vertex shader reads them there. Uploaded once with the mesh.
-
-		gpu = m;
-		return gpu;
+		return m; 
 	}
+
+	std::optional<GLSkinMesh> GLRenderer::uploadSkinMesh(uint32_t vaoId, const MeshCPU& cpu)
+	{
+		if (!cpu.IsSkinned()) return std::nullopt; 
+		const uint32_t vcount = cpu.VertexCount(); 
+		std::vector<float> boneIds((size_t)vcount * 4);
+		std::vector<float> boneWeights((size_t)vcount * 4);
+		for (int i = 0; i < vcount; ++i) {
+			const VertexSkin& s = cpu.skin[(size_t)i];
+			for (int k = 0; k < 4; ++k) {
+				boneIds[(size_t)i * 4 + k] = (float)s.joints[k];
+				boneWeights[(size_t)i * 4 + k] = s.weights[k];
+			}
+		}
+		rlEnableVertexArray(vaoId);
+		unsigned int idVbo = rlLoadVertexBuffer(boneIds.data(),
+			(int)(boneIds.size() * sizeof(float)), false);
+		rlSetVertexAttribute(kBoneIdsLoc, 4, RL_FLOAT, false, 0, 0);
+		rlEnableVertexAttribute(kBoneIdsLoc);
+		unsigned int wVbo = rlLoadVertexBuffer(boneWeights.data(),
+			(int)(boneWeights.size() * sizeof(float)), false);
+		rlSetVertexAttribute(kBoneWeightsLoc, 4, RL_FLOAT, false, 0, 0);
+		rlEnableVertexAttribute(kBoneWeightsLoc);
+		rlDisableVertexArray();
+		return GLSkinMesh{ 
+			.joints_vbo = idVbo,
+			.weights_vbo = wVbo
+		}; 
+	}
+
 
 	void GLRenderer::ApplyMaterial(const BaseMaterial& material, const ::Shader& shader)
 	{
-		// Resolve each named uniform through the backend's per-program cache.
-		// REQUIRES the program to be currently bound (rlEnableShader upstream) --
-		// rlSetUniform writes to the active program.
 		auto& locs = m_materialLocs[shader.id];
 		for (const auto& [name, value] : material.Uniforms()) {
 			int loc;
@@ -360,28 +344,22 @@ namespace Long {
 	void GLRenderer::DrawMeshImmediate(AssetManager& assets, uint32_t meshId,
 		const BaseMaterial& material, const raylib::Matrix& transform)
 	{
-		::Mesh& gpu = GetGpuMesh(assets, meshId);
-		if (gpu.vaoId == 0) {
+		GLGpuMesh& gpu = UploadGpuMesh(assets, meshId);
+		if (gpu.mesh.vaoId == 0) {
 			return;
 		}
 		if (!assets.IsValidShader(material.GetShaderId())) {
 			return;
 		}
 		const ::Shader sh = assets.GetShader(material.GetShaderId());
-
-		// DrawMesh needs a raylib ::Material; keep ONE scratch (default maps =
-		// white texture) and swap the shader in per call.
 		if (!m_immediateMaterialReady) {
 			m_immediateMaterial = ::LoadMaterialDefault();
 			m_immediateMaterialReady = true;
 		}
 		m_immediateMaterial.shader = sh;
-
-		// Push the CPU material's parameters onto the program, then let raylib
-		// issue the draw (it re-binds the same program; uniforms persist).
 		rlEnableShader(sh.id);
 		ApplyMaterial(material, sh);
-		::DrawMesh(gpu, m_immediateMaterial, transform);
+		::DrawMesh(gpu.mesh, m_immediateMaterial, transform);
 	}
 
 	void GLRenderer::DrawSkybox(AssetManager& assets, uint32_t meshId,
@@ -550,41 +528,32 @@ namespace Long {
 			// uniform table -- the material itself is pure CPU data.
 			ApplyMaterial(*batch.material, sh);
 
-			::Mesh& mesh = GetGpuMesh(assets, batch.meshId);
-			if (!rlEnableVertexArray(mesh.vaoId)) {
+			GLGpuMesh& mesh = UploadGpuMesh(assets, batch.meshId);
+			if (!rlEnableVertexArray(mesh.mesh.vaoId)) {
 				continue; // invalid mesh id / failed upload -> nothing to draw
 			}
-			if (instanced) {
+			if (instanced && !skinned) {
 				UploadInstanceTransforms(batch.transforms);
 				SetupInstanceAttributes(sh, m_instanceVbo);
 				if (sh.locs[SHADER_LOC_MATRIX_NORMAL] != -1) {
 					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_NORMAL], MatrixIdentity());
 				}
 				rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], viewProjStack);
-				if (mesh.indices != NULL) {
-					rlDrawVertexArrayElementsInstanced(0, mesh.triangleCount * 3, 0, (int)count);
+				if (mesh.mesh.indices != NULL) {
+					rlDrawVertexArrayElementsInstanced(0, mesh.mesh.triangleCount * 3, 0, (int)count);
 				}
 				else {
-					rlDrawVertexArrayInstanced(0, mesh.vertexCount, (int)count);
+					rlDrawVertexArrayInstanced(0, mesh.mesh.vertexCount, (int)count);
 				}
 				stats.drawCalls++;
-				stats.triangles += (uint32_t)mesh.triangleCount * (uint32_t)count;
-				stats.vertices += (uint32_t)mesh.vertexCount * (uint32_t)count;
+				stats.triangles += (uint32_t)mesh.mesh.triangleCount * (uint32_t)count;
+				stats.vertices += (uint32_t)mesh.mesh.vertexCount * (uint32_t)count;
 			}
 			else {
-				// Skinned: upload this skeleton's joint matrices once for the
-				// batch. The shader multiplies each vertex by the weighted sum of
-				// u_jointMatrices[boneIds] (see the _skinned vertex shader).
 				if (skinned && batch.skeleton) {
 					BindJointMatrices(sh, *batch.skeleton);
 				}
-				// Only the model-dependent matrices change per draw.
 				for (const raylib::Matrix& t : batch.transforms) {
-					// Both skinned and non-skinned meshes need the node's world
-					// matrix as the model matrix. For skinned meshes the skin
-					// matrices only pose the vertices in the mesh's LOCAL space
-					// (skinMat == identity at bind pose), so matModel still places
-					// the posed mesh into the world.
 					const raylib::Matrix matModel = t.Multiply(matStack);
 					if (sh.locs[SHADER_LOC_MATRIX_MODEL] != -1) {
 						rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MODEL], matModel);
@@ -594,15 +563,15 @@ namespace Long {
 							MatrixTranspose(MatrixInvert(matModel)));
 					}
 					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], matModel.Multiply(viewProj));
-					if (mesh.indices != NULL) {
-						rlDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
+					if (mesh.mesh.indices != NULL) {
+						rlDrawVertexArrayElements(0, mesh.mesh.triangleCount * 3, 0);
 					}
 					else {
-						rlDrawVertexArray(0, mesh.vertexCount);
+						rlDrawVertexArray(0, mesh.mesh.vertexCount);
 					}
 					stats.drawCalls++;
-					stats.triangles += (uint32_t)mesh.triangleCount;
-					stats.vertices += (uint32_t)mesh.vertexCount;
+					stats.triangles += (uint32_t)mesh.mesh.triangleCount;
+					stats.vertices += (uint32_t)mesh.mesh.vertexCount;
 				}
 			}
 
@@ -648,8 +617,8 @@ namespace Long {
 				}
 			}
 
-			::Mesh& mesh = GetGpuMesh(assets, batch.meshId);
-			if (!rlEnableVertexArray(mesh.vaoId)) {
+			GLGpuMesh& mesh = UploadGpuMesh(assets, batch.meshId);
+			if (!rlEnableVertexArray(mesh.mesh.vaoId)) {
 				continue; // depth pass skips meshes without a VAO
 			}
 
@@ -658,11 +627,11 @@ namespace Long {
 				UploadInstanceTransforms(batch.transforms);
 				SetupInstanceAttributes(sh, m_instanceVbo);
 				rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP], lvp);
-				if (mesh.indices != NULL) {
-					rlDrawVertexArrayElementsInstanced(0, mesh.triangleCount * 3, 0, (int)count);
+				if (mesh.mesh.indices != NULL) {
+					rlDrawVertexArrayElementsInstanced(0, mesh.mesh.triangleCount * 3, 0, (int)count);
 				}
 				else {
-					rlDrawVertexArrayInstanced(0, mesh.vertexCount, (int)count);
+					rlDrawVertexArrayInstanced(0, mesh.mesh.vertexCount, (int)count);
 				}
 			}
 			else {
@@ -675,11 +644,11 @@ namespace Long {
 					if (pointMode && sh.locs[SHADER_LOC_MATRIX_MODEL] != -1) {
 						rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MODEL], t);
 					}
-					if (mesh.indices != NULL) {
-						rlDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
+					if (mesh.mesh.indices != NULL) {
+						rlDrawVertexArrayElements(0, mesh.mesh.triangleCount * 3, 0);
 					}
 					else {
-						rlDrawVertexArray(0, mesh.vertexCount);
+						rlDrawVertexArray(0, mesh.mesh.vertexCount);
 					}
 				}
 			}

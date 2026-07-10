@@ -19,11 +19,6 @@ namespace Long {
 						jointWorld = mt->world_matrix;
 					}
 				}
-				// Skin matrix = jointWorld * inverseBind: inverseBind takes the
-				// vertex from mesh-local into joint-local space, jointWorld puts it
-				// back with the (animated) joint pose. At bind pose this is
-				// identity, so vertices stay in mesh-local space and matModel
-				// (the mesh node's world transform) places them in the world.
 				skel.jointMatrices[j] = jointWorld.Multiply(skel.inverseBind[j]);
 			}
 			++skel.version;
