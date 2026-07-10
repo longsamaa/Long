@@ -321,7 +321,7 @@ namespace Long {
 				raylib::Vector3 translation{ 0.0f, 0.0f, 0.0f };
 				raylib::Vector3 scale{ 1.0f, 1.0f, 1.0f };
 				raylib::Quaternion quat{ 0.0f, 0.0f, 0.0f, 1.0f };
-				new_node.skinId = node.skin; 
+				new_node.skinId = node.skin;
 				if (!node.matrix.empty()) {
 					raylib::Matrix matrix = VectorMatrixToRaylibMatrix(node.matrix);
 					auto transform = DecomposeToTransform(matrix);
@@ -334,11 +334,11 @@ namespace Long {
 					if (node.scale.size() == 3)       scale = VectorToRaylibVector3(node.scale);
 					if (node.rotation.size() == 4)    quat = VectorToRaylibQuaternion(node.rotation);
 				}
-				new_node.transform = { 
+				new_node.transform = {
 					.pos = translation,
 					.scale = scale,
-					.quaternion = quat 
-				}; 
+					.quaternion = quat
+				};
 				new_node.index = (int)nodes.size();
 				gltfToOurs[nodeIndexGLTF] = new_node.index;
 				nodes.emplace_back(new_node);
@@ -365,7 +365,7 @@ namespace Long {
 		std::vector<GLTFNode> nodes;
 		for (int nodeIndex : scene.nodes)
 		{
-			traverseNode(model, 
+			traverseNode(model,
 				nodeIndex,
 				nodes,
 				-1);
@@ -378,6 +378,10 @@ namespace Long {
 			for (int gjoint : gskin.joints) {
 				int ours = (gjoint >= 0 && gjoint < (int)gltfToOurs.size())
 					? gltfToOurs[gjoint] : -1;
+				if (ours < 0) {
+					Logger::TraceLog(LOG_WARNING, std::format(
+						"[GLTF] skin joint (gltf node {}) not in scene traversal -> -1", gjoint));
+				}
 				skin.joints.push_back(ours);
 			}
 			// Inverse-bind matrices (optional; absent = identity per joint).
@@ -410,9 +414,124 @@ namespace Long {
 			out.skins.push_back(std::move(skin));
 		}
 		for (GLTFNode& n : out.nodes) {
-			if (n.skinId >= 0 && n.skinId >= (int)out.skins.size()) {
+			if (n.skinId >= (int)out.skins.size()) {
 				n.skinId = -1; // out-of-range guard
 			}
+		}
+
+		// ---- Animations: TRS keyframe clips, node targets remapped to OUR indices ----
+		out.animations.reserve(model.animations.size());
+		for (const tinygltf::Animation& ga : model.animations) {
+			GLTFAnimationClip clip;
+			clip.name = ga.name.empty()
+				? std::format("anim_{}", out.animations.size()) : ga.name;
+			for (const tinygltf::AnimationChannel& gc : ga.channels) {
+				if (gc.target_path == "weights") {
+					Logger::TraceLog(LOG_WARNING, std::format(
+						"[GLTF] '{}': morph-target (weights) channel skipped, unsupported", clip.name));
+					continue;
+				}
+				if (gc.sampler < 0 || gc.sampler >= (int)ga.samplers.size()) {
+					continue;
+				}
+				const int ourNode = (gc.target_node >= 0 && gc.target_node < (int)gltfToOurs.size())
+					? gltfToOurs[gc.target_node] : -1;
+				if (ourNode < 0) {
+					Logger::TraceLog(LOG_WARNING, std::format(
+						"[GLTF] '{}': channel targets gltf node {} not in scene traversal, skipped",
+						clip.name, gc.target_node));
+					continue;
+				}
+				const tinygltf::AnimationSampler& gs = ga.samplers[gc.sampler];
+				if (gs.input < 0 || gs.output < 0) {
+					continue;
+				}
+				const tinygltf::Accessor& ia = model.accessors[gs.input];
+				const tinygltf::Accessor& oa = model.accessors[gs.output];
+				// Only plain float accessors with a bufferView (no sparse storage).
+				if (ia.bufferView < 0 || oa.bufferView < 0 ||
+					ia.type != TINYGLTF_TYPE_SCALAR ||
+					ia.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT ||
+					oa.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT) {
+					Logger::TraceLog(LOG_WARNING, std::format(
+						"[GLTF] '{}': channel with non-float/sparse accessors skipped", clip.name));
+					continue;
+				}
+
+				GLTFAnimChannel ch;
+				ch.node = ourNode;
+				const bool rotation = (gc.target_path == "rotation");
+				if (gc.target_path == "translation")  ch.path = GLTFAnimChannel::Path::Translation;
+				else if (rotation)                    ch.path = GLTFAnimChannel::Path::Rotation;
+				else if (gc.target_path == "scale")   ch.path = GLTFAnimChannel::Path::Scale;
+				else continue; // unknown target path
+				if (oa.type != (rotation ? TINYGLTF_TYPE_VEC4 : TINYGLTF_TYPE_VEC3)) {
+					Logger::TraceLog(LOG_WARNING, std::format(
+						"[GLTF] '{}': {} channel has wrong output type, skipped",
+						clip.name, gc.target_path));
+					continue;
+				}
+
+				// CUBICSPLINE stores [inTangent, value, outTangent] per key; we keep
+				// only the value and fall back to linear interpolation.
+				const bool cubic = (gs.interpolation == "CUBICSPLINE");
+				ch.interp = (gs.interpolation == "STEP")
+					? GLTFAnimChannel::Interp::Step : GLTFAnimChannel::Interp::Linear;
+				const size_t keyCount = ia.count;
+				const size_t expectedOut = cubic ? keyCount * 3 : keyCount;
+				if (keyCount == 0 || oa.count != expectedOut) {
+					Logger::TraceLog(LOG_WARNING, std::format(
+						"[GLTF] '{}': key/value count mismatch ({} vs {}), channel skipped",
+						clip.name, keyCount, oa.count));
+					continue;
+				}
+				if (cubic) {
+					Logger::TraceLog(LOG_WARNING, std::format(
+						"[GLTF] '{}': CUBICSPLINE downgraded to linear", clip.name));
+				}
+
+				const tinygltf::BufferView& ibv = model.bufferViews[ia.bufferView];
+				const unsigned char* idata =
+					model.buffers[ibv.buffer].data.data() + ibv.byteOffset + ia.byteOffset;
+				const uint32_t istride = ia.ByteStride(ibv);
+				ch.times.resize(keyCount);
+				for (size_t k = 0; k < keyCount; ++k) {
+					ch.times[k] = *(const float*)(idata + k * istride);
+				}
+
+				const tinygltf::BufferView& obv = model.bufferViews[oa.bufferView];
+				const unsigned char* odata =
+					model.buffers[obv.buffer].data.data() + obv.byteOffset + oa.byteOffset;
+				const uint32_t ostride = oa.ByteStride(obv);
+				// Index of the k-th VALUE element (cubicspline keeps the middle of 3).
+				auto valueIndex = [cubic](size_t k) { return cubic ? k * 3 + 1 : k; };
+				if (rotation) {
+					ch.quatKeys.resize(keyCount);
+					for (size_t k = 0; k < keyCount; ++k) {
+						const float* v = (const float*)(odata + valueIndex(k) * ostride);
+						ch.quatKeys[k] = raylib::Quaternion{ v[0], v[1], v[2], v[3] };
+					}
+				}
+				else {
+					ch.vec3Keys.resize(keyCount);
+					for (size_t k = 0; k < keyCount; ++k) {
+						const float* v = (const float*)(odata + valueIndex(k) * ostride);
+						ch.vec3Keys[k] = raylib::Vector3{ v[0], v[1], v[2] };
+					}
+				}
+				if (ch.times.back() > clip.duration) {
+					clip.duration = ch.times.back();
+				}
+				clip.channels.push_back(std::move(ch));
+			}
+			if (!clip.channels.empty()) {
+				out.animations.push_back(std::move(clip));
+			}
+		}
+		if (!model.animations.empty()) {
+			Logger::TraceLog(LOG_INFO, std::format(
+				"[GLTF] imported {}/{} animation clip(s)",
+				out.animations.size(), model.animations.size()));
 		}
 		return out;
 	}

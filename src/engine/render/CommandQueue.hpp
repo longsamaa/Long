@@ -31,9 +31,6 @@ namespace Long {
 		const Skeleton* skeleton{ nullptr };
 	};
 
-	// Pure CPU-side draw list: collect commands, sort them for state coherence,
-	// and group them into batches. It knows NOTHING about OpenGL -- GLRenderer
-	// (or another backend) consumes batches() and issues the actual draw calls.
 	class CommandQueue {
 	public:
 		CommandQueue() = default;

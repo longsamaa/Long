@@ -223,17 +223,16 @@ namespace Long {
 		}
 	}
 
-	
 	GLGpuMesh& GLRenderer::UploadGpuMesh(AssetManager& assets, uint32_t meshId)
 	{
-		static ::Mesh invalidRaylibMesh{}; 
-		static GLGpuMesh invalidGlGpuMesh{.mesh = invalidRaylibMesh, .skin = std::nullopt};
+		static ::Mesh invalidRaylibMesh{};
+		static GLGpuMesh invalidGlGpuMesh{ .mesh = invalidRaylibMesh, .skin = std::nullopt };
 		if (!assets.IsValidMesh(meshId)) {
 			return invalidGlGpuMesh;
 		}
 		if (m_gpuMeshes.size() < assets.meshCount()) {
-			m_gpuMeshes.resize(assets.meshCount(), GLGpuMesh{.mesh = ::Mesh(),
-			.skin = std::nullopt});
+			m_gpuMeshes.resize(assets.meshCount(), GLGpuMesh{ .mesh = ::Mesh(),
+			.skin = std::nullopt });
 		}
 		GLGpuMesh& gpu = m_gpuMeshes[meshId];
 		if (gpu.mesh.vaoId > 0) {
@@ -245,19 +244,19 @@ namespace Long {
 			return invalidGlGpuMesh;
 		}
 		const int vcount = cpu.VertexCount();
-		auto m = uploadRaylibMesh(cpu); 
+		::Mesh m = uploadRaylibMesh(cpu);
 		MemFree(m.vertices);  m.vertices = nullptr;
 		MemFree(m.normals);   m.normals = nullptr;
 		MemFree(m.texcoords); m.texcoords = nullptr;
 		gpu.mesh = m;
-		gpu.skin = uploadSkinMesh(m.vaoId,cpu); 
+		gpu.skin = uploadSkinMesh(m.vaoId, cpu);
 		return gpu;
 	}
 
 	::Mesh GLRenderer::uploadRaylibMesh(const MeshCPU& cpu)
 	{
 		::Mesh m{};
-		uint32_t vcount = cpu.VertexCount(); 
+		uint32_t vcount = cpu.VertexCount();
 		m.vertexCount = vcount;
 		m.triangleCount = cpu.TriangleCount();
 		m.vertices = (float*)MemAlloc((unsigned int)(vcount * 3 * sizeof(float)));
@@ -276,13 +275,14 @@ namespace Long {
 				m.indices[i] = (unsigned short)cpu.indices[i];
 			}
 		}
-		return m; 
+		::UploadMesh(&m, false);
+		return m;
 	}
 
 	std::optional<GLSkinMesh> GLRenderer::uploadSkinMesh(uint32_t vaoId, const MeshCPU& cpu)
 	{
-		if (!cpu.IsSkinned()) return std::nullopt; 
-		const uint32_t vcount = cpu.VertexCount(); 
+		if (!cpu.IsSkinned()) return std::nullopt;
+		const uint32_t vcount = cpu.VertexCount();
 		std::vector<float> boneIds((size_t)vcount * 4);
 		std::vector<float> boneWeights((size_t)vcount * 4);
 		for (int i = 0; i < vcount; ++i) {
@@ -302,12 +302,11 @@ namespace Long {
 		rlSetVertexAttribute(kBoneWeightsLoc, 4, RL_FLOAT, false, 0, 0);
 		rlEnableVertexAttribute(kBoneWeightsLoc);
 		rlDisableVertexArray();
-		return GLSkinMesh{ 
+		return GLSkinMesh{
 			.joints_vbo = idVbo,
 			.weights_vbo = wVbo
-		}; 
+		};
 	}
-
 
 	void GLRenderer::ApplyMaterial(const BaseMaterial& material, const ::Shader& shader)
 	{
@@ -391,10 +390,6 @@ namespace Long {
 		}
 		rlEnableVertexArray(m_lineVao);
 		if (m_lineVbo == 0 || lines.size() > m_lineCapacity) {
-			// (Re)allocate grown buffer; attribute pointers capture the buffer
-			// binding, so they must be re-declared against the NEW vbo while the
-			// VAO is bound. Layout matches debug_line.vert / raylib's default
-			// attrib locations: 0 = vertexPosition (3f), 3 = vertexColor (4ub, normalized).
 			if (m_lineVbo != 0) {
 				rlUnloadVertexBuffer(m_lineVbo);
 			}
@@ -458,17 +453,11 @@ namespace Long {
 		const raylib::Matrix matView(rlGetMatrixModelview());
 		const raylib::Matrix matProjection(rlGetMatrixProjection());
 		const raylib::Matrix matStack(rlGetMatrixTransform()); // rlPushMatrix stack, normally identity
-
-		// World-space camera position = translation of the inverse view matrix.
-		// Fixed for the whole queue; specular in the shader needs it (u_viewPos).
 		const raylib::Matrix invView = raylib::Matrix(MatrixInvert(matView));
 		const float camPos[3] = { invView.m12, invView.m13, invView.m14 };
-
 		const raylib::Matrix viewProj = matView.Multiply(matProjection);
 		const raylib::Matrix viewProjStack = matStack.Multiply(matView).Multiply(matProjection);
-
 		uint32_t activeProgram = 0; // GL program currently bound (0 = none yet)
-
 		for (size_t b = 0; b < batchCount; ++b) {
 			const Batch& batch = batches[b];
 			uint32_t baseShaderId = batch.material->GetShaderId();
@@ -477,12 +466,10 @@ namespace Long {
 			}
 			const size_t count = batch.transforms.size();
 			const bool skinned = (batch.skeleton != nullptr);
-			// Skinned meshes can't be instanced (per-entity joint data) and need
-			// the skinning shader variant instead of the instanced one.
 			uint32_t skinShaderId = skinned ? assets.GetSkinnedShaderId(baseShaderId)
-											: AssetManager::Invalid;
+				: AssetManager::Invalid;
 			uint32_t instShaderId = skinned ? AssetManager::Invalid
-											: assets.GetInstancedShaderId(baseShaderId);
+				: assets.GetInstancedShaderId(baseShaderId);
 			const bool instanced =
 				(count >= kInstanceThreshold && instShaderId != AssetManager::Invalid);
 
@@ -491,7 +478,6 @@ namespace Long {
 			else if (instanced) useShaderId = instShaderId;
 			raylib::Shader& shader = assets.GetShader(useShaderId);
 			const ::Shader sh = shader;
-
 			if (sh.id != activeProgram) {
 				rlEnableShader(sh.id);
 				stats.stageCount++;
@@ -503,31 +489,23 @@ namespace Long {
 				if (sh.locs[SHADER_LOC_MATRIX_PROJECTION] != -1) {
 					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_PROJECTION], matProjection);
 				}
-				// Camera position for specular. u_* so raylib never overwrites it;
-				// unlit shaders resolve it to -1 and skip.
 				int viewPosLoc = rlGetLocationUniform(sh.id, "u_viewPos");
 				if (viewPosLoc != -1) {
 					rlSetUniform(viewPosLoc, camPos, SHADER_UNIFORM_VEC3, 1);
 				}
-				// texture0: no per-material textures yet, bind raylib's 1x1 white
-				// so `texture(texture0, uv)` is a no-op multiplier.
 				if (sh.locs[SHADER_LOC_MAP_DIFFUSE] != -1) {
 					rlActiveTextureSlot(0);
 					rlEnableTexture(rlGetTextureIdDefault());
 					int slot0 = 0;
 					rlSetUniform(sh.locs[SHADER_LOC_MAP_DIFFUSE], &slot0, SHADER_UNIFORM_INT, 1);
 				}
-				// Global per-shader uniforms: the scene light array + shadow map.
 				if (lights != nullptr) {
 					BindLights(shader, *lights);
 					BindShadow(shader, *lights);
 				}
 			}
 
-			// Per-batch material parameters (u_baseColor & co) via the backend's
-			// uniform table -- the material itself is pure CPU data.
 			ApplyMaterial(*batch.material, sh);
-
 			GLGpuMesh& mesh = UploadGpuMesh(assets, batch.meshId);
 			if (!rlEnableVertexArray(mesh.mesh.vaoId)) {
 				continue; // invalid mesh id / failed upload -> nothing to draw
@@ -591,9 +569,7 @@ namespace Long {
 		constexpr size_t kInstanceThreshold = 4;
 		const raylib::Matrix lvp = lightViewProj;
 		const uint32_t instDepthId = assets.GetInstancedShaderId(depthShaderId);
-		// Point-light (cube) path: the shader writes linear distance-to-light, so
-		// it needs the light position + range and (non-instanced) the model matrix
-		// to reconstruct the world position. Cache their locations per shader.
+		const uint32_t skinDepthId = assets.GetSkinnedShaderId(depthShaderId);
 		const bool pointMode = linearDistance && lightPos != nullptr;
 		uint32_t activeProgram = 0;
 		for (size_t b = 0; b < batchCount; ++b) {
@@ -602,10 +578,15 @@ namespace Long {
 				continue; // non-casters don't write to the shadow map
 			}
 			const size_t count = batch.transforms.size();
-			const bool instanced =
-				(count >= kInstanceThreshold && instDepthId != AssetManager::Invalid);
+			const bool skinned = (batch.skeleton != nullptr)
+				&& (skinDepthId != AssetManager::Invalid);
+			const bool instanced = !skinned
+				&& (count >= kInstanceThreshold && instDepthId != AssetManager::Invalid);
 
-			const ::Shader sh = assets.GetShader(instanced ? instDepthId : depthShaderId);
+			uint32_t useShaderId = depthShaderId;
+			if (skinned) useShaderId = skinDepthId;
+			else if (instanced) useShaderId = instDepthId;
+			const ::Shader sh = assets.GetShader(useShaderId);
 			if (sh.id != activeProgram) {
 				rlEnableShader(sh.id);
 				activeProgram = sh.id;
@@ -620,6 +601,10 @@ namespace Long {
 			GLGpuMesh& mesh = UploadGpuMesh(assets, batch.meshId);
 			if (!rlEnableVertexArray(mesh.mesh.vaoId)) {
 				continue; // depth pass skips meshes without a VAO
+			}
+			if (skinned) {
+				// Per-batch: each skinned batch carries its own skeleton.
+				BindJointMatrices(sh, *batch.skeleton);
 			}
 
 			if (instanced) {
@@ -636,11 +621,8 @@ namespace Long {
 			}
 			else {
 				for (const raylib::Matrix& t : batch.transforms) {
-					// mvp already folds the model matrix for the single-draw path.
 					rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MVP],
 						MatrixMultiply(t, lvp));
-					// Point cube shader also needs the raw model matrix to build
-					// the world position (for linear distance).
 					if (pointMode && sh.locs[SHADER_LOC_MATRIX_MODEL] != -1) {
 						rlSetUniformMatrix(sh.locs[SHADER_LOC_MATRIX_MODEL], t);
 					}

@@ -41,7 +41,9 @@ void main()
         boneWeights.w * u_jointMatrices[j.w];
     vec4 skinnedPos = skin * vec4(vertexPosition, 1.0);
     vec3 skinnedNormal = mat3(skin) * vertexNormal;
-    // matModel places the (already skinned) mesh in the world; mvp includes it.
+    // skinnedPos is already WORLD-space (jointMatrices carry the joints' world
+    // transforms), so RenderSystem submits identity as the model matrix here --
+    // matModel/mvp must not re-apply the node transform (glTF ignores it).
     fragNormal = normalize(mat3(matModel) * skinnedNormal);
     fragPosition = (matModel * skinnedPos).xyz;
     gl_Position = mvp * skinnedPos;

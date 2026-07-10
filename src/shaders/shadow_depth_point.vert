@@ -16,11 +16,30 @@ in mat4 instanceTransform; // per-instance model (instanced path only)
 uniform mat4 mvp;      // non-instanced: faceViewProj * model ; instanced: faceViewProj
 uniform mat4 matModel; // model matrix (non-instanced path)
 
+#if defined(SKINNED)
+// Same bone attribute layout as pbr.vert (locations 7/8, see GLRenderer).
+layout(location = 7) in vec4 boneIds;
+layout(location = 8) in vec4 boneWeights;
+#define MAX_JOINTS 128
+uniform mat4 u_jointMatrices[MAX_JOINTS]; // = jointWorld * inverseBind (world-space)
+#endif
+
 out vec3 fragWorldPos;
 
 void main()
 {
-#if defined(INSTANCED)
+#if defined(SKINNED)
+    // Skinned: jointMatrices give WORLD-space directly (model is identity),
+    // so the skinned position doubles as the world position.
+    ivec4 j = ivec4(boneIds + 0.5);
+    mat4 skin =
+        boneWeights.x * u_jointMatrices[j.x] +
+        boneWeights.y * u_jointMatrices[j.y] +
+        boneWeights.z * u_jointMatrices[j.z] +
+        boneWeights.w * u_jointMatrices[j.w];
+    vec4 world = skin * vec4(vertexPosition, 1.0);
+    gl_Position = mvp * world;
+#elif defined(INSTANCED)
     // Instanced: model is the per-instance attribute; mvp is faceViewProj only.
     vec4 world = instanceTransform * vec4(vertexPosition, 1.0);
     gl_Position = mvp * world;

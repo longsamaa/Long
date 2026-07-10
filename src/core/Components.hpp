@@ -108,22 +108,49 @@ namespace Long {
 		std::string value;
 	};
 
-	// A skeleton for skinned meshes. Each joint is a scene entity (part of the
-	// normal Hierarchy/Transform graph), so animating a joint is just editing its
-	// Transform -- TransformSystem then produces its world matrix. SkinningSystem
-	// combines that with inverseBind to fill jointMatrices, which the skinning
-	// shader multiplies vertices by.
 	struct Skeleton {
 		std::vector<entt::entity> joints;        // joint entities, in skin order
 		std::vector<raylib::Matrix> inverseBind; // per joint (bind-space -> joint-local)
 		std::vector<raylib::Matrix> jointMatrices; // computed: jointWorld * inverseBind
 		uint32_t version{ 0 };                   // bumped by SkinningSystem on rebuild
+		uint32_t builtJointVersionSum{ UINT32_MAX }; // cache: sum of joints' buildFromTransformVersion at last rebuild
 	};
 
-	// Marks a MeshFilter entity as skinned and points at the Skeleton entity that
-	// deforms it. The renderer uploads that skeleton's jointMatrices and uses the
-	// skinning shader variant. Without this, a mesh renders rigidly (bind pose).
 	struct SkinnedMeshRenderer {
+		uint32_t skinIndex{ 0 };
 		entt::entity skeleton = entt::null;
+		uint32_t lasetSkeletonVersion = UINT32_MAX;
+	};
+
+	// One keyframe track: writes ONE property (T/R/S) of ONE entity's Transform.
+	// times is ascending; vec3Keys holds translation/scale keys, quatKeys holds
+	// rotation keys (only the vector matching `path` is filled).
+	struct AnimationChannel {
+		enum class Path : uint8_t { Translation, Rotation, Scale };
+		enum class Interp : uint8_t { Linear, Step };
+		entt::entity target = entt::null;
+		Path path{ Path::Translation };
+		Interp interp{ Interp::Linear };
+		std::vector<float> times;
+		std::vector<raylib::Vector3> vec3Keys;
+		std::vector<raylib::Quaternion> quatKeys;
+	};
+
+	struct AnimationClip {
+		std::string name;
+		float duration{ 0.0f }; // seconds (max keyframe time)
+		std::vector<AnimationChannel> channels;
+	};
+
+	// Drives its targets' Transforms each frame (AnimationSystem samples the
+	// current clip and patches Transform -> DirtyTransform -> TransformSystem
+	// -> SkinningSystem). Lives on the imported model's root entity.
+	struct AnimationPlayer {
+		std::vector<AnimationClip> clips;
+		int clipIndex{ 0 };   // which clip to play, -1 = none
+		float time{ 0.0f };   // seconds into the clip
+		float speed{ 1.0f };
+		bool loop{ true };
+		bool playing{ true };
 	};
 } // namespace Long

@@ -54,8 +54,6 @@ namespace Long {
 	public:
 		void Submit(const DebugCommand& cmd);
 		const std::vector<DebugCommand>& getGetCommands();
-		// Flatten every submitted command into m_lines (grid -> line grid, camera
-		// frustum -> edges, light -> rays, spheres -> 3 axis circles).
 		void BuildLines(RenderStats& stats);
 		const std::vector<DebugLineVertex>& Lines() const { return m_lines; }
 		void Clear();

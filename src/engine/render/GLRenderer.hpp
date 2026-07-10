@@ -20,7 +20,7 @@ namespace Long {
 	};
 	struct GLGpuMesh {
 		::Mesh mesh; //Mesh raylib
-		std::optional<GLSkinMesh> skin; //Skin mesh raylib 
+		std::optional<GLSkinMesh> skin; //Skin mesh raylib
 	};
 	class GLRenderer {
 	public:
@@ -28,10 +28,8 @@ namespace Long {
 		~GLRenderer();                       // releases the instance VBO + GPU meshes
 		GLRenderer(const GLRenderer&) = delete;
 		GLRenderer& operator=(const GLRenderer&) = delete;
-
 		void DrawBatches(const std::vector<Batch>& batches, size_t batchCount,
 			AssetManager& assets, RenderStats& stats, const SceneLights* lights);
-
 		void DrawDepth(const std::vector<Batch>& batches, size_t batchCount,
 			AssetManager& assets, const raylib::Matrix& lightViewProj,
 			uint32_t depthShaderId, const float& range, bool linearDistance = false,
@@ -43,9 +41,7 @@ namespace Long {
 			const BaseMaterial& material, const raylib::Vector3& cameraPos);
 		void DrawDebugLines(AssetManager& assets,
 			const std::vector<struct DebugLineVertex>& lines);
-		//Upload vertex, indices
 		::Mesh uploadRaylibMesh(const MeshCPU& cpu);
-		//Update skinned mesh 
 		std::optional<GLSkinMesh> uploadSkinMesh(uint32_t vaoId, const MeshCPU& cpu);
 	private:
 		//Upload cpu mesh to gpu

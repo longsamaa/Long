@@ -30,17 +30,19 @@ namespace Long {
 					std::format("RenderSystem: Entity {} has invalid shader in material.", entt::to_integral(e)));
 				continue;
 			}
-			// Skinned mesh: pass the skeleton so the backend uploads its joint
-			// matrices and uses the skinning shader. SkinningSystem has already
-			// filled jointMatrices this frame.
+
 			const Skeleton* skeleton = nullptr;
 			if (const SkinnedMeshRenderer* smr = registry.try_get<SkinnedMeshRenderer>(e)) {
 				if (smr->skeleton != entt::null && registry.valid(smr->skeleton)) {
 					skeleton = registry.try_get<Skeleton>(smr->skeleton);
 				}
 			}
+			// Skinned meshes: jointMatrices (= jointWorld * inverseBind) already place
+			// vertices in WORLD space, so the entity's own model matrix must NOT be
+			// applied again (glTF: a skinned node's transform is ignored). Submit
+			// identity or the mesh gets double-transformed when the rig moves.
 			queue.Submit({
-				wt->world_matrix,
+				skeleton ? raylib::Matrix::Identity() : wt->world_matrix,
 				mf->meshId,   // asset id; the GL backend resolves the GPU mesh
 				&material,
 				!mr->visible,

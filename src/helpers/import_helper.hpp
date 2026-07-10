@@ -1,0 +1,170 @@
+#pragma once 
+#ifndef _IMPORT_MODEL_ASSET_HELPER_HPP_
+#define _IMPORT_MODEL_ASSET_HELPER_HPP_
+#include <entt/entt.hpp>
+#include "core/Components.hpp"
+#include "engine/import/GLTFImporter.hpp"
+#include "engine/AssetManager.hpp"
+#include "engine/Logger.hpp"
+namespace Long {
+	static void ImportGLTFToScene(entt::registry& registry,
+		const std::string& name,
+		const ModelAsset& model, 
+		AssetManager& asset,
+		const std::string& shader) {
+		uint32_t shaderId = asset.GetShaderId(shader); 
+		uint32_t materialId = asset.CreateDefaultMaterial(shaderId); 
+		//Node
+		const std::vector<GLTFNode>& nodes = model.nodes; 
+		//Skeleton
+		const std::vector<GLTFSkin>& skins = model.skins; 
+		//create entt 
+		entt::entity root = registry.create(); 
+		if (!name.empty()) {
+			registry.emplace<Name>(root, name);
+		}
+		registry.emplace<Transform>(root, Transform{}); 
+		Hierarchy& h_root = registry.emplace<Hierarchy>(root, Hierarchy{ entt::null,{} });
+		
+		
+		std::vector<entt::entity> entities; 
+		for (int i = 0; i < nodes.size(); ++i) {
+			entt::entity e = registry.create(); 
+			entities.emplace_back(e); 
+			registry.emplace<Hierarchy>(e, Hierarchy{ entt::null,{} }); 
+		}
+
+		std::vector<SkinnedMeshRenderer> skinnedMeshRenderComponent{};
+		uint32_t skinIndex = 0; 
+		for (const auto& skin : skins) {
+			const auto& joins = skin.joints;
+			const auto& inverseBind = skin.inverseBind;
+			std::string str_index = std::to_string(skinIndex); 
+			SkinnedMeshRenderer skinnedComponent{ skinIndex++,entt::null };
+			if (joins.size() != inverseBind.size()) {
+				skinnedMeshRenderComponent.push_back(skinnedComponent); // keep index aligned with skins[]
+				continue;
+			}
+			entt::entity skeleton_entt = registry.create();
+			Hierarchy& h = registry.emplace<Hierarchy>(skeleton_entt, Hierarchy{ root,{} });
+			auto it = std::find(h_root.children.begin(), h_root.children.end(), skeleton_entt); 
+			if (it == h_root.children.end()) {
+				h_root.children.emplace_back(skeleton_entt); 
+			}
+			Skeleton skeleton;
+			for (int i = 0; i < joins.size(); ++i) {
+				const auto& join = joins[i];
+				if (join < 0 || join >= nodes.size()) {
+					continue;
+				}
+				entt::entity join_entt = entities[join];
+				skeleton.joints.emplace_back(join_entt);
+				const auto& inverse = inverseBind[i];
+				skeleton.inverseBind.emplace_back(inverse);
+			}
+			skeleton.jointMatrices.resize(skeleton.joints.size());
+			registry.emplace<Skeleton>(skeleton_entt,skeleton);
+			registry.emplace<Name>(skeleton_entt,std::format("skeleton_{}", str_index));
+			skinnedComponent.skeleton = skeleton_entt; 
+			skinnedMeshRenderComponent.push_back(skinnedComponent); 
+		}
+
+
+
+		for (int i = 0; i < nodes.size(); ++i) {
+			const auto& node = nodes[i]; 
+			auto& e_n = entities[i];
+			if (!node.name.empty()) {
+				registry.emplace<Name>(e_n, Name{ node.name }); 
+			}
+			//hierarchy
+			Hierarchy& child_h = registry.get<Hierarchy>(e_n);
+			if (node.id_parent > -1 && node.id_parent < nodes.size()) {
+				auto& p_e = entities[node.id_parent]; 
+				Hierarchy& parent_h = registry.get<Hierarchy>(p_e); 
+				child_h.parent = p_e;
+				auto it = std::find(parent_h.children.begin(),
+					parent_h.children.end(),
+					e_n); 
+				if (it == parent_h.children.end()) {
+					parent_h.children.emplace_back(e_n); 
+				}
+			}
+			else {
+				child_h.parent = root;
+				auto it = std::find(h_root.children.begin(),h_root.children.end(),e_n);
+				if (it == h_root.children.end()) {
+					h_root.children.emplace_back(e_n); 
+				}
+			}
+			//transform
+			registry.emplace<Transform>(e_n, Transform{
+				node.transform.pos,
+				node.transform.quaternion,
+				node.transform.scale
+				}); 
+			//Mesh
+			for (const auto& meshId : node.meshIds) {
+				if (!asset.IsValidMesh(meshId)) {
+					Logger::TraceLog(LOG_WARNING, std::format("[GLTF IMPORT] Invalid mesh : {}", meshId)); 
+					continue; 
+				}
+				//create new node 
+				entt::entity e_mesh = registry.create(); 
+				registry.emplace<Name>(e_mesh,Name{std::to_string(meshId)});
+				registry.emplace<Transform>(e_mesh,Transform{});
+				registry.emplace<MeshFilter>(e_mesh, MeshFilter{ (uint32_t)meshId }); 
+				auto& mesh = asset.GetMesh(meshId);
+				registry.emplace<BoxCollider3D>(e_mesh, BoxCollider3D{ mesh.Bounds()});
+				registry.emplace<MeshRenderer>(e_mesh, MeshRenderer{ materialId });
+				registry.emplace<Hierarchy>(e_mesh, Hierarchy{ e_n,{} });
+				if (node.skinId >= 0 && node.skinId < skinnedMeshRenderComponent.size()) {
+					if (skinnedMeshRenderComponent[node.skinId].skeleton != entt::null) {
+						registry.emplace<SkinnedMeshRenderer>(e_mesh, skinnedMeshRenderComponent[node.skinId]);
+					}
+				}
+				auto it = std::find(child_h.children.begin(), child_h.children.end(), e_mesh);
+				if (it == child_h.children.end()) {
+					child_h.children.emplace_back(e_mesh);
+				}
+			}
+		}
+
+		//Animation: resolve clip channels (node index -> entity) onto the root
+		if (!model.animations.empty()) {
+			AnimationPlayer player;
+			player.clips.reserve(model.animations.size());
+			for (const GLTFAnimationClip& srcClip : model.animations) {
+				AnimationClip clip;
+				clip.name = srcClip.name;
+				clip.duration = srcClip.duration;
+				clip.channels.reserve(srcClip.channels.size());
+				for (const GLTFAnimChannel& src : srcClip.channels) {
+					if (src.node < 0 || src.node >= (int)entities.size()) {
+						continue; // importer already warned about unresolved targets
+					}
+					AnimationChannel ch;
+					ch.target = entities[src.node];
+					switch (src.path) {
+					case GLTFAnimChannel::Path::Translation: ch.path = AnimationChannel::Path::Translation; break;
+					case GLTFAnimChannel::Path::Rotation:    ch.path = AnimationChannel::Path::Rotation;    break;
+					case GLTFAnimChannel::Path::Scale:       ch.path = AnimationChannel::Path::Scale;       break;
+					}
+					ch.interp = (src.interp == GLTFAnimChannel::Interp::Step)
+						? AnimationChannel::Interp::Step : AnimationChannel::Interp::Linear;
+					ch.times = src.times;
+					ch.vec3Keys = src.vec3Keys;
+					ch.quatKeys = src.quatKeys;
+					clip.channels.push_back(std::move(ch));
+				}
+				if (!clip.channels.empty()) {
+					player.clips.push_back(std::move(clip));
+				}
+			}
+			if (!player.clips.empty()) {
+				registry.emplace<AnimationPlayer>(root, std::move(player));
+			}
+		}
+	}
+}
+#endif // _IMPORT_MODEL_ASSET_HELPER_HPP_!

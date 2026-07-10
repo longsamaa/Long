@@ -9,39 +9,33 @@ namespace Long {
 		if (m.size() != 16) {
 			return raylib::Matrix::Identity();
 		}
-		// glTF matrices are COLUMN-MAJOR, and raylib's ::Matrix also stores
-		// column-major (m0,m1,m2,m3 = column 0). So copy element-for-element into
-		// the struct fields directly. NOTE: the raylib::Matrix(...) constructor
-		// takes arguments in ROW-major reading order and transposes them, so
-		// passing m[0..15] through it would transpose the glTF matrix -- that was
-		// the bug that skewed imported node transforms.
 		::Matrix out;
-		out.m0  = (float)m[0];  out.m1  = (float)m[1];  out.m2  = (float)m[2];  out.m3  = (float)m[3];
-		out.m4  = (float)m[4];  out.m5  = (float)m[5];  out.m6  = (float)m[6];  out.m7  = (float)m[7];
-		out.m8  = (float)m[8];  out.m9  = (float)m[9];  out.m10 = (float)m[10]; out.m11 = (float)m[11];
+		out.m0 = (float)m[0];  out.m1 = (float)m[1];  out.m2 = (float)m[2];  out.m3 = (float)m[3];
+		out.m4 = (float)m[4];  out.m5 = (float)m[5];  out.m6 = (float)m[6];  out.m7 = (float)m[7];
+		out.m8 = (float)m[8];  out.m9 = (float)m[9];  out.m10 = (float)m[10]; out.m11 = (float)m[11];
 		out.m12 = (float)m[12]; out.m13 = (float)m[13]; out.m14 = (float)m[14]; out.m15 = (float)m[15];
 		return raylib::Matrix(out);
 	}
 
 	static raylib::Vector3 VectorToRaylibVector3(const std::vector<double>& v) {
 		if (v.size() != 3) {
-			return raylib::Vector3(); 
+			return raylib::Vector3();
 		}
-		return raylib::Vector3(::Vector3((float)v[0], (float)v[1], (float)v[2])); 
+		return raylib::Vector3(::Vector3((float)v[0], (float)v[1], (float)v[2]));
 	}
 
 	static raylib::Quaternion VectorToRaylibQuaternion(const std::vector<double>& v) {
 		if (v.size() != 4) {
-			return raylib::Quaternion(); 
+			return raylib::Quaternion();
 		}
-		return raylib::Quaternion(::Quaternion((float)v[0], (float)v[1], (float)v[2],(float)v[3]));
+		return raylib::Quaternion(::Quaternion((float)v[0], (float)v[1], (float)v[2], (float)v[3]));
 	}
 
 	static raylib::Vector2 VectorToRaylibVector2(const std::vector<double>& v) {
 		if (v.size() != 2) {
 			return raylib::Vector2();
 		}
-		return raylib::Vector2(::Vector2((float)v[0],(float)v[1]));
+		return raylib::Vector2(::Vector2((float)v[0], (float)v[1]));
 	}
 
 	static raylib::Matrix LocalMatrix(const Transform& t) {
@@ -54,7 +48,6 @@ namespace Long {
 		return s * r * tr;
 	}
 
-	// Translation (position) stored in a matrix's last column.
 	static raylib::Vector3 MatrixTranslation(const raylib::Matrix& m) {
 		return { m.m12, m.m13, m.m14 };
 	}

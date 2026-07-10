@@ -14,11 +14,11 @@
 // backend function directly (zero-cost abstraction). See MathRaylib.hpp.
 
 #if defined(LONG_MATH_RAYLIB)
-    #include "core/math/backend/MathRaylib.hpp"
+#include "core/math/backend/MathRaylib.hpp"
 #elif defined(LONG_MATH_GLM)
-    #include "core/math/backend/MathGLM.hpp"
+#include "core/math/backend/MathGLM.hpp"
 #else
-    #error "No math backend selected. Define LONG_MATH_RAYLIB or LONG_MATH_GLM (CMake: -DLONG_MATH=raylib|glm)."
+#error "No math backend selected. Define LONG_MATH_RAYLIB or LONG_MATH_GLM (CMake: -DLONG_MATH=raylib|glm)."
 #endif
 
 #endif // !_LONG_MATH_HPP_

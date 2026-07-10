@@ -7,7 +7,7 @@ namespace Long {
 
 	enum class CreateObjectType : uint32_t {
 		GameObject = 0,
-		Cube = 1, 
+		Cube = 1,
 		Sphere = 2,
 		Cylinder = 3
 	};
@@ -15,7 +15,7 @@ namespace Long {
 	class Scene {
 	public:
 		Scene();
-		entt::entity CreateObject(const CreateObjectType& type); 
+		entt::entity CreateObject(const CreateObjectType& type);
 		entt::entity CreateEntity(const std::string& name = "");
 		void DestroyEntity(entt::entity e);
 		entt::registry& Registry() { return m_registry; }

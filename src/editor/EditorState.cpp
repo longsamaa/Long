@@ -14,6 +14,7 @@
 #include "system/GameCameraSystem.hpp"
 #include "system/LightSystem.hpp"
 #include "system/SkinningSystem.hpp"
+#include "system/AnimationSystem.hpp"
 #include "engine/render/passes/ScenePreparePass.hpp"
 #include "engine/render/passes/ShadowPass.hpp"
 #include "engine/render/passes/ShadowDebugPass.hpp"
@@ -30,6 +31,7 @@
 #include "engine/render/passes/RenderDebugPass.hpp"
 #include "helpers/draw_debug_helper.hpp"
 #include "core/math/transform.hpp"
+#include "helpers/import_helper.hpp"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "raylib-cpp.hpp"
@@ -208,6 +210,7 @@ namespace Long {
 		m_commandQueue.Clear();
 
 		auto t0 = Time::now();
+		AnimationSystem(m_scene.Registry(), dt); // writes joint Transforms (before TransformSystem)
 		TransformSystem(m_scene.Registry());
 		SkinningSystem(m_scene.Registry());   // after TransformSystem: needs joint world matrices
 		WorldBoundsSystem(m_scene.Registry(), m_app.GetAssets());
@@ -374,7 +377,6 @@ namespace Long {
 			reg.emplace<MeshRenderer>(e, MeshRenderer{ emat, raylib::Color::White(), true });
 			reg.emplace<BoxCollider3D>(e, BoxCollider3D{ box });
 			reg.emplace<Hierarchy>(e, Hierarchy{ entt::null, {} });
-			// on_construct<Transform> already marked it dirty.
 		}
 	}
 
@@ -383,134 +385,44 @@ namespace Long {
 		auto& assets = m_app.GetAssets();
 		auto& reg = m_scene.Registry();
 
-		// Import a glTF model into one entity per node, preserving the node
-		// hierarchy. ImportModel returns a flat node list where each node carries
-		// its parent index (id_parent, -1 = root), local transform, and an
-		// optional meshId (index into the AssetManager, -1 = transform-only node).
-		auto fnc_import_model = [&](const std::filesystem::path& path,
-			const std::string& rootName) -> void
-		{
-			ModelAsset model = assets.ImportModel(path);
-			if (!model.IsValid()) {
-				Logger::TraceLog(LOG_WARNING,
-					std::format("[Editor] import failed: {}", path.string()));
-				return;
-			}
+		std::filesystem::path path = std::filesystem::path(GetApplicationDirectory()) / "resources/robot.glb";
+		ModelAsset model = assets.ImportModel(path);
+		if (!model.IsValid()) {
+			Logger::TraceLog(LOG_WARNING,
+				std::format("[Editor] import failed: {}", path.string()));
+			return;
+		}
+		ImportGLTFToScene(m_scene.Registry(),
+			"robot",
+			model,
+			m_app.GetAssets(),
+			"pbr");
 
-			uint32_t pbrId = assets.GetShaderId("pbr");
+		path = std::filesystem::path(GetApplicationDirectory()) / "resources/Kitchen.glb";
+		model = assets.ImportModel(path);
+		if (!model.IsValid()) {
+			Logger::TraceLog(LOG_WARNING,
+				std::format("[Editor] import failed: {}", path.string()));
+			return;
+		}
+		ImportGLTFToScene(m_scene.Registry(),
+			"house",
+			model,
+			m_app.GetAssets(),
+			"pbr");
 
-			// nodes[i] -> the entity created for glTF node i, so children can link
-			// to their parent by index. entt::null is a null_t sentinel, not an
-			// entt::entity, so cast it for the vector's fill constructor.
-			std::vector<entt::entity> nodeEntity(model.nodes.size(),
-				static_cast<entt::entity>(entt::null));
-			// Extra primitive child entities per node (primitives beyond the first),
-			// to be appended to that node's Hierarchy.children below.
-			std::vector<std::vector<entt::entity>> extraPrimChildren(model.nodes.size());
-
-			for (size_t i = 0; i < model.nodes.size(); ++i) {
-				const GLTFNode& n = model.nodes[i];
-				const std::string name = n.name.empty()
-					? (rootName + "_node" + std::to_string(i)) : n.name;
-				entt::entity e = m_scene.CreateEntity(name);
-				nodeEntity[i] = e;
-
-				// Local transform from the node.
-				Transform t;
-				t.position = n.transform.pos;
-				t.scale = n.transform.scale;
-				t.quaternion = n.transform.quaternion;
-				reg.emplace<Transform>(e, t);
-
-				// Meshes: a glTF mesh can have several primitives. Attach the first
-				// to this node entity; each additional primitive becomes a child
-				// entity (identity transform, parented to this node) so none is
-				// dropped. extraPrimChildren collects them to wire into the
-				// hierarchy below.
-				for (size_t p = 0; p < n.meshIds.size(); ++p) {
-					int meshId = n.meshIds[p];
-					if (meshId < 0 || !assets.IsValidMesh((uint32_t)meshId)) {
-						continue;
-					}
-					entt::entity target = e;
-					if (p > 0) {
-						target = m_scene.CreateEntity(name + "_prim" + std::to_string(p));
-						reg.emplace<Transform>(target, Transform{}); // identity, follows parent
-						reg.emplace<Hierarchy>(target, Hierarchy{ e, {} });
-						extraPrimChildren[i].push_back(target);
-					}
-					const auto& mesh = assets.GetMesh((uint32_t)meshId);
-					uint32_t mat = assets.CreateDefaultMaterial(
-						pbrId, raylib::Color{ 192, 192, 192, 255 });
-					reg.emplace<MeshFilter>(target, MeshFilter{ (uint32_t)meshId });
-					reg.emplace<MeshRenderer>(target, MeshRenderer{ mat, raylib::Color::White(), true });
-					reg.emplace<BoxCollider3D>(target, BoxCollider3D{ mesh.Bounds() });
-				}
-			}
-
-			// Wire up the hierarchy now that every node has an entity.
-			for (size_t i = 0; i < model.nodes.size(); ++i) {
-				const GLTFNode& n = model.nodes[i];
-				entt::entity parent = (n.id_parent >= 0 &&
-					(size_t)n.id_parent < nodeEntity.size())
-					? nodeEntity[n.id_parent] : static_cast<entt::entity>(entt::null);
-				std::vector<entt::entity> children;
-				children.reserve(n.children.size() + extraPrimChildren[i].size());
-				for (int c : n.children) {
-					if (c >= 0 && (size_t)c < nodeEntity.size()) {
-						children.push_back(nodeEntity[c]);
-					}
-				}
-				// Also parent the node's extra-primitive child entities.
-				for (entt::entity pc : extraPrimChildren[i]) {
-					children.push_back(pc);
-				}
-				reg.emplace<Hierarchy>(nodeEntity[i],
-					Hierarchy{ parent, std::move(children) });
-			}
-
-			// Build one Skeleton entity per glTF skin. joints[] references node
-			// indices, which map to the entities created above. Skeleton lives on
-			// its own entity (shared by every mesh using that skin).
-			std::vector<entt::entity> skinEntity(model.skins.size(),
-				static_cast<entt::entity>(entt::null));
-			for (size_t s = 0; s < model.skins.size(); ++s) {
-				const GLTFSkin& gs = model.skins[s];
-				Skeleton skel;
-				skel.joints.reserve(gs.joints.size());
-				for (int j : gs.joints) {
-					skel.joints.push_back(
-						(j >= 0 && (size_t)j < nodeEntity.size())
-						? nodeEntity[j] : static_cast<entt::entity>(entt::null));
-				}
-				skel.inverseBind = gs.inverseBind;
-				skel.jointMatrices.assign(gs.joints.size(), raylib::Matrix::Identity());
-
-				entt::entity se = m_scene.CreateEntity(rootName + "_skeleton" + std::to_string(s));
-				reg.emplace<Skeleton>(se, std::move(skel));
-				skinEntity[s] = se;
-			}
-
-			// Tag skinned mesh nodes so the renderer deforms them via their
-			// skeleton -- both the node entity and its extra-primitive children.
-			for (size_t i = 0; i < model.nodes.size(); ++i) {
-				const GLTFNode& n = model.nodes[i];
-				if (n.meshIds.empty() || n.skinId < 0 ||
-					(size_t)n.skinId >= skinEntity.size()) {
-					continue;
-				}
-				entt::entity skelEnt = skinEntity[n.skinId];
-				reg.emplace<SkinnedMeshRenderer>(nodeEntity[i],
-					SkinnedMeshRenderer{ skelEnt });
-				for (entt::entity pc : extraPrimChildren[i]) {
-					reg.emplace<SkinnedMeshRenderer>(pc, SkinnedMeshRenderer{ skelEnt });
-				}
-			}
-		};
-
-		fnc_import_model(
-			std::filesystem::path(GetApplicationDirectory()) / "resources/robot.glb",
-			"cat");
+		path = std::filesystem::path(GetApplicationDirectory()) / "resources/plane.glb";
+		model = assets.ImportModel(path);
+		if (!model.IsValid()) {
+			Logger::TraceLog(LOG_WARNING,
+				std::format("[Editor] import failed: {}", path.string()));
+			return;
+		}
+		ImportGLTFToScene(m_scene.Registry(),
+			"plane",
+			model,
+			m_app.GetAssets(),
+			"pbr");
 	}
 
 	void EditorState::RenderMenuBar()

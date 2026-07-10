@@ -55,6 +55,10 @@ namespace Long {
 				// Skinned variants for the lit shaders used by imported models.
 				m_assets.LoadSkinnedVariant(shaderDir, "pbr");
 				m_assets.LoadSkinnedVariant(shaderDir, "default");
+				// Depth passes need skinning too, or skinned meshes cast bind-pose
+				// shadows stuck at the origin (their model matrix is identity).
+				m_assets.LoadSkinnedVariant(shaderDir, "shadow_depth");
+				m_assets.LoadSkinnedVariant(shaderDir, "shadow_depth_point");
 	}
 
 	Application::~Application() {

@@ -2,6 +2,8 @@
 #include "engine/Application.hpp"
 #include "core/Components.hpp"
 #include "system/TransformSystem.hpp"
+#include "system/AnimationSystem.hpp"
+#include "system/SkinningSystem.hpp"
 #include "system/WorldBoundSystem.hpp"
 #include "system/GameCameraSystem.hpp"
 #include "engine/render/RenderContext.hpp"
@@ -35,7 +37,9 @@ namespace Long {
 
 	void Game::Update(float dt) {
 		m_camera.Update(dt);
+		AnimationSystem(m_scene.Registry(), dt); // before TransformSystem
 		TransformSystem(m_scene.Registry());
+		SkinningSystem(m_scene.Registry());      // after: needs joint world matrices
 		WorldBoundsSystem(m_scene.Registry(), m_app.GetAssets());
 		GameCameraSystem(m_scene.Registry(), m_camera);
 		//Update m_light nap lại vào context render

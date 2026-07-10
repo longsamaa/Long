@@ -21,15 +21,15 @@ namespace Long {
 		case CreateObjectType::GameObject:
 		{
 			Transform transform;
-			static const std::string game_object_name = "GameObject"; 
+			static const std::string game_object_name = "GameObject";
 			entt::entity e = m_registry.create();
 			m_registry.emplace<Name>(e, game_object_name);
 			m_registry.emplace<Transform>(e, transform);
-			return e; 
+			return e;
 		}
 		case CreateObjectType::Cube:
 		{
-			auto& assets = m_app->GetAssets(); 
+			auto& assets = m_app->GetAssets();
 			static const std::string name = "Cube";
 			entt::entity cube = m_registry.create();
 			m_registry.emplace<Name>(cube, name);
@@ -43,7 +43,7 @@ namespace Long {
 			m_registry.emplace<MeshRenderer>(cube, MeshRenderer{ mat, raylib::Color::White(), true });
 			m_registry.emplace<BoxCollider3D>(cube, BoxCollider3D{ box_collider });
 			m_registry.emplace<Hierarchy>(cube, Hierarchy{ entt::null, {} });
-			return cube; 
+			return cube;
 		}
 		case CreateObjectType::Sphere: {
 			auto& assets = m_app->GetAssets();
@@ -79,8 +79,8 @@ namespace Long {
 			m_registry.emplace<Hierarchy>(cylinder, Hierarchy{ entt::null, {} });
 			return cylinder;
 		}
-		default: 
-			return entt::null; 
+		default:
+			return entt::null;
 		}
 		return entt::null;
 	}
@@ -119,7 +119,7 @@ namespace Long {
 			}
 		};
 		copy_component.operator() < Name > ();
-		copy_component.operator() < Transform > ();  
+		copy_component.operator() < Transform > ();
 		copy_component.operator() < MatrixTransform > ();
 		copy_component.operator() < WorldAABB > ();
 		copy_component.operator() < MeshFilter > ();

@@ -1,5 +1,5 @@
 #include "engine/EditorGizmo.hpp"
-#include "helpers/MathHelper.hpp"
+#include "core/math/mathutils.hpp"
 #include "helpers/draw_debug_helper.hpp"
 #include "core/Components.hpp"
 #include "core/math/transform.hpp" // DecomposeToTransform, LocalMatrix

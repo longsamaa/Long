@@ -104,8 +104,6 @@ namespace Long {
 		RenderSystem(*ctx.registry, *ctx.assets, m_queue, m_visible, ctx.renderStats);
 		m_queue.Sort();
 		m_queue.BuildBatches();
-
-		// The 6 cube faces + their up vectors (standard GL cubemap convention).
 		const Vector3 dirs[6] = {
 			{  1,  0,  0 }, { -1,  0,  0 }, {  0,  1,  0 },
 			{  0, -1,  0 }, {  0,  0,  1 }, {  0,  0, -1 },

@@ -1,9 +1,7 @@
 #pragma once
-#ifndef _MATH_HELPER_HPP_
-#define _MATH_HELPER_HPP_
-
+#ifndef _MATH_UTILS_HPP_
+#define _MATH_UTILS_HPP_
 #include "raylib-cpp.hpp"
-
 namespace Long {
 	//Math + Vector Helper for raylib
 	static float ClosestAxisParam(const raylib::Ray& ray, raylib::Vector3 origin, raylib::Vector3 dir) {
@@ -61,6 +59,5 @@ namespace Long {
 		raylib::Vector3 d = point.Subtract(center);
 		return atan2f(d.DotProduct(v), d.DotProduct(u));
 	}
-} // namespace Long
-
-#endif // !_MATH_HELPER_HPP_
+}
+#endif // !_MATH_UTILS_HPP_
