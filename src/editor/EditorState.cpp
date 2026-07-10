@@ -510,7 +510,7 @@ namespace Long {
 
 		fnc_import_model(
 			std::filesystem::path(GetApplicationDirectory()) / "resources/robot.glb",
-			"house");
+			"cat");
 	}
 
 	void EditorState::RenderMenuBar()

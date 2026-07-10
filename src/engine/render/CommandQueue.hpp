@@ -21,16 +21,9 @@ namespace Long {
 		uint32_t meshId{ UINT32_MAX };
 		BaseMaterial* material{ nullptr };
 		bool isCulled{ false };
-		// Non-null for skinned meshes: the skeleton whose jointMatrices deform
-		// this mesh. Skinned draws can't be instanced (per-entity joint data), so
-		// each gets its own batch.
 		const Skeleton* skeleton{ nullptr };
 	};
 
-	// A group of draws sharing the same (mesh, material) -- i.e. everything but the
-	// transform. Such a group can be drawn in a single instanced call. Consumed by
-	// GLRenderer, which turns it into GL draw calls. A skinned batch carries a
-	// skeleton and holds exactly one transform (no instancing).
 	struct Batch {
 		uint32_t meshId{ UINT32_MAX };
 		BaseMaterial* material{ nullptr };
