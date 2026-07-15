@@ -2,6 +2,7 @@
 #include "core/Components.hpp"
 #include <raylib-cpp.hpp>
 
+
 namespace Long {
 	void SkinningSystem(entt::registry& registry) {
 		auto view = registry.view<Skeleton>();

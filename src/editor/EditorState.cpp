@@ -387,18 +387,44 @@ namespace Long {
 
 		std::filesystem::path path = std::filesystem::path(GetApplicationDirectory()) / "resources/robot.glb";
 		ModelAsset model = assets.ImportModel(path);
-		if (!model.IsValid()) {
-			Logger::TraceLog(LOG_WARNING,
-				std::format("[Editor] import failed: {}", path.string()));
-			return;
-		}
-		ImportGLTFToScene(m_scene.Registry(),
-			"robot",
-			model,
-			m_app.GetAssets(),
-			"pbr");
+		//if (!model.IsValid()) {
+		//	Logger::TraceLog(LOG_WARNING,
+		//		std::format("[Editor] import failed: {}", path.string()));
+		//	return;
+		//}
+		//ImportGLTFToScene(m_scene.Registry(),
+		//	"robot",
+		//	model,
+		//	m_app.GetAssets(),
+		//	"pbr");
 
-		path = std::filesystem::path(GetApplicationDirectory()) / "resources/Kitchen.glb";
+		//path = std::filesystem::path(GetApplicationDirectory()) / "resources/Kitchen.glb";
+		//model = assets.ImportModel(path);
+		//if (!model.IsValid()) {
+		//	Logger::TraceLog(LOG_WARNING,
+		//		std::format("[Editor] import failed: {}", path.string()));
+		//	return;
+		//}
+		//ImportGLTFToScene(m_scene.Registry(),
+		//	"house",
+		//	model,
+		//	m_app.GetAssets(),
+		//	"pbr");
+
+		//path = std::filesystem::path(GetApplicationDirectory()) / "resources/plane.glb";
+		//model = assets.ImportModel(path);
+		//if (!model.IsValid()) {
+		//	Logger::TraceLog(LOG_WARNING,
+		//		std::format("[Editor] import failed: {}", path.string()));
+		//	return;
+		//}
+		//ImportGLTFToScene(m_scene.Registry(),
+		//	"plane",
+		//	model,
+		//	m_app.GetAssets(),
+		//	"pbr");
+
+		path = std::filesystem::path(GetApplicationDirectory()) / "resources/dragon.glb";
 		model = assets.ImportModel(path);
 		if (!model.IsValid()) {
 			Logger::TraceLog(LOG_WARNING,
@@ -406,20 +432,7 @@ namespace Long {
 			return;
 		}
 		ImportGLTFToScene(m_scene.Registry(),
-			"house",
-			model,
-			m_app.GetAssets(),
-			"pbr");
-
-		path = std::filesystem::path(GetApplicationDirectory()) / "resources/plane.glb";
-		model = assets.ImportModel(path);
-		if (!model.IsValid()) {
-			Logger::TraceLog(LOG_WARNING,
-				std::format("[Editor] import failed: {}", path.string()));
-			return;
-		}
-		ImportGLTFToScene(m_scene.Registry(),
-			"plane",
+			"dragon",
 			model,
 			m_app.GetAssets(),
 			"pbr");

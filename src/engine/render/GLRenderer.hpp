@@ -14,6 +14,7 @@ namespace Long {
 	class MeshCPU;
 	struct SceneLights;
 	struct Batch;
+	struct Skeleton;
 	struct GLSkinMesh {
 		uint32_t joints_vbo;
 		uint32_t weights_vbo;
@@ -35,8 +36,11 @@ namespace Long {
 			uint32_t depthShaderId, const float& range, bool linearDistance = false,
 			const raylib::Vector3* lightPos = nullptr);
 		void ApplyMaterial(const BaseMaterial& material, const ::Shader& shader);
+		// skeleton != nullptr -> draws with the material shader's SKINNED variant
+		// (joint matrices bound, caller should pass identity as transform).
 		void DrawMeshImmediate(AssetManager& assets, uint32_t meshId,
-			const BaseMaterial& material, const raylib::Matrix& transform);
+			const BaseMaterial& material, const raylib::Matrix& transform,
+			const Skeleton* skeleton = nullptr);
 		void DrawSkybox(AssetManager& assets, uint32_t meshId,
 			const BaseMaterial& material, const raylib::Vector3& cameraPos);
 		void DrawDebugLines(AssetManager& assets,
@@ -47,6 +51,10 @@ namespace Long {
 		//Upload cpu mesh to gpu
 		GLGpuMesh& UploadGpuMesh(AssetManager& assets, uint32_t meshId);
 		void UploadInstanceTransforms(const std::vector<raylib::Matrix>& transforms);
+		// Uploads a skeleton's jointMatrices into the joint SSBO and binds it.
+		// SSBO instead of a uniform array: no MAX_JOINTS cap (rigs with 147+
+		// joints overflowed the 128-mat4 uniform array -> garbage vertices).
+		void BindJointMatrices(const Skeleton& skel);
 		std::vector<GLGpuMesh> m_gpuMeshes;      // GPU cache, index = asset mesh id
 		unsigned int m_instanceVbo{ 0 };      // persistent instance-transform VBO
 		size_t m_instanceCapacity{ 0 };       // capacity of m_instanceVbo, in instances
@@ -54,6 +62,9 @@ namespace Long {
 		unsigned int m_lineVao{ 0 };
 		unsigned int m_lineVbo{ 0 };
 		size_t m_lineCapacity{ 0 };           // capacity in vertices
+		unsigned int m_jointSsbo{ 0 };        // joint matrices SSBO (skinning)
+		size_t m_jointSsboCapacity{ 0 };      // capacity in bytes
+		std::vector<float> m_jointStaging;    // CPU staging: 16 floats per joint
 		std::unordered_map<unsigned int, std::unordered_map<std::string, int>> m_materialLocs;
 		::Material m_immediateMaterial{};
 		bool m_immediateMaterialReady{ false };

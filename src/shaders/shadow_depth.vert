@@ -14,8 +14,10 @@ uniform mat4 matModel; // model (unused non-instanced -- mvp already has it)
 // Same bone attribute layout as pbr.vert (locations 7/8, see GLRenderer).
 layout(location = 7) in vec4 boneIds;
 layout(location = 8) in vec4 boneWeights;
-#define MAX_JOINTS 128
-uniform mat4 u_jointMatrices[MAX_JOINTS]; // = jointWorld * inverseBind (world-space)
+// SSBO, binding = GLRenderer's kJointSsboBinding (no joint-count cap).
+layout(std430, binding = 3) readonly buffer JointMatricesBlock {
+    mat4 u_jointMatrices[]; // world-space skinning matrices
+};
 #endif
 
 void main()

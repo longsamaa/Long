@@ -12,12 +12,19 @@ namespace Long {
 		const ModelAsset& model, 
 		AssetManager& asset,
 		const std::string& shader) {
-		uint32_t shaderId = asset.GetShaderId(shader); 
-		uint32_t materialId = asset.CreateDefaultMaterial(shaderId); 
+		uint32_t shaderId = asset.GetShaderId(shader);
+		uint32_t materialId = asset.CreateDefaultMaterial(shaderId);
 		//Node
-		const std::vector<GLTFNode>& nodes = model.nodes; 
+		const std::vector<GLTFNode>& nodes = model.nodes;
 		//Skeleton
-		const std::vector<GLTFSkin>& skins = model.skins; 
+		const std::vector<GLTFSkin>& skins = model.skins;
+		// Register the asset's meshes with the AssetManager. node.meshIds are
+		// LOCAL indices into model.meshes; this remap is the only place local
+		// ids meet runtime ids (the ModelAsset itself stays reusable).
+		std::vector<uint32_t> meshLocalToGlobal(model.meshes.size(), AssetManager::Invalid);
+		for (size_t i = 0; i < model.meshes.size(); ++i) {
+			meshLocalToGlobal[i] = asset.AddMesh(MeshCPU(model.meshes[i])); // copy: keep the asset intact
+		}
 		//create entt 
 		entt::entity root = registry.create(); 
 		if (!name.empty()) {
@@ -104,10 +111,15 @@ namespace Long {
 				node.transform.scale
 				}); 
 			//Mesh
-			for (const auto& meshId : node.meshIds) {
+			for (const int localMeshId : node.meshIds) {
+				if (localMeshId < 0 || localMeshId >= (int)meshLocalToGlobal.size()) {
+					Logger::TraceLog(LOG_WARNING, std::format("[GLTF IMPORT] Invalid local mesh : {}", localMeshId));
+					continue;
+				}
+				const uint32_t meshId = meshLocalToGlobal[localMeshId];
 				if (!asset.IsValidMesh(meshId)) {
-					Logger::TraceLog(LOG_WARNING, std::format("[GLTF IMPORT] Invalid mesh : {}", meshId)); 
-					continue; 
+					Logger::TraceLog(LOG_WARNING, std::format("[GLTF IMPORT] Invalid mesh : {}", meshId));
+					continue;
 				}
 				//create new node 
 				entt::entity e_mesh = registry.create(); 
@@ -132,8 +144,8 @@ namespace Long {
 
 		//Animation: resolve clip channels (node index -> entity) onto the root
 		if (!model.animations.empty()) {
-			AnimationPlayer player;
-			player.clips.reserve(model.animations.size());
+			Animator animator;
+			animator.clips.reserve(model.animations.size());
 			for (const GLTFAnimationClip& srcClip : model.animations) {
 				AnimationClip clip;
 				clip.name = srcClip.name;
@@ -158,11 +170,11 @@ namespace Long {
 					clip.channels.push_back(std::move(ch));
 				}
 				if (!clip.channels.empty()) {
-					player.clips.push_back(std::move(clip));
+					animator.clips.push_back(std::move(clip));
 				}
 			}
-			if (!player.clips.empty()) {
-				registry.emplace<AnimationPlayer>(root, std::move(player));
+			if (!animator.clips.empty()) {
+				registry.emplace<Animator>(root, std::move(animator));
 			}
 		}
 	}

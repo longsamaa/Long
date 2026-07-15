@@ -37,10 +37,6 @@ namespace Long {
 					skeleton = registry.try_get<Skeleton>(smr->skeleton);
 				}
 			}
-			// Skinned meshes: jointMatrices (= jointWorld * inverseBind) already place
-			// vertices in WORLD space, so the entity's own model matrix must NOT be
-			// applied again (glTF: a skinned node's transform is ignored). Submit
-			// identity or the mesh gets double-transformed when the rig moves.
 			queue.Submit({
 				skeleton ? raylib::Matrix::Identity() : wt->world_matrix,
 				mf->meshId,   // asset id; the GL backend resolves the GPU mesh

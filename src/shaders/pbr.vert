@@ -17,8 +17,12 @@ uniform mat4 matModel;  // model matrix (non-instanced only)
 // is the element index buffer). Ids are passed as float, rounded to int here.
 layout(location = 7) in vec4 boneIds;
 layout(location = 8) in vec4 boneWeights;
-#define MAX_JOINTS 128
-uniform mat4 u_jointMatrices[MAX_JOINTS]; // = inverseBind * jointWorld (SkinningSystem)
+// SSBO (binding matches GLRenderer's kJointSsboBinding): unlike a uniform
+// array there is NO joint-count cap -- 147+ bone rigs overflowed the old
+// 128-mat4 array and exploded into NaN vertices.
+layout(std430, binding = 3) readonly buffer JointMatricesBlock {
+    mat4 u_jointMatrices[]; // = inverseBind * jointWorld (SkinningSystem)
+};
 #endif
 
 out vec2 fragTexCoord;

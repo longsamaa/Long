@@ -59,6 +59,8 @@ namespace Long {
 				// shadows stuck at the origin (their model matrix is identity).
 				m_assets.LoadSkinnedVariant(shaderDir, "shadow_depth");
 				m_assets.LoadSkinnedVariant(shaderDir, "shadow_depth_point");
+				// Selection outline: the mask must follow the animated pose too.
+				m_assets.LoadSkinnedVariant(shaderDir, "mask");
 	}
 
 	Application::~Application() {

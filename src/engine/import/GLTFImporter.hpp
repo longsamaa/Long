@@ -6,8 +6,8 @@
 #include <map>
 #include <entt/entt.hpp>
 #include <raylib-cpp.hpp>
+#include "core/MeshCPU.hpp"
 namespace Long {
-	class AssetManager;
 	struct GLTFTransForm {
 		raylib::Vector3 pos{};
 		raylib::Vector3 scale{};
@@ -17,7 +17,7 @@ namespace Long {
 		std::string name;
 		int id_parent{ -1 };
 		GLTFTransForm transform;
-		std::vector<int> meshIds;
+		std::vector<int> meshIds; //LOCAL indices into ModelAsset::meshes
 		int skinId{ -1 };  //Index into ModelAsset::skins, -1 = not skinned
 		int index{ -1 };
 		std::vector<int> children;
@@ -44,12 +44,18 @@ namespace Long {
 		float duration{ 0.0f };                   // max keyframe time (seconds)
 		std::vector<GLTFAnimChannel> channels;
 	};
+	// Self-contained import result: meshes live IN the asset and node.meshIds
+	// are LOCAL indices into `meshes` (0..meshes.size()-1). Registration with the
+	// AssetManager (local -> global id remap) happens at instantiation time in
+	// ImportGLTFToScene, so this struct has no runtime state and can be
+	// serialized to disk as-is (asset cooking) or instantiated repeatedly.
 	struct ModelAsset {
+		std::vector<MeshCPU> meshes{};
 		std::vector<GLTFNode> nodes{};
 		std::vector<GLTFSkin> skins{};
 		std::vector<GLTFAnimationClip> animations{};
 		bool IsValid() const { return !nodes.empty(); }
 	};
-	ModelAsset ImportGLTF(const std::filesystem::path& modelPath, AssetManager& assets);
+	ModelAsset ImportGLTF(const std::filesystem::path& modelPath);
 }
 #endif // !_GLTF_IMPORTER_HPP_

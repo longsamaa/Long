@@ -1,5 +1,4 @@
 #include "GLTFImporter.hpp"
-#include "engine/AssetManager.hpp"
 #include "engine/Logger.hpp"
 #include "core/math/transform.hpp"
 #include <format>
@@ -251,7 +250,7 @@ namespace Long {
 		return true;
 	}
 
-	ModelAsset ImportGLTF(const std::filesystem::path& modelPath, AssetManager& assets)
+	ModelAsset ImportGLTF(const std::filesystem::path& modelPath)
 	{
 		ModelAsset out;
 
@@ -314,8 +313,10 @@ namespace Long {
 							skipped++;
 							continue;
 						}
-						uint32_t meshIndex = assets.AddMesh(std::move(m));
-						new_node.meshIds.push_back((int)meshIndex); // keep ALL primitives
+						// Meshes stay inside the ModelAsset (LOCAL index); the
+						// AssetManager only sees them at instantiation time.
+						new_node.meshIds.push_back((int)out.meshes.size());
+						out.meshes.emplace_back(std::move(m)); // keep ALL primitives
 					}
 				}
 				raylib::Vector3 translation{ 0.0f, 0.0f, 0.0f };

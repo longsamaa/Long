@@ -142,12 +142,15 @@ namespace Long {
 		std::vector<AnimationChannel> channels;
 	};
 
-	// Drives its targets' Transforms each frame (AnimationSystem samples the
-	// current clip and patches Transform -> DirtyTransform -> TransformSystem
-	// -> SkinningSystem). Lives on the imported model's root entity.
-	struct AnimationPlayer {
+	// Unity-style Animator: owns the model's clips and plays one of them each
+	// frame (AnimationSystem samples the current clip and patches Transform ->
+	// DirtyTransform -> TransformSystem -> SkinningSystem). Lives on the
+	// imported model's root entity. The state-machine half (controllerId,
+	// currentState, parameters) is layered on top of these playback fields and
+	// stays inert until an AnimatorController asset is assigned.
+	struct Animator {
 		std::vector<AnimationClip> clips;
-		int clipIndex{ 0 };   // which clip to play, -1 = none
+		int clipIndex{ 7 };   // which clip to play, -1 = none
 		float time{ 0.0f };   // seconds into the clip
 		float speed{ 1.0f };
 		bool loop{ true };

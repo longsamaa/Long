@@ -41,6 +41,17 @@ add_library(tinygltf INTERFACE)
 target_include_directories(tinygltf INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/external/tinygltf")
 
+# ---- Jolt Physics (git submodule, pinned to v5.5.0) ----
+# Static lib target `Jolt`; its CMake exports include dirs AND the JPH_* compile
+# definitions PUBLICly, which MUST match between the lib and our code -- always
+# link the target, never hand-roll include paths. Tests/samples are skipped
+# automatically when Jolt is not the root project.
+set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE) # match /MD used by the rest of the project (default ON -> /MT -> link errors)
+set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)                  # no install target needed for an embedded submodule
+set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)    # skip LTO: faster iteration, avoids /GL mixing warnings
+set(ENABLE_ALL_WARNINGS OFF CACHE BOOL "" FORCE)             # don't fail our build on Jolt's warnings with future compilers
+add_subdirectory(external/JoltPhysics/Build)
+
 # ---- Dear ImGui (git submodule) ----
 # No CMakeLists shipped; compile core sources into a static lib. Everything is
 # static, so there is a single ImGui context linked into the exe.
@@ -90,7 +101,7 @@ list(FILTER ENGINE_SOURCES EXCLUDE REGEX "/src/game_main\\.cpp$")
 add_library(LongEngineCore STATIC ${ENGINE_SOURCES})
 # PUBLIC include dir + deps: anything linking LongEngineCore inherits these.
 target_include_directories(LongEngineCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(LongEngineCore PUBLIC raylib raylib_cpp imgui rlimgui entt tinygltf)
+target_link_libraries(LongEngineCore PUBLIC raylib raylib_cpp imgui rlimgui entt tinygltf Jolt)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${ENGINE_SOURCES})
 
 # ---- Math backend selection (compile-time) ----

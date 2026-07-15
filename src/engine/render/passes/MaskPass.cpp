@@ -32,9 +32,20 @@ namespace Long {
 					if (!ctx.assets->IsValidMesh(mf.meshId)) {
 						continue;
 					}
+					// Skinned: pose comes from jointMatrices (world-space), so the
+					// mask must skin too and use identity as the model matrix --
+					// same rule as RenderSystem, or the outline sits at bind pose.
+					const Skeleton* skeleton = nullptr;
+					if (const SkinnedMeshRenderer* smr = reg.try_get<SkinnedMeshRenderer>(e)) {
+						if (smr->skeleton != entt::null && reg.valid(smr->skeleton)) {
+							skeleton = reg.try_get<Skeleton>(smr->skeleton);
+						}
+					}
 					// CPU material -> backend resolves shader + uniforms + draw.
 					ctx.glRenderer->DrawMeshImmediate(*ctx.assets, mf.meshId,
-						*m_material, wt.world_matrix);
+						*m_material,
+						skeleton ? raylib::Matrix::Identity() : raylib::Matrix(wt.world_matrix),
+						skeleton);
 				}
 				ctx.camera->EndMode();
 			}

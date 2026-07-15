@@ -18,9 +18,9 @@ namespace Long {
 	}
 
 	void AnimationSystem(entt::registry& registry, float dt) {
-		auto players = registry.view<AnimationPlayer>();
+		auto players = registry.view<Animator>();
 		for (entt::entity e : players) {
-			AnimationPlayer& player = players.get<AnimationPlayer>(e);
+			Animator& player = players.get<Animator>(e);
 			if (!player.playing || player.clipIndex < 0
 				|| player.clipIndex >= (int)player.clips.size()) {
 				continue;
@@ -51,7 +51,6 @@ namespace Long {
 				FindKeys(ch.times, player.time, i0, i1, f);
 				const bool step = (ch.interp == AnimationChannel::Interp::Step);
 
-				// patch<> so the Scene's on_update observer marks the Transform dirty.
 				switch (ch.path) {
 				case AnimationChannel::Path::Translation: {
 					if (i1 >= ch.vec3Keys.size()) break;
@@ -62,7 +61,6 @@ namespace Long {
 				}
 				case AnimationChannel::Path::Rotation: {
 					if (i1 >= ch.quatKeys.size()) break;
-					// Slerp takes the shortest arc (raymath negates on cos < 0).
 					raylib::Quaternion q = step ? ch.quatKeys[i0]
 						: raylib::Quaternion(QuaternionSlerp(ch.quatKeys[i0], ch.quatKeys[i1], f));
 					registry.patch<Transform>(ch.target, [&](Transform& t) { t.quaternion = q; });

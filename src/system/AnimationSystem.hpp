@@ -3,7 +3,7 @@
 #define _ANIMATION_SYSTEM_HPP_
 #include <entt/entt.hpp>
 namespace Long {
-	// Advances every AnimationPlayer and writes the sampled T/R/S keys into the
+	// Advances every Animator and writes the sampled T/R/S keys into the
 	// target entities' Transforms via registry.patch<Transform>, so the Scene's
 	// on_update observer bumps version + DirtyTransform and TransformSystem picks
 	// the change up. Run BEFORE TransformSystem (which feeds SkinningSystem).

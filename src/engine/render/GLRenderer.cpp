@@ -1,4 +1,4 @@
-#include "GLRenderer.hpp"
+﻿#include "GLRenderer.hpp"
 #include "CommandQueue.hpp"        // Batch
 #include "CommandDebugQueue.hpp"   // DebugLineVertex
 #include "core/Components.hpp"     // Skeleton
@@ -24,16 +24,34 @@
 namespace Long {
 	static constexpr int kBoneIdsLoc = 7;
 	static constexpr int kBoneWeightsLoc = 8;
-	static constexpr int kMaxJoints = 128;
-	static void BindJointMatrices(const ::Shader& sh, const Skeleton& skel) {
-		int loc = rlGetLocationUniform(sh.id, "u_jointMatrices");
-		if (loc < 0) {
+	// SSBO binding index of the joint-matrices block; must match the
+	// `layout(std430, binding = 3)` in every SKINNED shader variant.
+	static constexpr int kJointSsboBinding = 3;
+
+	void GLRenderer::BindJointMatrices(const Skeleton& skel) {
+		const size_t n = skel.jointMatrices.size();
+		if (n == 0) {
 			return;
 		}
-		const int n = (int)std::min<size_t>(skel.jointMatrices.size(), (size_t)kMaxJoints);
-		for (int j = 0; j < n; ++j) {
-			rlSetUniformMatrix(loc + j, skel.jointMatrices[j]);
+		m_jointStaging.resize(n * 16);
+		float* dst = m_jointStaging.data();
+		for (const raylib::Matrix& m : skel.jointMatrices) {
+			dst[0] = m.m0;  dst[1] = m.m1;  dst[2] = m.m2;  dst[3] = m.m3;
+			dst[4] = m.m4;  dst[5] = m.m5;  dst[6] = m.m6;  dst[7] = m.m7;
+			dst[8] = m.m8;  dst[9] = m.m9;  dst[10] = m.m10; dst[11] = m.m11;
+			dst[12] = m.m12; dst[13] = m.m13; dst[14] = m.m14; dst[15] = m.m15;
+			dst += 16;
 		}
+		const unsigned int bytes = (unsigned int)(m_jointStaging.size() * sizeof(float));
+		if (m_jointSsbo == 0 || m_jointSsboCapacity < bytes) {
+			if (m_jointSsbo != 0) {
+				rlUnloadShaderBuffer(m_jointSsbo);
+			}
+			m_jointSsbo = rlLoadShaderBuffer(bytes, nullptr, RL_DYNAMIC_COPY);
+			m_jointSsboCapacity = bytes;
+		}
+		rlUpdateShaderBuffer(m_jointSsbo, m_jointStaging.data(), bytes, 0);
+		rlBindShaderBuffer(m_jointSsbo, kJointSsboBinding);
 	}
 
 	static constexpr int kShadowTexSlot0 = 10;                              // 2D maps: slots 10..
@@ -205,6 +223,9 @@ namespace Long {
 		if (m_instanceVbo != 0) {
 			rlUnloadVertexBuffer(m_instanceVbo);
 		}
+		if (m_jointSsbo != 0) {
+			rlUnloadShaderBuffer(m_jointSsbo);
+		}
 		if (m_lineVbo != 0) {
 			rlUnloadVertexBuffer(m_lineVbo);
 		}
@@ -341,16 +362,27 @@ namespace Long {
 	}
 
 	void GLRenderer::DrawMeshImmediate(AssetManager& assets, uint32_t meshId,
-		const BaseMaterial& material, const raylib::Matrix& transform)
+		const BaseMaterial& material, const raylib::Matrix& transform,
+		const Skeleton* skeleton)
 	{
 		GLGpuMesh& gpu = UploadGpuMesh(assets, meshId);
 		if (gpu.mesh.vaoId == 0) {
 			return;
 		}
-		if (!assets.IsValidShader(material.GetShaderId())) {
+		uint32_t shaderId = material.GetShaderId();
+		if (skeleton != nullptr) {
+			uint32_t skinnedId = assets.GetSkinnedShaderId(shaderId);
+			if (skinnedId != AssetManager::Invalid) {
+				shaderId = skinnedId;
+			}
+			else {
+				skeleton = nullptr; // no SKINNED variant -> draw unskinned
+			}
+		}
+		if (!assets.IsValidShader(shaderId)) {
 			return;
 		}
-		const ::Shader sh = assets.GetShader(material.GetShaderId());
+		const ::Shader sh = assets.GetShader(shaderId);
 		if (!m_immediateMaterialReady) {
 			m_immediateMaterial = ::LoadMaterialDefault();
 			m_immediateMaterialReady = true;
@@ -358,6 +390,11 @@ namespace Long {
 		m_immediateMaterial.shader = sh;
 		rlEnableShader(sh.id);
 		ApplyMaterial(material, sh);
+		if (skeleton != nullptr) {
+			// Uniforms stick to the program, so binding before ::DrawMesh (which
+			// re-enables the same shader) is safe.
+			BindJointMatrices(*skeleton);
+		}
 		::DrawMesh(gpu.mesh, m_immediateMaterial, transform);
 	}
 
@@ -529,7 +566,7 @@ namespace Long {
 			}
 			else {
 				if (skinned && batch.skeleton) {
-					BindJointMatrices(sh, *batch.skeleton);
+					BindJointMatrices(*batch.skeleton);
 				}
 				for (const raylib::Matrix& t : batch.transforms) {
 					const raylib::Matrix matModel = t.Multiply(matStack);
@@ -604,7 +641,7 @@ namespace Long {
 			}
 			if (skinned) {
 				// Per-batch: each skinned batch carries its own skeleton.
-				BindJointMatrices(sh, *batch.skeleton);
+				BindJointMatrices(*batch.skeleton);
 			}
 
 			if (instanced) {
