@@ -18,7 +18,15 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 # Use OpenGL 4.3 -- the newest version raylib supports (enables compute shaders
 # / SSBOs). GLSL shaders then target #version 430.
 set(OPENGL_VERSION "4.3" CACHE STRING "" FORCE)
+# NOTE: never use CUSTOMIZE_BUILD to toggle raylib features -- it makes raylib
+# skip config.h entirely (EXTERNAL_CONFIG_FLAGS) and anything the CMake flag
+# mirroring drops is silently disabled (black screen). Explicit OFF here also
+# overrides a stale ON left in the CMake cache.
+set(CUSTOMIZE_BUILD OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/raylib)
+# JPG loading (GLTF textures are often JPEG). config.h guards the flag with
+# #ifndef, so a command-line define wins while the rest of config.h stays as-is.
+target_compile_definitions(raylib PRIVATE SUPPORT_FILEFORMAT_JPG=1)
 
 # ---- raylib-cpp (C++ wrapper, git submodule) ----
 # Header-only INTERFACE target `raylib_cpp`.

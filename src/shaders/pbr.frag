@@ -198,13 +198,9 @@ void main()
         float ndl = max(dot(N, L), 0.0);
         if (ndl <= 0.0 || atten <= 0.0) continue;
 
-        // Punctual-light convention: fold PI into the light so intensity 1 gives
-        // peak diffuse = albedo (the BRDF's albedo/PI would otherwise make PBR
-        // lights 3x dimmer than the engine's Blinn-Phong shaders at the same
-        // intensity, letting ambient wash everything flat).
         float shadow = ShadowFactor(lt.shadowIndex, fragPosition, N, L)
                      * PointShadowFactor(lt.cubeShadowIndex, fragPosition);
-        vec3 radiance = lt.color.rgb * (lt.intensity * atten * PI) * shadow;
+        vec3 radiance = lt.color.rgb * (lt.intensity * atten) * shadow;
 
         // Cook-Torrance specular term.
         vec3  H   = normalize(V + L);
@@ -217,8 +213,12 @@ void main()
 
         // Energy conservation: what reflects specularly can't diffuse; metals
         // have no diffuse at all.
+        // Punctual-light convention: the BRDF's 1/PI is cancelled for the
+        // DIFFUSE term only (peak diffuse = albedo at intensity 1, matching the
+        // engine's Blinn-Phong shaders). Specular must NOT get that PI boost --
+        // it made every highlight ~3x hotter than Cook-Torrance intends.
         vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
-        Lo += (kD * albedo / PI + specular) * radiance * ndl;
+        Lo += (kD * albedo + specular) * radiance * ndl;
     }
 
     // --- Hemisphere ambient (poor man's IBL, follows the gradient skybox) ---

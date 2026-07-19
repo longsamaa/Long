@@ -9,9 +9,9 @@ namespace Long {
 		// 0.0, which would mean mirror-smooth (roughness 0), zero ambient (ao 0).
 		// Matte dielectric is the safe baseline; subclasses override as needed.
 		SetMetallic(0.0f);
-		SetRoughness(0.8f);
+		SetRoughness(0.2f);
 		SetAO(1.0f);
-		SetEmissive({ 0.0f, 0.0f, 0.0f }, 0.0f);
+		SetEmissive({ 0.0f, 0.0f, 0.0f }, 1.0f);
 	}
 
 	void BaseMaterial::SetUniform(const std::string& name, const UniformValue& value)

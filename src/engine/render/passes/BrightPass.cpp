@@ -1,6 +1,7 @@
 #include "engine/render/GLRenderTarget.hpp"
 #include "BrightPass.hpp"
 #include "engine/AssetManager.hpp"
+#include "engine/Environment.hpp"
 #include "raylib-cpp.hpp"
 
 namespace Long {
@@ -23,6 +24,12 @@ namespace Long {
 			}
 		}
 		raylib::Shader& shader = ctx.assets->GetShader(m_shaderId);
+		// Live-tunable settings come from the Environment when present.
+		if (ctx.environment) {
+			u_threshold = ctx.environment->bloomThreshold;
+			u_softKnee = ctx.environment->bloomSoftKnee;
+			u_clampMax = ctx.environment->bloomClampMax;
+		}
 		raylib::TextureUnmanaged sceneTex = ToRaylibTexture(ctx.sceneTarget->Color());
 		raylib::Rectangle src = ctx.sceneTarget->SourceRect(); // negative height: GL flip
 		raylib::Rectangle dst = { 0.0f, 0.0f, (float)bw, (float)bh };
@@ -31,6 +38,7 @@ namespace Long {
 			shader.BeginMode();
 			shader.SetValue(getLoc("u_threshold",shader), &u_threshold, SHADER_UNIFORM_FLOAT);
 			shader.SetValue(getLoc("u_softKnee",shader), &u_softKnee, SHADER_UNIFORM_FLOAT);
+			shader.SetValue(getLoc("u_clampMax",shader), &u_clampMax, SHADER_UNIFORM_FLOAT);
 			sceneTex.Draw(src, dst, { 0, 0 }, 0.0f, raylib::Color::White());
 			shader.EndMode();
 		}

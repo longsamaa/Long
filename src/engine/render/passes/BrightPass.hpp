@@ -13,6 +13,9 @@ namespace Long {
 		// hot specular highlights do.
 		float u_threshold{ 1.5f };
 		float u_softKnee{ 0.3f };
+		// Firefly clamp: cap the luma fed into the blur so a mirror-smooth
+		// specular dot (HDR 50+) blooms gently instead of exploding into a star.
+		float u_clampMax{ 4.0f };
 	public: 
 		uint32_t down_scale{ 1 };
 	private:

@@ -1,6 +1,7 @@
 #include "engine/render/GLRenderTarget.hpp"
 #include "BloomCompositePass.hpp"
 #include "engine/AssetManager.hpp"
+#include "engine/Environment.hpp"
 #include "raylib-cpp.hpp"
 
 namespace Long {
@@ -24,6 +25,10 @@ namespace Long {
 			}
 		}
 		raylib::Shader& shader = ctx.assets->GetShader(m_shaderId);
+		// Live-tunable strength from the Environment when present.
+		if (ctx.environment) {
+			u_bloomStrength = ctx.environment->bloomStrength;
+		}
 		raylib::TextureUnmanaged bloomTex = ToRaylibTexture(ctx.blurTarget->Color());
 		raylib::TextureUnmanaged sceneTex = ToRaylibTexture(ctx.sceneTarget->Color());
 		raylib::Rectangle src = ctx.sceneTarget->SourceRect(); 

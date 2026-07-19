@@ -393,7 +393,7 @@ namespace Long {
 			{ { -8.0f, 1.0f, -8.0f }, raylib::Color{ 255, 220,  40, 255 } }, // yellow
 		};
 		for (const Glow& g : glows) {
-			uint32_t emat = assets.CreateEmissiveMaterial(emissiveId, g.color, 5.0f);
+			uint32_t emat = assets.CreateEmissiveMaterial(emissiveId, g.color, 10.0f);
 			entt::entity e = m_scene.CreateEntity("emissive");
 			Transform t;
 			t.position = g.pos;
@@ -426,7 +426,7 @@ namespace Long {
 			m_app.GetAssets(),
 			"pbr");
 
-		path = std::filesystem::path(GetApplicationDirectory()) / "resources/robot.glb";
+		path = std::filesystem::path(GetApplicationDirectory()) / "resources/Kitchen.glb";
 		model = assets.ImportModel(path);
 		if (!model.IsValid()) {
 			Logger::TraceLog(LOG_WARNING,
