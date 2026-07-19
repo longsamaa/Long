@@ -44,6 +44,25 @@ namespace Long {
 		float duration{ 0.0f };                   // max keyframe time (seconds)
 		std::vector<GLTFAnimChannel> channels;
 	};
+	// Decoded image, normalized to RGBA8 by the raylib image-loader callback.
+	// CPU-side only; the AssetManager uploads it at instantiation time.
+	struct GLTFImage {
+		int width{ 0 };
+		int height{ 0 };
+		std::vector<unsigned char> pixels; // width * height * 4
+	};
+	// PBR metallic-roughness material: factors + LOCAL indices into
+	// ModelAsset::images (-1 = that map is absent).
+	struct GLTFMaterial {
+		raylib::Vector4 baseColorFactor{ 1.0f, 1.0f, 1.0f, 1.0f };
+		float metallicFactor{ 1.0f };
+		float roughnessFactor{ 1.0f };
+		raylib::Vector3 emissiveFactor{ 0.0f, 0.0f, 0.0f };
+		int baseColorImage{ -1 };
+		int metallicRoughnessImage{ -1 }; // glTF packing: G = roughness, B = metallic
+		int emissiveImage{ -1 };
+		int occlusionImage{ -1 };         // R = ambient occlusion
+	};
 	// Self-contained import result: meshes live IN the asset and node.meshIds
 	// are LOCAL indices into `meshes` (0..meshes.size()-1). Registration with the
 	// AssetManager (local -> global id remap) happens at instantiation time in
@@ -51,9 +70,12 @@ namespace Long {
 	// serialized to disk as-is (asset cooking) or instantiated repeatedly.
 	struct ModelAsset {
 		std::vector<MeshCPU> meshes{};
+		std::vector<int> meshMaterials{}; // per meshes[i]: LOCAL index into materials, -1 = none
 		std::vector<GLTFNode> nodes{};
 		std::vector<GLTFSkin> skins{};
 		std::vector<GLTFAnimationClip> animations{};
+		std::vector<GLTFImage> images{};
+		std::vector<GLTFMaterial> materials{};
 		bool IsValid() const { return !nodes.empty(); }
 	};
 	ModelAsset ImportGLTF(const std::filesystem::path& modelPath);

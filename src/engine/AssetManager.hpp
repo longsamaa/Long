@@ -50,6 +50,14 @@ namespace Long {
 		const MeshCPU& GetMesh(uint32_t id) const { return m_meshes[id]; }
 		bool IsValidMesh(uint32_t id) const { return id < m_meshes.size(); }
 		size_t meshCount() const { return m_meshes.size(); }
+		// Textures are GPU-side (uploaded on add). AddTexture does NOT take
+		// ownership of image.data -- it only reads the pixels for the upload.
+		// Sampling mode: mipmapped trilinear + repeat wrap (raylib's default
+		// point/clamp looks terrible on 3D surfaces).
+		uint32_t AddTexture(const ::Image& image);
+		raylib::Texture& GetTexture(uint32_t id) { return m_textures[id]; }
+		bool IsValidTexture(uint32_t id) const { return id < m_textures.size(); }
+		size_t textureCount() const { return m_textures.size(); }
 		uint32_t AddMaterial(std::unique_ptr<BaseMaterial> material);
 		BaseMaterial& GetMaterial(uint32_t id) { return *m_materials[id]; }
 		bool IsValidMaterial(uint32_t id) const { return id < m_materials.size(); }
@@ -71,6 +79,7 @@ namespace Long {
 		std::unordered_map<uint32_t, uint32_t> m_skinnedOf;   // base shader id -> skinned id
 		std::vector<std::unique_ptr<BaseMaterial>> m_materials;
 		std::vector<MeshCPU> m_meshes;
+		std::vector<raylib::Texture> m_textures;
 	};
 } // namespace Long
 

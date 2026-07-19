@@ -329,19 +329,21 @@ namespace Long {
 		};
 	}
 
-	void GLRenderer::ApplyMaterial(const BaseMaterial& material, const ::Shader& shader)
+	void GLRenderer::ApplyMaterial(const BaseMaterial& material, const ::Shader& shader,
+		AssetManager& assets)
 	{
 		auto& locs = m_materialLocs[shader.id];
-		for (const auto& [name, value] : material.Uniforms()) {
-			int loc;
+		auto findLoc = [&](const std::string& name) {
 			auto it = locs.find(name);
 			if (it != locs.end()) {
-				loc = it->second;
+				return it->second;
 			}
-			else {
-				loc = rlGetLocationUniform(shader.id, name.c_str());
-				locs.emplace(name, loc);
-			}
+			int loc = rlGetLocationUniform(shader.id, name.c_str());
+			locs.emplace(name, loc);
+			return loc;
+		};
+		for (const auto& [name, value] : material.Uniforms()) {
+			int loc = findLoc(name);
 			if (loc < 0) {
 				continue; // shader doesn't declare this parameter
 			}
@@ -359,6 +361,34 @@ namespace Long {
 					rlSetUniform(loc, &v, SHADER_UNIFORM_VEC4, 1);
 				}, value);
 		}
+
+		// ---- Texture maps: fixed units 0..3 (shadow maps live at 10+, see
+		// kShadowTexSlot0). Every sampler the shader declares gets a binding:
+		// the material's texture when set, raylib's 1x1 white otherwise -- an
+		// unbound sampler would read whatever happens to sit on unit 0.
+		static constexpr struct { const char* name; int slot; } kTextureSlots[] = {
+			{ "texture0",        0 }, // albedo (raylib's diffuse map name)
+			{ "u_texMetalRough", 1 },
+			{ "u_texEmissive",   2 },
+			{ "u_texOcclusion",  3 },
+		};
+		const auto& textures = material.Textures();
+		for (const auto& entry : kTextureSlots) {
+			int loc = findLoc(entry.name);
+			if (loc < 0) {
+				continue;
+			}
+			unsigned int glId = rlGetTextureIdDefault();
+			auto t = textures.find(entry.name);
+			if (t != textures.end() && assets.IsValidTexture(t->second)) {
+				glId = assets.GetTexture(t->second).id;
+			}
+			int slot = entry.slot;
+			rlActiveTextureSlot(slot);
+			rlEnableTexture(glId);
+			rlSetUniform(loc, &slot, SHADER_UNIFORM_INT, 1);
+		}
+		rlActiveTextureSlot(0);
 	}
 
 	void GLRenderer::DrawMeshImmediate(AssetManager& assets, uint32_t meshId,
@@ -388,8 +418,18 @@ namespace Long {
 			m_immediateMaterialReady = true;
 		}
 		m_immediateMaterial.shader = sh;
+		// ::DrawMesh rebinds map 0 (diffuse) itself, so the albedo texture must
+		// go through the raylib material; the extra u_tex* samplers keep the
+		// unit bindings ApplyMaterial made.
+		::Texture2D albedo{ rlGetTextureIdDefault(), 1, 1, 1,
+			PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
+		auto t = material.Textures().find("texture0");
+		if (t != material.Textures().end() && assets.IsValidTexture(t->second)) {
+			albedo = assets.GetTexture(t->second);
+		}
+		m_immediateMaterial.maps[MATERIAL_MAP_DIFFUSE].texture = albedo;
 		rlEnableShader(sh.id);
-		ApplyMaterial(material, sh);
+		ApplyMaterial(material, sh, assets);
 		if (skeleton != nullptr) {
 			// Uniforms stick to the program, so binding before ::DrawMesh (which
 			// re-enables the same shader) is safe.
@@ -542,7 +582,7 @@ namespace Long {
 				}
 			}
 
-			ApplyMaterial(*batch.material, sh);
+			ApplyMaterial(*batch.material, sh, assets);
 			GLGpuMesh& mesh = UploadGpuMesh(assets, batch.meshId);
 			if (!rlEnableVertexArray(mesh.mesh.vaoId)) {
 				continue; // invalid mesh id / failed upload -> nothing to draw

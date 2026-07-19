@@ -255,10 +255,9 @@ namespace Long {
 		ModelAsset out;
 
 		tinygltf::TinyGLTF loader;
-		loader.SetImageLoader(
-			[](tinygltf::Image*, int, std::string*, std::string*,
-				int, int, const unsigned char*, int, void*) { return true; },
-			nullptr);
+		// Decode embedded PNG/JPEG through raylib (stb is compiled out, see the
+		// TINYGLTF_NO_STB_* defines above). Images land in model.images as RGBA8.
+		loader.SetImageLoader(LoadImageWithRaylib, nullptr);
 
 		tinygltf::Model model;
 		std::string err, warn;
@@ -316,6 +315,7 @@ namespace Long {
 						// Meshes stay inside the ModelAsset (LOCAL index); the
 						// AssetManager only sees them at instantiation time.
 						new_node.meshIds.push_back((int)out.meshes.size());
+						out.meshMaterials.push_back(prim.material); // LOCAL material, -1 = none
 						out.meshes.emplace_back(std::move(m)); // keep ALL primitives
 					}
 				}
@@ -418,6 +418,50 @@ namespace Long {
 			if (n.skinId >= (int)out.skins.size()) {
 				n.skinId = -1; // out-of-range guard
 			}
+		}
+
+		// ---- Images: raylib callback already normalized everything to RGBA8 ----
+		out.images.reserve(model.images.size());
+		for (const tinygltf::Image& gi : model.images) {
+			GLTFImage img;
+			if (gi.width > 0 && gi.height > 0 &&
+				gi.image.size() == (size_t)gi.width * gi.height * 4) {
+				img.width = gi.width;
+				img.height = gi.height;
+				img.pixels = gi.image;
+			} // else: decode failed -> keep empty, instantiation skips it
+			out.images.push_back(std::move(img));
+		}
+
+		// ---- Materials: PBR metallic-roughness factors + image references ----
+		// glTF indirection is texture -> image; we resolve it here so the asset
+		// only carries image indices.
+		auto texToImage = [&](int texIndex) -> int {
+			if (texIndex < 0 || texIndex >= (int)model.textures.size()) return -1;
+			const int src = model.textures[texIndex].source;
+			return (src >= 0 && src < (int)model.images.size()) ? src : -1;
+		};
+		out.materials.reserve(model.materials.size());
+		for (const tinygltf::Material& gm : model.materials) {
+			GLTFMaterial m;
+			const auto& pbr = gm.pbrMetallicRoughness;
+			if (pbr.baseColorFactor.size() == 4) {
+				m.baseColorFactor = {
+					(float)pbr.baseColorFactor[0], (float)pbr.baseColorFactor[1],
+					(float)pbr.baseColorFactor[2], (float)pbr.baseColorFactor[3] };
+			}
+			m.metallicFactor = (float)pbr.metallicFactor;
+			m.roughnessFactor = (float)pbr.roughnessFactor;
+			if (gm.emissiveFactor.size() == 3) {
+				m.emissiveFactor = {
+					(float)gm.emissiveFactor[0], (float)gm.emissiveFactor[1],
+					(float)gm.emissiveFactor[2] };
+			}
+			m.baseColorImage = texToImage(pbr.baseColorTexture.index);
+			m.metallicRoughnessImage = texToImage(pbr.metallicRoughnessTexture.index);
+			m.emissiveImage = texToImage(gm.emissiveTexture.index);
+			m.occlusionImage = texToImage(gm.occlusionTexture.index);
+			out.materials.push_back(m);
 		}
 
 		// ---- Animations: TRS keyframe clips, node targets remapped to OUR indices ----

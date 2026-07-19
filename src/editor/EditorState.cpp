@@ -426,18 +426,18 @@ namespace Long {
 			m_app.GetAssets(),
 			"pbr");
 
-		//path = std::filesystem::path(GetApplicationDirectory()) / "resources/house.glb";
-		//model = assets.ImportModel(path);
-		//if (!model.IsValid()) {
-		//	Logger::TraceLog(LOG_WARNING,
-		//		std::format("[Editor] import failed: {}", path.string()));
-		//	return;
-		//}
-		//ImportGLTFToScene(m_scene.Registry(),
-		//	"house",
-		//	model,
-		//	m_app.GetAssets(),
-		//	"pbr"); 
+		path = std::filesystem::path(GetApplicationDirectory()) / "resources/robot.glb";
+		model = assets.ImportModel(path);
+		if (!model.IsValid()) {
+			Logger::TraceLog(LOG_WARNING,
+				std::format("[Editor] import failed: {}", path.string()));
+			return;
+		}
+		ImportGLTFToScene(m_scene.Registry(),
+			"house",
+			model,
+			m_app.GetAssets(),
+			"pbr"); 
 	}
 
 	void EditorState::RenderMenuBar()

@@ -128,6 +128,16 @@ namespace Long {
 		return id;
 	}
 
+	uint32_t AssetManager::AddTexture(const ::Image& image) {
+		raylib::Texture tex(image); // upload (LoadTextureFromImage), pixels stay caller-owned
+		tex.GenMipmaps();
+		tex.SetFilter(TEXTURE_FILTER_TRILINEAR);
+		tex.SetWrap(TEXTURE_WRAP_REPEAT);
+		uint32_t id = (uint32_t)m_textures.size();
+		m_textures.push_back(std::move(tex));
+		return id;
+	}
+
 	uint32_t AssetManager::AddMaterial(std::unique_ptr<BaseMaterial> material) {
 		uint32_t id = (uint32_t)m_materials.size();
 		m_materials.push_back(std::move(material));

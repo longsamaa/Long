@@ -13,7 +13,50 @@ namespace Long {
 		AssetManager& asset,
 		const std::string& shader) {
 		uint32_t shaderId = asset.GetShaderId(shader);
-		uint32_t materialId = asset.CreateDefaultMaterial(shaderId);
+		uint32_t materialId = asset.CreateDefaultMaterial(shaderId); // fallback: primitives without a material
+		// Upload images lazily -- only the ones a material actually references.
+		std::vector<uint32_t> imageLocalToGlobal(model.images.size(), AssetManager::Invalid);
+		auto textureFor = [&](int localImage) -> uint32_t {
+			if (localImage < 0 || localImage >= (int)model.images.size()) {
+				return AssetManager::Invalid;
+			}
+			const GLTFImage& img = model.images[localImage];
+			if (img.pixels.empty()) {
+				return AssetManager::Invalid; // decode failed at import time
+			}
+			if (imageLocalToGlobal[localImage] == AssetManager::Invalid) {
+				// Borrowed view: AddTexture only reads the pixels for the upload.
+				::Image view{ (void*)img.pixels.data(), img.width, img.height,
+					1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
+				imageLocalToGlobal[localImage] = asset.AddTexture(view);
+			}
+			return imageLocalToGlobal[localImage];
+		};
+		// One engine material per glTF material: PBR factors + texture maps.
+		std::vector<uint32_t> materialLocalToGlobal(model.materials.size(), materialId);
+		for (size_t i = 0; i < model.materials.size(); ++i) {
+			const GLTFMaterial& gm = model.materials[i];
+			uint32_t id = asset.CreateDefaultMaterial(shaderId);
+			BaseMaterial& mat = asset.GetMaterial(id);
+			mat.SetUniform("u_baseColor", gm.baseColorFactor);
+			mat.SetMetallic(gm.metallicFactor);
+			mat.SetRoughness(gm.roughnessFactor);
+			mat.SetEmissive(gm.emissiveFactor, 1.0f); // glTF: emissive = factor * texture
+			uint32_t tex;
+			if ((tex = textureFor(gm.baseColorImage)) != AssetManager::Invalid) {
+				mat.SetTexture("texture0", tex);
+			}
+			if ((tex = textureFor(gm.metallicRoughnessImage)) != AssetManager::Invalid) {
+				mat.SetTexture("u_texMetalRough", tex);
+			}
+			if ((tex = textureFor(gm.emissiveImage)) != AssetManager::Invalid) {
+				mat.SetTexture("u_texEmissive", tex);
+			}
+			if ((tex = textureFor(gm.occlusionImage)) != AssetManager::Invalid) {
+				mat.SetTexture("u_texOcclusion", tex);
+			}
+			materialLocalToGlobal[i] = id;
+		}
 		//Node
 		const std::vector<GLTFNode>& nodes = model.nodes;
 		//Skeleton
@@ -122,14 +165,22 @@ namespace Long {
 					Logger::TraceLog(LOG_WARNING, std::format("[GLTF IMPORT] Invalid mesh : {}", meshId));
 					continue;
 				}
-				//create new node 
-				entt::entity e_mesh = registry.create(); 
+				//create new node
+				entt::entity e_mesh = registry.create();
 				registry.emplace<Name>(e_mesh,Name{std::to_string(meshId)});
 				registry.emplace<Transform>(e_mesh,Transform{});
-				registry.emplace<MeshFilter>(e_mesh, MeshFilter{ (uint32_t)meshId }); 
+				registry.emplace<MeshFilter>(e_mesh, MeshFilter{ (uint32_t)meshId });
 				auto& mesh = asset.GetMesh(meshId);
 				registry.emplace<BoxCollider3D>(e_mesh, BoxCollider3D{ mesh.Bounds()});
-				registry.emplace<MeshRenderer>(e_mesh, MeshRenderer{ materialId });
+				// Per-primitive glTF material; fallback when the primitive had none.
+				uint32_t meshMaterialId = materialId;
+				if (localMeshId < (int)model.meshMaterials.size()) {
+					const int localMat = model.meshMaterials[localMeshId];
+					if (localMat >= 0 && localMat < (int)materialLocalToGlobal.size()) {
+						meshMaterialId = materialLocalToGlobal[localMat];
+					}
+				}
+				registry.emplace<MeshRenderer>(e_mesh, MeshRenderer{ meshMaterialId });
 				registry.emplace<Hierarchy>(e_mesh, Hierarchy{ e_n,{} });
 				if (node.skinId >= 0 && node.skinId < skinnedMeshRenderComponent.size()) {
 					if (skinnedMeshRenderComponent[node.skinId].skeleton != entt::null) {

@@ -35,7 +35,8 @@ namespace Long {
 			AssetManager& assets, const raylib::Matrix& lightViewProj,
 			uint32_t depthShaderId, const float& range, bool linearDistance = false,
 			const raylib::Vector3* lightPos = nullptr);
-		void ApplyMaterial(const BaseMaterial& material, const ::Shader& shader);
+		void ApplyMaterial(const BaseMaterial& material, const ::Shader& shader,
+			AssetManager& assets);
 		void DrawMeshImmediate(AssetManager& assets, uint32_t meshId,
 			const BaseMaterial& material, const raylib::Matrix& transform,
 			const Skeleton* skeleton = nullptr);

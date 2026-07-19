@@ -12,6 +12,13 @@ in vec3 fragPosition;   // world-space
 
 uniform sampler2D texture0;   // albedo map (raylib sets this; white 1x1 default)
 
+// Extra PBR maps. GLRenderer::ApplyMaterial binds a 1x1 white default when the
+// material doesn't provide one, so sampling is always safe and the u_* factors
+// below stay in charge.
+uniform sampler2D u_texMetalRough; // glTF packing: G = roughness, B = metallic
+uniform sampler2D u_texEmissive;   // sRGB
+uniform sampler2D u_texOcclusion;  // R = ambient occlusion
+
 // Surface params (BaseMaterial u_* uniforms).
 uniform vec4  u_baseColor;          // albedo tint
 uniform vec3  u_emissive;           // emissive color (0..1)
@@ -149,10 +156,19 @@ vec3 FresnelSchlickRoughness(float ndv, vec3 F0, float roughness)
 
 void main()
 {
+    // NOTE: no sRGB decode on purpose. The whole engine feeds sRGB-encoded
+    // colors (u_baseColor, light colors) straight into lighting, and the look
+    // is calibrated around that. Decoding only textures makes textured models
+    // darker than everything else. If proper linear workflow is ever wanted,
+    // decode ALL color inputs at once, not just this one.
     vec4 baseTex = texture(texture0, fragTexCoord) * u_baseColor * fragColor;
     vec3 albedo = baseTex.rgb;
-    float metallic  = clamp(u_metallic, 0.0, 1.0);
-    float roughness = clamp(u_roughness, 0.04, 1.0); // 0 breaks the NDF
+    // Map values MULTIPLY the material factors (glTF semantics): the white
+    // default leaves the u_* factors in charge.
+    vec3 mrTex = texture(u_texMetalRough, fragTexCoord).rgb;
+    float metallic  = clamp(u_metallic * mrTex.b, 0.0, 1.0);
+    float roughness = clamp(u_roughness * mrTex.g, 0.04, 1.0); // 0 breaks the NDF
+    float ao = clamp(u_ao * texture(u_texOcclusion, fragTexCoord).r, 0.0, 1.0);
     vec3 N = normalize(fragNormal);
     vec3 V = normalize(u_viewPos - fragPosition);
     float ndv = max(dot(N, V), 1e-4);
@@ -219,11 +235,11 @@ void main()
     vec3 specAmb = mix(reflectedSky, irradiance, roughness)
                  * FresnelSchlickRoughness(ndv, F0, roughness);
 
-    vec3 ambient = (diffuseAmb + specAmb)
-                 * clamp(u_ao, 0.0, 1.0) * u_ambientIntensity;
+    vec3 ambient = (diffuseAmb + specAmb) * ao * u_ambientIntensity;
 
     // Emissive is HDR: intensity > 1 feeds the bloom pipeline.
-    vec3 emissive = u_emissive * u_emissiveIntensity;
+    vec3 emissive = u_emissive * u_emissiveIntensity
+                  * texture(u_texEmissive, fragTexCoord).rgb;
 
     finalColor = vec4(ambient + Lo + emissive, baseTex.a);
 }

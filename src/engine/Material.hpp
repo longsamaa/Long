@@ -32,6 +32,15 @@ namespace Long {
 		const std::unordered_map<std::string, UniformValue>& Uniforms() const {
 			return m_uniforms;
 		}
+		// Texture maps by SHADER SAMPLER NAME ("texture0", "u_texMetalRough",
+		// ...) -> AssetManager texture id. Same philosophy as the uniform table:
+		// the backend resolves names and picks texture units its own way.
+		void SetTexture(const std::string& name, uint32_t textureId) {
+			m_textures[name] = textureId;
+		}
+		const std::unordered_map<std::string, uint32_t>& Textures() const {
+			return m_textures;
+		}
 		// Common PBR-ish surface params every material carries. Stored as u_*
 		// uniforms; shaders that don't declare them just resolve to loc -1.
 		void SetColor(raylib::Color color);
@@ -60,6 +69,7 @@ namespace Long {
 		bool castShadow{ true };
 		bool receiveShadow{ true };
 		std::unordered_map<std::string, UniformValue> m_uniforms;
+		std::unordered_map<std::string, uint32_t> m_textures;
 	};
 }
 #endif // !_MATERIAL_HPP_
