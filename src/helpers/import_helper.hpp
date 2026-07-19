@@ -40,8 +40,7 @@ namespace Long {
 			BaseMaterial& mat = asset.GetMaterial(id);
 			mat.SetUniform("u_baseColor", gm.baseColorFactor);
 			mat.SetMetallic(gm.metallicFactor);
-			//mat.SetRoughness(gm.roughnessFactor);
-			mat.SetRoughness(0.2f);
+			mat.SetRoughness(gm.roughnessFactor);
 			mat.SetEmissive(gm.emissiveFactor, 1.0f); // glTF: emissive = factor * texture
 			uint32_t tex;
 			if ((tex = textureFor(gm.baseColorImage)) != AssetManager::Invalid) {

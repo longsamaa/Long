@@ -31,8 +31,10 @@ namespace Long {
 		double msPicking = 0.0;         // mouse raycast against colliders
 		double msUpdate = 0.0;          // whole EditorState::Update
 		// Per-pass timings (ms), indexed by pass order; filled by Renderer::Render.
-		static constexpr int kMaxPasses = 8;
+		static constexpr int kMaxPasses = 16;
 		double msPass[kMaxPasses] = {};
+		// Pass display names; point at Renderer-owned strings (outlive the frame).
+		const char* passName[kMaxPasses] = {};
 		int passCount = 0;              // how many entries in msPass are valid
 		double msRenderTotal = 0.0;     // whole Renderer::Render (all passes)
 		double msEndDrawing = 0.0;      // EndDrawing/SwapBuffers (incl. vsync wait)

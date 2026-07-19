@@ -426,7 +426,7 @@ namespace Long {
 			m_app.GetAssets(),
 			"pbr");
 
-		path = std::filesystem::path(GetApplicationDirectory()) / "resources/Kitchen.glb";
+		path = std::filesystem::path(GetApplicationDirectory()) / "resources/dat.glb";
 		model = assets.ImportModel(path);
 		if (!model.IsValid()) {
 			Logger::TraceLog(LOG_WARNING,
@@ -434,10 +434,22 @@ namespace Long {
 			return;
 		}
 		ImportGLTFToScene(m_scene.Registry(),
-			"house",
+			"gach1",
 			model,
 			m_app.GetAssets(),
 			"pbr"); 
+		path = std::filesystem::path(GetApplicationDirectory()) / "resources/GACH2.glb";
+		model = assets.ImportModel(path);
+		if (!model.IsValid()) {
+			Logger::TraceLog(LOG_WARNING,
+				std::format("[Editor] import failed: {}", path.string()));
+			return;
+		}
+		ImportGLTFToScene(m_scene.Registry(),
+			"gach2",
+			model,
+			m_app.GetAssets(),
+			"pbr");
 	}
 
 	void EditorState::RenderMenuBar()

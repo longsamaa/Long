@@ -38,13 +38,9 @@ namespace Long {
 			ImGui::Text("Picking:      %.3f", m_stats.msPicking);
 			ImGui::Text("Update total: %.3f", m_stats.msUpdate);
 			ImGui::SeparatorText("Pass timing (ms)");
-			static const char* kPassNames[] = {
-				"Scene", "Mask", "Composite", "Outline", "FXAA", "Gizmo"
-			};
 			for (int i = 0; i < m_stats.passCount; ++i) {
-				const char* name = (i < (int)(sizeof(kPassNames) / sizeof(*kPassNames)))
-					? kPassNames[i] : "Pass";
-				ImGui::Text("%-12s %.3f", name, m_stats.msPass[i]);
+				const char* name = m_stats.passName[i] ? m_stats.passName[i] : "Pass";
+				ImGui::Text("%-18s %.3f", name, m_stats.msPass[i]);
 			}
 			ImGui::Text("Render total: %.3f", m_stats.msRenderTotal);
 			ImGui::Text("EndDrawing:   %.3f", m_stats.msEndDrawing);

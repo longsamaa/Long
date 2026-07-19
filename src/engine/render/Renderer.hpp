@@ -7,6 +7,7 @@
 #include "engine/render/RenderContext.hpp"
 #include <memory>
 #include <vector>
+#include <string>
 
 namespace Long {
 
@@ -25,6 +26,7 @@ namespace Long {
 
 	private:
 		std::vector<std::unique_ptr<IRenderPass>> m_passes;
+		std::vector<std::string> m_passNames; // parallel to m_passes, for the profiler
 		GLRenderTarget m_sceneTarget;
 		GLRenderTarget m_maskTarget;
 		GLRenderTarget m_finalTarget;

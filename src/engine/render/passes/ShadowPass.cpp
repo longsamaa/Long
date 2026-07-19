@@ -85,25 +85,26 @@ namespace Long {
 		if (!ctx.assets->IsValidShader(pointDepthShaderId)) {
 			return false;
 		}
+		const raylib::Vector3 eye = light.position;
+		const float r = (light.range > 0.01f) ? light.range : 0.01f;
+
+		// Light-level cull: if the light's range sphere is completely outside
+		// the CAMERA frustum, nothing on screen can receive this shadow -- the
+		// cube would never be sampled. Skip all 6 faces.
+		if (ctx.frustum) {
+			const raylib::Vector3 mn{ eye.x - r, eye.y - r, eye.z - r };
+			const raylib::Vector3 mx{ eye.x + r, eye.y + r, eye.z + r };
+			if (!ctx.frustum->isVisible(mn, mx)) {
+				return false; // cubeShadowIndex stays -1 -> shader ignores it
+			}
+		}
+
 		GLRenderTarget& cube = m_cubeTargets[slot];
 		cube.SetFormat(GLRenderTarget::Format::CUBE);
 		cube.Resize(m_cubeResolution, m_cubeResolution);
 		if (cube.Depth().id == 0) {
 			return false;
 		}
-
-		const raylib::Vector3 eye = light.position;
-		const float r = (light.range > 0.01f) ? light.range : 0.01f;
-
-		raylib::Matrix boxView = raylib::Matrix(MatrixTranslate(-eye.x, -eye.y, -eye.z));
-		raylib::Matrix boxProj = raylib::Matrix(MatrixOrtho(-r, r, -r, r, -r, r));
-		m_lightFrustum.buildFromMatrix(boxView.Multiply(boxProj));
-		m_queue.Clear();
-		m_visibility->gatherVisible(*ctx.registry, &m_lightFrustum, m_visible,
-			ctx.renderStats.culledEntities);
-		RenderSystem(*ctx.registry, *ctx.assets, m_queue, m_visible, ctx.renderStats);
-		m_queue.Sort();
-		m_queue.BuildBatches();
 		const Vector3 dirs[6] = {
 			{  1,  0,  0 }, { -1,  0,  0 }, {  0,  1,  0 },
 			{  0, -1,  0 }, {  0,  0,  1 }, {  0,  0, -1 },
@@ -123,11 +124,26 @@ namespace Long {
 				MatrixPerspective(90.0 * DEG2RAD, 1.0, m_near, (double)r));
 			raylib::Matrix faceViewProj = view.Multiply(proj);
 
+			// Per-face cull: each face is its own 90-degree camera. Gathering
+			// against the face frustum (instead of one box around the light and
+			// drawing that whole set into every face) cuts each face's draws to
+			// only the casters that face can actually see.
+			m_lightFrustum.buildFromMatrix(faceViewProj);
+			m_queue.Clear();
+			uint32_t faceCulled = 0; // local: don't clobber the camera-pass stat
+			m_visibility->gatherVisible(*ctx.registry, &m_lightFrustum, m_visible,
+				faceCulled);
+
 			cube.BindFace(face);
 			rlClearScreenBuffers(); // clears this face's depth to 1.0 (= max distance)
-			ctx.glRenderer->DrawDepth(m_queue.batches(), m_queue.batchCount(),
-				*ctx.assets, faceViewProj, pointDepthShaderId, r,
-				/*linearDistance*/ true, &light.position);
+			if (!m_visible.empty()) {
+				RenderSystem(*ctx.registry, *ctx.assets, m_queue, m_visible, ctx.renderStats);
+				m_queue.Sort();
+				m_queue.BuildBatches();
+				ctx.glRenderer->DrawDepth(m_queue.batches(), m_queue.batchCount(),
+					*ctx.assets, faceViewProj, pointDepthShaderId, r,
+					/*linearDistance*/ true, &light.position);
+			}
 		}
 		cube.EndCubeFace();
 		return true;
@@ -155,8 +171,11 @@ namespace Long {
 
 		m_lightFrustum.buildFromMatrix(lightViewProj);
 		m_queue.Clear();
+		// Local counter -- see renderPointLightDepth: don't clobber the camera
+		// pass's culled count in renderStats.
+		uint32_t shadowCulled = 0;
 		m_visibility->gatherVisible(*ctx.registry, &m_lightFrustum, m_visible,
-			ctx.renderStats.culledEntities);
+			shadowCulled);
 		RenderSystem(*ctx.registry, *ctx.assets, m_queue, m_visible, ctx.renderStats);
 		m_queue.Sort();
 		m_queue.BuildBatches();
