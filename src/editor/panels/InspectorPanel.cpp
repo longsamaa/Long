@@ -2,6 +2,7 @@
 #include "editor/inspector/CameraParameterInspector.hpp"
 #include "editor/inspector/TransformInspector.hpp"
 #include "editor/inspector/LightInspector.hpp"
+#include "editor/inspector/AnimatorInspector.hpp"
 #include "core/Scene.hpp"
 #include "core/Components.hpp"
 #include "imgui.h"
@@ -51,6 +52,12 @@ namespace Long {
 				if (ImGui::CollapsingHeader("Light",
 					ImGuiTreeNodeFlags_DefaultOpen)) {
 					LightInspector::Draw(*light);
+				}
+			}
+			if (Animator* animator = reg.try_get<Animator>(m_selected)) {
+				if (ImGui::CollapsingHeader("Animator",
+					ImGuiTreeNodeFlags_DefaultOpen)) {
+					AnimatorInspector::Draw(*animator);
 				}
 			}
 		}

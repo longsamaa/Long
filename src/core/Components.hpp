@@ -122,9 +122,6 @@ namespace Long {
 		uint32_t lasetSkeletonVersion = UINT32_MAX;
 	};
 
-	// One keyframe track: writes ONE property (T/R/S) of ONE entity's Transform.
-	// times is ascending; vec3Keys holds translation/scale keys, quatKeys holds
-	// rotation keys (only the vector matching `path` is filled).
 	struct AnimationChannel {
 		enum class Path : uint8_t { Translation, Rotation, Scale };
 		enum class Interp : uint8_t { Linear, Step };
@@ -138,22 +135,21 @@ namespace Long {
 
 	struct AnimationClip {
 		std::string name;
-		float duration{ 0.0f }; // seconds (max keyframe time)
+		float duration{ 0.0f }; 
 		std::vector<AnimationChannel> channels;
 	};
 
-	// Unity-style Animator: owns the model's clips and plays one of them each
-	// frame (AnimationSystem samples the current clip and patches Transform ->
-	// DirtyTransform -> TransformSystem -> SkinningSystem). Lives on the
-	// imported model's root entity. The state-machine half (controllerId,
-	// currentState, parameters) is layered on top of these playback fields and
-	// stays inert until an AnimatorController asset is assigned.
 	struct Animator {
 		std::vector<AnimationClip> clips;
-		int clipIndex{ 7 };   // which clip to play, -1 = none
-		float time{ 0.0f };   // seconds into the clip
+		int clipIndex{ 0 };   
+		float time{ 0.0f };   
 		float speed{ 1.0f };
 		bool loop{ true };
 		bool playing{ true };
+		bool poseDirty{ false };
+		bool isVisible{ true }; 
+		//Cull with camera and transform
+		enum class CullingMode : uint8_t{Always,UpdateTransform, CullCompletely};
+		CullingMode culling_mode{ CullingMode::Always }; 
 	};
 } // namespace Long

@@ -42,41 +42,42 @@ namespace Long {
 		}
 
 		std::vector<SkinnedMeshRenderer> skinnedMeshRenderComponent{};
-		uint32_t skinIndex = 0; 
-		for (const auto& skin : skins) {
-			const auto& joins = skin.joints;
-			const auto& inverseBind = skin.inverseBind;
-			std::string str_index = std::to_string(skinIndex); 
-			SkinnedMeshRenderer skinnedComponent{ skinIndex++,entt::null };
-			if (joins.size() != inverseBind.size()) {
-				skinnedMeshRenderComponent.push_back(skinnedComponent); // keep index aligned with skins[]
-				continue;
-			}
-			entt::entity skeleton_entt = registry.create();
-			Hierarchy& h = registry.emplace<Hierarchy>(skeleton_entt, Hierarchy{ root,{} });
-			auto it = std::find(h_root.children.begin(), h_root.children.end(), skeleton_entt); 
-			if (it == h_root.children.end()) {
-				h_root.children.emplace_back(skeleton_entt); 
-			}
-			Skeleton skeleton;
-			for (int i = 0; i < joins.size(); ++i) {
-				const auto& join = joins[i];
-				if (join < 0 || join >= nodes.size()) {
+		if (!model.animations.empty()) {
+			uint32_t skinIndex = 0;
+			for (const auto& skin : skins) {
+				const auto& joins = skin.joints;
+				const auto& inverseBind = skin.inverseBind;
+				std::string str_index = std::to_string(skinIndex);
+				SkinnedMeshRenderer skinnedComponent{ skinIndex++,entt::null };
+				if (joins.size() != inverseBind.size()) {
+					skinnedMeshRenderComponent.push_back(skinnedComponent); // keep index aligned with skins[]
 					continue;
 				}
-				entt::entity join_entt = entities[join];
-				skeleton.joints.emplace_back(join_entt);
-				const auto& inverse = inverseBind[i];
-				skeleton.inverseBind.emplace_back(inverse);
+				entt::entity skeleton_entt = registry.create();
+				Hierarchy& h = registry.emplace<Hierarchy>(skeleton_entt, Hierarchy{ root,{} });
+				auto it = std::find(h_root.children.begin(), h_root.children.end(), skeleton_entt);
+				if (it == h_root.children.end()) {
+					h_root.children.emplace_back(skeleton_entt);
+				}
+				Skeleton skeleton;
+				for (int i = 0; i < joins.size(); ++i) {
+					const auto& join = joins[i];
+					if (join < 0 || join >= nodes.size()) {
+						continue;
+					}
+					entt::entity join_entt = entities[join];
+					skeleton.joints.emplace_back(join_entt);
+					const auto& inverse = inverseBind[i];
+					skeleton.inverseBind.emplace_back(inverse);
+				}
+				skeleton.jointMatrices.resize(skeleton.joints.size());
+				//Skeleton
+				registry.emplace<Skeleton>(skeleton_entt, skeleton);
+				registry.emplace<Name>(skeleton_entt, std::format("skeleton_{}", str_index));
+				skinnedComponent.skeleton = skeleton_entt;
+				skinnedMeshRenderComponent.push_back(skinnedComponent);
 			}
-			skeleton.jointMatrices.resize(skeleton.joints.size());
-			registry.emplace<Skeleton>(skeleton_entt,skeleton);
-			registry.emplace<Name>(skeleton_entt,std::format("skeleton_{}", str_index));
-			skinnedComponent.skeleton = skeleton_entt; 
-			skinnedMeshRenderComponent.push_back(skinnedComponent); 
 		}
-
-
 
 		for (int i = 0; i < nodes.size(); ++i) {
 			const auto& node = nodes[i]; 
@@ -141,8 +142,7 @@ namespace Long {
 				}
 			}
 		}
-
-		//Animation: resolve clip channels (node index -> entity) onto the root
+		//Read animation clip 
 		if (!model.animations.empty()) {
 			Animator animator;
 			animator.clips.reserve(model.animations.size());

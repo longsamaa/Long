@@ -41,6 +41,19 @@ namespace Long {
 		}
 	}
 
+	// Wireframe AABB: 4 bottom edges, 4 top edges, 4 verticals.
+	void CommandDebugQueue::AddBox(const raylib::Vector3& min, const raylib::Vector3& max,
+		const raylib::Color& c)
+	{
+		const raylib::Vector3 b0{ min.x, min.y, min.z }, b1{ max.x, min.y, min.z };
+		const raylib::Vector3 b2{ max.x, min.y, max.z }, b3{ min.x, min.y, max.z };
+		const raylib::Vector3 t0{ min.x, max.y, min.z }, t1{ max.x, max.y, min.z };
+		const raylib::Vector3 t2{ max.x, max.y, max.z }, t3{ min.x, max.y, max.z };
+		AddLine(b0, b1, c); AddLine(b1, b2, c); AddLine(b2, b3, c); AddLine(b3, b0, c);
+		AddLine(t0, t1, c); AddLine(t1, t2, c); AddLine(t2, t3, c); AddLine(t3, t0, c);
+		AddLine(b0, t0, c); AddLine(b1, t1, c); AddLine(b2, t2, c); AddLine(b3, t3, c);
+	}
+
 	void CommandDebugQueue::BuildLines(RenderStats& stats)
 	{
 		m_lines.clear();
@@ -75,6 +88,9 @@ namespace Long {
 					AddLine(v.n_br, v.f_br, g); AddLine(v.n_bl, v.f_bl, g);
 					AddLine(v.f_tl, v.f_tr, g); AddLine(v.f_tr, v.f_br, g);
 					AddLine(v.f_br, v.f_bl, g); AddLine(v.f_bl, v.f_tl, g);
+				}
+				else if constexpr (std::is_same_v<T, BoxHelperCommand>) {
+					AddBox(v.min, v.max, v.color);
 				}
 				else if constexpr (std::is_same_v<T, LightHelperCommand>) {
 					raylib::Vector3 dir = raylib::Vector3(v.direction).Normalize();

@@ -36,8 +36,6 @@ namespace Long {
 			uint32_t depthShaderId, const float& range, bool linearDistance = false,
 			const raylib::Vector3* lightPos = nullptr);
 		void ApplyMaterial(const BaseMaterial& material, const ::Shader& shader);
-		// skeleton != nullptr -> draws with the material shader's SKINNED variant
-		// (joint matrices bound, caller should pass identity as transform).
 		void DrawMeshImmediate(AssetManager& assets, uint32_t meshId,
 			const BaseMaterial& material, const raylib::Matrix& transform,
 			const Skeleton* skeleton = nullptr);
@@ -46,14 +44,10 @@ namespace Long {
 		void DrawDebugLines(AssetManager& assets,
 			const std::vector<struct DebugLineVertex>& lines);
 		::Mesh uploadRaylibMesh(const MeshCPU& cpu);
-		std::optional<GLSkinMesh> uploadSkinMesh(uint32_t vaoId, const MeshCPU& cpu);
 	private:
-		//Upload cpu mesh to gpu
 		GLGpuMesh& UploadGpuMesh(AssetManager& assets, uint32_t meshId);
+		std::optional<GLSkinMesh> uploadSkinMesh(uint32_t vaoId, const MeshCPU& cpu);
 		void UploadInstanceTransforms(const std::vector<raylib::Matrix>& transforms);
-		// Uploads a skeleton's jointMatrices into the joint SSBO and binds it.
-		// SSBO instead of a uniform array: no MAX_JOINTS cap (rigs with 147+
-		// joints overflowed the 128-mat4 uniform array -> garbage vertices).
 		void BindJointMatrices(const Skeleton& skel);
 		std::vector<GLGpuMesh> m_gpuMeshes;      // GPU cache, index = asset mesh id
 		unsigned int m_instanceVbo{ 0 };      // persistent instance-transform VBO

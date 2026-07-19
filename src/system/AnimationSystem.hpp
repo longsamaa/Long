@@ -3,10 +3,8 @@
 #define _ANIMATION_SYSTEM_HPP_
 #include <entt/entt.hpp>
 namespace Long {
-	// Advances every Animator and writes the sampled T/R/S keys into the
-	// target entities' Transforms via registry.patch<Transform>, so the Scene's
-	// on_update observer bumps version + DirtyTransform and TransformSystem picks
-	// the change up. Run BEFORE TransformSystem (which feeds SkinningSystem).
 	void AnimationSystem(entt::registry& registry, float dt);
+	static void Animation_FindKeys(const std::vector<float>& times, float time,
+		size_t& i0, size_t& i1, float& f); 
 }
 #endif // !_ANIMATION_SYSTEM_HPP_

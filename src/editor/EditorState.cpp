@@ -262,6 +262,23 @@ namespace Long {
 		m_game->RenderWorld();
 	}
 
+	// Submit a wireframe box for every WorldAABB in the entity's subtree (the
+	// selected model root has no AABB of its own; the mesh children do).
+	static void SubmitSubtreeAABBs(entt::registry& reg, CommandDebugQueue& queue,
+		entt::entity e, const raylib::Color& color)
+	{
+		if (const WorldAABB* aabb = reg.try_get<WorldAABB>(e)) {
+			queue.Submit(BoxHelperCommand{ aabb->min, aabb->max, color });
+		}
+		if (const Hierarchy* h = reg.try_get<Hierarchy>(e)) {
+			for (entt::entity child : h->children) {
+				if (child != entt::null && reg.valid(child)) {
+					SubmitSubtreeAABBs(reg, queue, child, color);
+				}
+			}
+		}
+	}
+
 	void EditorState::AddDebug(RenderContext& ctx)
 	{
 		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
@@ -291,6 +308,15 @@ namespace Long {
 			const Transform& t = m_scene.Registry().get<Transform>(m_selectedEntity);
 			m_commandDebugQueue.Submit(LightHelperCommand{
 				t.position, lc->world_direction, lc->color, 4.0f });
+		}
+
+		if (m_selectedEntity != entt::null && m_scene.Registry().valid(m_selectedEntity)) {
+			auto& reg = m_scene.Registry();
+			raylib::Color boxColor{ 255, 200, 40, 255 };
+			if (const Animator* anim = reg.try_get<Animator>(m_selectedEntity)) {
+				boxColor = anim->isVisible ? raylib::Color::Green() : raylib::Color::Red();
+			}
+			SubmitSubtreeAABBs(reg, m_commandDebugQueue, m_selectedEntity, boxColor);
 		}
 	}
 
@@ -387,43 +413,6 @@ namespace Long {
 
 		std::filesystem::path path = std::filesystem::path(GetApplicationDirectory()) / "resources/robot.glb";
 		ModelAsset model = assets.ImportModel(path);
-		//if (!model.IsValid()) {
-		//	Logger::TraceLog(LOG_WARNING,
-		//		std::format("[Editor] import failed: {}", path.string()));
-		//	return;
-		//}
-		//ImportGLTFToScene(m_scene.Registry(),
-		//	"robot",
-		//	model,
-		//	m_app.GetAssets(),
-		//	"pbr");
-
-		//path = std::filesystem::path(GetApplicationDirectory()) / "resources/Kitchen.glb";
-		//model = assets.ImportModel(path);
-		//if (!model.IsValid()) {
-		//	Logger::TraceLog(LOG_WARNING,
-		//		std::format("[Editor] import failed: {}", path.string()));
-		//	return;
-		//}
-		//ImportGLTFToScene(m_scene.Registry(),
-		//	"house",
-		//	model,
-		//	m_app.GetAssets(),
-		//	"pbr");
-
-		//path = std::filesystem::path(GetApplicationDirectory()) / "resources/plane.glb";
-		//model = assets.ImportModel(path);
-		//if (!model.IsValid()) {
-		//	Logger::TraceLog(LOG_WARNING,
-		//		std::format("[Editor] import failed: {}", path.string()));
-		//	return;
-		//}
-		//ImportGLTFToScene(m_scene.Registry(),
-		//	"plane",
-		//	model,
-		//	m_app.GetAssets(),
-		//	"pbr");
-
 		path = std::filesystem::path(GetApplicationDirectory()) / "resources/dragon.glb";
 		model = assets.ImportModel(path);
 		if (!model.IsValid()) {
@@ -436,6 +425,19 @@ namespace Long {
 			model,
 			m_app.GetAssets(),
 			"pbr");
+
+		//path = std::filesystem::path(GetApplicationDirectory()) / "resources/house.glb";
+		//model = assets.ImportModel(path);
+		//if (!model.IsValid()) {
+		//	Logger::TraceLog(LOG_WARNING,
+		//		std::format("[Editor] import failed: {}", path.string()));
+		//	return;
+		//}
+		//ImportGLTFToScene(m_scene.Registry(),
+		//	"house",
+		//	model,
+		//	m_app.GetAssets(),
+		//	"pbr"); 
 	}
 
 	void EditorState::RenderMenuBar()

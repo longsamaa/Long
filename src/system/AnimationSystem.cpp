@@ -3,10 +3,7 @@
 #include <raylib-cpp.hpp>
 #include <algorithm> // upper_bound
 namespace Long {
-	// Finds the segment [i0, i1] around `time` and the 0..1 blend factor between
-	// the two keys. Clamps to the first/last key outside the track's range.
-	static void FindKeys(const std::vector<float>& times, float time,
-		size_t& i0, size_t& i1, float& f)
+	void Animation_FindKeys(const std::vector<float>& times, float time, size_t& i0, size_t& i1, float& f)
 	{
 		if (time <= times.front()) { i0 = i1 = 0; f = 0.0f; return; }
 		if (time >= times.back()) { i0 = i1 = times.size() - 1; f = 0.0f; return; }
@@ -21,36 +18,49 @@ namespace Long {
 		auto players = registry.view<Animator>();
 		for (entt::entity e : players) {
 			Animator& player = players.get<Animator>(e);
-			if (!player.playing || player.clipIndex < 0
+			//Guard clip index
+			if (player.clipIndex < 0
 				|| player.clipIndex >= (int)player.clips.size()) {
 				continue;
 			}
+			if (player.culling_mode == Animator::CullingMode::CullCompletely
+				&& !player.isVisible) {
+				continue;
+			}
+			//Guard animation clip 
 			const AnimationClip& clip = player.clips[player.clipIndex];
 			if (clip.channels.empty() || clip.duration <= 0.0f) {
 				continue;
 			}
-
-			player.time += dt * player.speed;
-			if (player.time > clip.duration || player.time < 0.0f) {
-				if (player.loop) {
-					player.time = std::fmod(player.time, clip.duration);
-					if (player.time < 0.0f) player.time += clip.duration; // negative speed
-				}
-				else {
-					player.time = std::clamp(player.time, 0.0f, clip.duration);
-					player.playing = false; // one-shot finished, hold last pose
+			if (player.playing) {
+				player.time += dt * player.speed;
+				if (player.time > clip.duration || player.time < 0.0f) {
+					if (player.loop) {
+						player.time = std::fmod(player.time, clip.duration);
+						if (player.time < 0.0f) player.time += clip.duration;
+					}
+					else {
+						player.time = std::clamp(player.time, 0.0f, clip.duration);
+						player.playing = false;
+					}
 				}
 			}
-
+			else if (!player.poseDirty) {
+				continue;
+			}
+			if (player.culling_mode == Animator::CullingMode::UpdateTransform
+				&& !player.isVisible) {
+				continue;
+			}
+			player.poseDirty = false;
 			for (const AnimationChannel& ch : clip.channels) {
 				if (ch.times.empty() || ch.target == entt::null || !registry.valid(ch.target)
 					|| !registry.all_of<Transform>(ch.target)) {
 					continue;
 				}
 				size_t i0, i1; float f;
-				FindKeys(ch.times, player.time, i0, i1, f);
+				Animation_FindKeys(ch.times, player.time, i0, i1, f);
 				const bool step = (ch.interp == AnimationChannel::Interp::Step);
-
 				switch (ch.path) {
 				case AnimationChannel::Path::Translation: {
 					if (i1 >= ch.vec3Keys.size()) break;

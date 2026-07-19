@@ -32,7 +32,13 @@ namespace Long {
 		raylib::Color   color{ 255, 220, 40, 255 };
 		float length{ 3.0f };
 	};
-	using DebugCommand = std::variant<GridCommand, CameraHelperCommand, LightHelperCommand>;
+	// Wireframe AABB (12 edges), min/max in world space.
+	struct BoxHelperCommand {
+		raylib::Vector3 min;
+		raylib::Vector3 max;
+		raylib::Color color{ 255, 200, 40, 255 };
+	};
+	using DebugCommand = std::variant<GridCommand, CameraHelperCommand, LightHelperCommand, BoxHelperCommand>;
 
 	// One vertex of a debug line (GL_LINES: 2 vertices per segment).
 	// 3 floats + 4 normalized bytes = 16 bytes, matches the VAO layout that
@@ -60,6 +66,7 @@ namespace Long {
 	private:
 		void AddLine(const raylib::Vector3& a, const raylib::Vector3& b, const raylib::Color& c);
 		void AddCircle(const raylib::Vector3& center, float radius, int axis, const raylib::Color& c);
+		void AddBox(const raylib::Vector3& min, const raylib::Vector3& max, const raylib::Color& c);
 		std::vector<DebugCommand> m_commands;
 		std::vector<DebugLineVertex> m_lines;
 	};
