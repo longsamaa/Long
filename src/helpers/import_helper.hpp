@@ -42,6 +42,10 @@ namespace Long {
 			mat.SetMetallic(gm.metallicFactor);
 			mat.SetRoughness(gm.roughnessFactor);
 			mat.SetEmissive(gm.emissiveFactor, 1.0f); // glTF: emissive = factor * texture
+			// glTF doubleSided -> draw both faces (foliage, cloth, cards).
+			if (gm.doubleSided) {
+				mat.SetCullMode(CullMode::None);
+			}
 			uint32_t tex;
 			if ((tex = textureFor(gm.baseColorImage)) != AssetManager::Invalid) {
 				mat.SetTexture("texture0", tex);

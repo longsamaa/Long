@@ -461,6 +461,7 @@ namespace Long {
 			m.metallicRoughnessImage = texToImage(pbr.metallicRoughnessTexture.index);
 			m.emissiveImage = texToImage(gm.emissiveTexture.index);
 			m.occlusionImage = texToImage(gm.occlusionTexture.index);
+			m.doubleSided = gm.doubleSided;
 			out.materials.push_back(m);
 		}
 

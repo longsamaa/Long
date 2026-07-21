@@ -22,6 +22,12 @@ namespace Long {
 	//
 	// Subclasses (DefaultMaterial, WireframeMaterial, ...) are just convenience
 	// constructors/setters that fill the parameter table.
+	// Which triangle facings survive rasterization. Back = default (cull
+	// back-faces, the normal opaque case). None = draw both sides (foliage,
+	// cloth, glass, flat planes seen from behind). Front = cull front-faces
+	// (rare: inverted meshes, some skybox/shell tricks).
+	enum class CullMode : uint8_t { Back, Front, None };
+
 	class BaseMaterial {
 	public:
 		BaseMaterial();
@@ -64,10 +70,14 @@ namespace Long {
 		}
 		void SetShaderId(uint32_t id) { shaderId = id; }
 		uint32_t GetShaderId() const { return shaderId; }
+		// Face culling for this surface. Read by the backend per batch.
+		void SetCullMode(CullMode mode) { cullMode = mode; }
+		CullMode GetCullMode() const { return cullMode; }
 	protected:
 		uint32_t shaderId = UINT32_MAX;
 		bool castShadow{ true };
 		bool receiveShadow{ true };
+		CullMode cullMode{ CullMode::Back };
 		std::unordered_map<std::string, UniformValue> m_uniforms;
 		std::unordered_map<std::string, uint32_t> m_textures;
 	};

@@ -62,6 +62,7 @@ namespace Long {
 		int metallicRoughnessImage{ -1 }; // glTF packing: G = roughness, B = metallic
 		int emissiveImage{ -1 };
 		int occlusionImage{ -1 };         // R = ambient occlusion
+		bool doubleSided{ false };        // true -> render both faces (CullMode::None)
 	};
 	// Self-contained import result: meshes live IN the asset and node.meshIds
 	// are LOCAL indices into `meshes` (0..meshes.size()-1). Registration with the

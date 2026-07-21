@@ -582,6 +582,25 @@ namespace Long {
 				}
 			}
 
+			// Per-material face culling. rlgl only toggles culling on/off (not
+			// the face), so drive GL directly here. glCullFace/GL_CULL_FACE
+			// persist on the context; the restore after the loop puts them back
+			// to raylib's default (cull GL_BACK, culling enabled).
+			switch (batch.material->GetCullMode()) {
+			case CullMode::None:
+				rlDisableBackfaceCulling();
+				break;
+			case CullMode::Front:
+				rlEnableBackfaceCulling();
+				glCullFace(GL_FRONT);
+				break;
+			case CullMode::Back:
+			default:
+				rlEnableBackfaceCulling();
+				glCullFace(GL_BACK);
+				break;
+			}
+
 			ApplyMaterial(*batch.material, sh, assets);
 			GLGpuMesh& mesh = UploadGpuMesh(assets, batch.meshId);
 			if (!rlEnableVertexArray(mesh.mesh.vaoId)) {
@@ -632,6 +651,10 @@ namespace Long {
 
 			rlDisableVertexArray();
 		}
+		// Restore the pipeline default so later passes (skybox, gizmo, shadow)
+		// don't inherit a stray cull face/state from the last batch drawn.
+		rlEnableBackfaceCulling();
+		glCullFace(GL_BACK);
 		rlDisableShader();
 	}
 

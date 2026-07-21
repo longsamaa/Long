@@ -5,6 +5,9 @@
 #include "editor/inspector/AnimatorInspector.hpp"
 #include "core/Scene.hpp"
 #include "core/Components.hpp"
+#include "engine/Application.hpp"
+#include "engine/AssetManager.hpp"
+#include "engine/Material.hpp"
 #include "imgui.h"
 
 namespace Long {
@@ -58,6 +61,23 @@ namespace Long {
 				if (ImGui::CollapsingHeader("Animator",
 					ImGuiTreeNodeFlags_DefaultOpen)) {
 					AnimatorInspector::Draw(*animator);
+				}
+			}
+			if (MeshRenderer* mr = reg.try_get<MeshRenderer>(m_selected)) {
+				Application* app = m_scene.GetApplication();
+				if (app && ImGui::CollapsingHeader("Material",
+					ImGuiTreeNodeFlags_DefaultOpen)) {
+					AssetManager& assets = app->GetAssets();
+					if (assets.IsValidMaterial(mr->materialId)) {
+						BaseMaterial& mat = assets.GetMaterial(mr->materialId);
+						const char* items[] = { "Back (default)", "Front", "None (double-sided)" };
+						int current = (int)mat.GetCullMode();
+						if (ImGui::Combo("Render side", &current, items, IM_ARRAYSIZE(items))) {
+							mat.SetCullMode((CullMode)current);
+						}
+					} else {
+						ImGui::TextDisabled("Default material (not editable).");
+					}
 				}
 			}
 		}
